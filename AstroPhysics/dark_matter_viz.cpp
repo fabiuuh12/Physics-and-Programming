@@ -137,8 +137,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(32, 0.5f);
-
         DrawSphere({0.0f, 0.0f, 0.0f}, 0.45f, Color{255, 215, 140, 255});
         DrawSphere({0.0f, 0.0f, 0.0f}, 3.2f + 2.3f * haloStrength, Color{90, 130, 220, 25});
 

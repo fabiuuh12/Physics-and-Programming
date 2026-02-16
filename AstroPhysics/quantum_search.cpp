@@ -63,8 +63,6 @@ int main() {
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         for (int i=0;i<N;++i) {
             int row = i / 4;
             int col = i % 4;

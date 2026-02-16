@@ -184,7 +184,6 @@ int main() {
     float simTime = 0.0f;
     float speed = 1.0f;
     bool paused = false;
-    bool showGrid = true;
     float camYaw = 0.78f;
     float camPitch = 0.42f;
     float camDistance = 12.0f;
@@ -195,7 +194,6 @@ int main() {
             simTime = 0.0f;
             ResetSystem(&a, &b, &trailA, &trailB);
         }
-        if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
         if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) speed = std::min(6.0f, speed + 0.25f);
         if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) speed = std::max(0.25f, speed - 0.25f);
 
@@ -221,7 +219,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        if (showGrid) DrawGrid(28, 0.5f);
         DrawTrail(trailA, a.color);
         DrawTrail(trailB, b.color);
 
@@ -234,7 +231,7 @@ int main() {
         EndMode3D();
 
         DrawText("Two Body Orbit (Mutual Gravity)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | R reset | G grid", 20, 56, 20, Color{164, 183, 210, 255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | R reset", 20, 56, 20, Color{164, 183, 210, 255});
         std::string hud = HudText(simTime, speed, a, b, paused);
         DrawText(hud.c_str(), 20, 86, 21, Color{126, 224, 255, 255});
         DrawFPS(20, 118);

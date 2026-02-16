@@ -166,7 +166,7 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
+
         DrawWormholeSurface(throatRadius, flare);
 
         DrawSphere({0.0f, 0.0f, -4.8f}, RadiusProfile(-4.8f, throatRadius, flare), Color{80, 120, 190, 35});

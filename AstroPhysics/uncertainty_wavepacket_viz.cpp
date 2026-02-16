@@ -68,7 +68,7 @@ int main() {
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
 
-        DrawGrid(26, 0.5f);
+
 
         for (int i=0;i<160;++i) {
             float x = -7.5f + 15.0f * i / 159.0f;

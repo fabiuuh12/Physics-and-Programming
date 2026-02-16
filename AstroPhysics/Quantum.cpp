@@ -69,8 +69,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(24,0.5f);
         DrawPotentialWell(a,w,V0);
 
         const int n=200;

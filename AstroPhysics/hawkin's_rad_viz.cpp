@@ -56,8 +56,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(24,0.5f);
         DrawSphere({-2.8f,0.7f,0}, 0.22f*massBH, BLACK);
         DrawSphere({-2.8f,0.7f,0}, 0.22f*massBH + 0.1f, Color{120,170,230,35});
 

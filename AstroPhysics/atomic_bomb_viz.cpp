@@ -142,7 +142,6 @@ int main() {
         ClearBackground(Color{8, 9, 13, 255});
 
         BeginMode3D(camera);
-        DrawGrid(24, 0.5f);
 
         float shockR = std::min(8.0f, 0.15f * yield);
         if (shockR > 0.1f) DrawSphere({0.0f, 0.0f, 0.0f}, shockR, Color{255, 150, 90, 20});

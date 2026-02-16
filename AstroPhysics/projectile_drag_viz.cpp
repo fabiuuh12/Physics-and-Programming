@@ -101,8 +101,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6, 9, 16, 255});
         BeginMode3D(camera);
-
-        DrawGrid(32, 0.5f);
         DrawCube({8.0f, -0.02f, 0.0f}, 20.0f, 0.02f, 5.0f, Color{50, 70, 95, 255});
 
         DrawTrail(trNo, Color{130, 220, 255, 255});

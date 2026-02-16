@@ -155,8 +155,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(28, 0.5f);
-
         if (showGuides) {
             DrawLine3D(Vector3Scale(magAxis, -2.5f), Vector3Scale(magAxis, 2.5f), Color{130, 220, 255, 170});
             DrawMagneticGuideRings(magAxis);

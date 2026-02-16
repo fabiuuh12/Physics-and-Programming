@@ -19,7 +19,6 @@ struct SimState {
     float angle;
     float speed;
     bool paused;
-    bool showGrid;
     bool showHelp;
     float sheetScale;
 };
@@ -138,7 +137,6 @@ int main() {
     sim.angle = 0.0f;
     sim.speed = 1.0f;
     sim.paused = false;
-    sim.showGrid = false;
     sim.showHelp = true;
     sim.sheetScale = 1.0f;
 
@@ -158,7 +156,6 @@ int main() {
             sim.paused = false;
             trail.clear();
         }
-        if (IsKeyPressed(KEY_G)) sim.showGrid = !sim.showGrid;
         if (IsKeyPressed(KEY_H)) sim.showHelp = !sim.showHelp;
         if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) sim.speed = std::max(0.25f, sim.speed - 0.25f);
         if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) sim.speed = std::min(8.0f, sim.speed + 0.25f);
@@ -190,8 +187,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        if (sim.showGrid) DrawGrid(44, 0.5f);
-
         DrawSpacetimeSheet(sunPos, planetPos, sim.sheetScale);
         DrawOrbitTrail(trail);
 
@@ -211,7 +206,7 @@ int main() {
 
         DrawText("Planet Orbiting the Sun with Spacetime Curvature", 20, 18, 30, Color{232, 238, 248, 255});
         if (sim.showHelp) {
-            DrawText("Hold left mouse: orbit camera | wheel: zoom | +/- speed | [ ] warp | P pause | R reset | G grid | H help",
+            DrawText("Hold left mouse: orbit camera | wheel: zoom | +/- speed | [ ] warp | P pause | R reset | H help",
                      20, 56, 19, Color{164, 183, 210, 255});
         } else {
             DrawText("Press H to show controls", 20, 56, 19, Color{164, 183, 210, 255});

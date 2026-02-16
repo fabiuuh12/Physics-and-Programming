@@ -127,8 +127,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         DrawCylinder({0.0f, 0.6f, 0.0f}, 0.10f, 0.10f, 0.8f, 24, Color{180, 190, 215, 220});
         DrawLine3D(p1, p2, Color{180, 215, 255, 255});
 

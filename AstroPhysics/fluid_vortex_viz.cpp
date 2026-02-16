@@ -88,8 +88,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(26, 0.5f);
         DrawCylinder({0,0.5f,0}, 0.18f, 0.18f, 1.1f, 20, Color{255,170,120,180});
 
         for (const auto& m : marks) {

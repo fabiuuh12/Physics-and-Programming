@@ -95,8 +95,6 @@ int main() {
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         for (size_t i=1; i<trail1.size(); ++i) DrawLine3D(trail1[i-1], trail1[i], Color{255,140,140,120});
         for (size_t i=1; i<trail2.size(); ++i) DrawLine3D(trail2[i-1], trail2[i], Color{140,180,255,120});
 

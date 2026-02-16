@@ -71,8 +71,6 @@ int main() {
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         Vector3 anchor = {-3.4f, 0.5f, 0.0f};
         Vector3 massPos = {-0.4f + x, 0.5f, 0.0f};
 

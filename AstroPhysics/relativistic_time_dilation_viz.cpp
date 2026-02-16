@@ -81,7 +81,6 @@ int main() {
         ClearBackground(Color{7, 10, 16, 255});
 
         BeginMode3D(camera);
-        DrawGrid(24, 0.5f);
 
         DrawCube({-2.1f, 0.3f, 0.0f}, 1.3f, 0.6f, 1.3f, Color{120, 170, 230, 120});
         DrawCube({2.1f, 0.3f, 0.0f}, 1.6f, 0.6f, 1.0f, Color{255, 180, 120, 120});

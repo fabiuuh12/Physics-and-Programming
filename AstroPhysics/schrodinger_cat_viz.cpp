@@ -67,8 +67,6 @@ int main() {
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         DrawCubeWires({0.0f,0.8f,0.0f}, 4.2f, 2.0f, 2.5f, Color{130,180,255,180});
 
         Vector3 alivePos = {-0.9f, 0.65f, 0.0f};

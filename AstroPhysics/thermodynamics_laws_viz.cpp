@@ -109,7 +109,6 @@ int main() {
         ClearBackground(Color{7, 10, 16, 255});
 
         BeginMode3D(camera);
-        DrawGrid(26, 0.5f);
 
         DrawCubeWires({0.0f, 0.8f, 0.0f}, 2.0f * halfX, 2.0f * halfY, 2.0f * halfZ, Color{130, 180, 255, 180});
 

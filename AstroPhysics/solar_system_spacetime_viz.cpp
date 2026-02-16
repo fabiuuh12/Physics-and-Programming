@@ -170,7 +170,6 @@ int main() {
     float speed = 1.0f;
     float warpScale = 1.0f;
     bool paused = false;
-    bool showGrid = false;
     bool showTrails = true;
     bool showLabels = true;
     bool showHelp = true;
@@ -184,7 +183,6 @@ int main() {
             paused = false;
             for (Planet& p : planets) p.trail.clear();
         }
-        if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
         if (IsKeyPressed(KEY_T)) showTrails = !showTrails;
         if (IsKeyPressed(KEY_L)) showLabels = !showLabels;
         if (IsKeyPressed(KEY_H)) showHelp = !showHelp;
@@ -210,7 +208,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        if (showGrid) DrawGrid(58, 0.6f);
         DrawSpacetimeSheet(sunPos, planets, warpScale);
 
         for (const Planet& p : planets) {
@@ -243,7 +240,7 @@ int main() {
 
         DrawText("Solar System with Combined Spacetime Curvature", 20, 18, 30, Color{232, 238, 248, 255});
         if (showHelp) {
-            DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | [ ] warp | P pause | R reset | T trails | L labels | G grid | H help",
+            DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | [ ] warp | P pause | R reset | T trails | L labels | H help",
                      20, 54, 19, Color{164, 183, 210, 255});
         } else {
             DrawText("Press H to show controls", 20, 54, 19, Color{164, 183, 210, 255});

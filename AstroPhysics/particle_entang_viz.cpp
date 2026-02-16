@@ -60,8 +60,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(24, 0.5f);
         Vector3 p1 = {-1.8f, 0.6f, 0.0f};
         Vector3 p2 = { 1.8f, 0.6f, 0.0f};
         DrawSphere(p1, 0.22f, Color{120,220,255,255});

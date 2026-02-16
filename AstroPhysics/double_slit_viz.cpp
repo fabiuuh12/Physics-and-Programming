@@ -67,8 +67,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(24,0.5f);
         DrawCube({barrierX,0.3f,0}, 0.16f, 4.0f, 2.2f, Color{110,120,150,140});
         DrawCube({barrierX, 0.5f*sep+0.45f, 0}, 0.2f, 1.1f, 2.4f, Color{6,9,16,255});
         DrawCube({barrierX,-0.5f*sep-0.45f, 0}, 0.2f, 1.1f, 2.4f, Color{6,9,16,255});

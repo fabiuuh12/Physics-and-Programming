@@ -114,8 +114,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(30, 0.5f);
-
         DrawSphere({sourceX, 0.0f, 0.0f}, 0.18f, Color{255, 210, 120, 255});
 
         DrawCube({barrierX, 0.0f, 0.0f}, 0.2f, 4.0f, 2.5f, Color{100, 110, 130, 120});

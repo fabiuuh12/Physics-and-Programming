@@ -97,7 +97,6 @@ int main() {
         ClearBackground(Color{8, 9, 13, 255});
 
         BeginMode3D(camera);
-        DrawGrid(26, 0.5f);
 
         Color primaryC = (t < stage1) ? Color{120, 220, 255, 220} : Color{255, 160, 90, 240};
         DrawSphere({-1.2f, 0.0f, 0.0f}, 0.32f, primaryC);

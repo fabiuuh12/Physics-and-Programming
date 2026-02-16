@@ -102,8 +102,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6, 9, 16, 255});
         BeginMode3D(camera);
-
-        DrawGrid(28, 0.5f);
         DrawLine3D({-6.0f, 0.7f, 0.0f}, {6.0f, 0.7f, 0.0f}, Color{120, 140, 180, 100});
 
         for (const Wavefront& w : waves) {

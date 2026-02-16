@@ -147,8 +147,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         DrawCube({kAnchorX - 0.2f, 0.0f, 0.0f}, 0.15f, 1.1f, 1.1f, Color{90, 120, 180, 255});
         DrawLine3D({kAnchorX - 0.2f, 0.0f, -0.55f}, {kAnchorX - 0.2f, 0.0f, 0.55f}, Color{200, 220, 255, 130});
 

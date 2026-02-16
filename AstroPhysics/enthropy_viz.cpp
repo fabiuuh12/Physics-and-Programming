@@ -83,8 +83,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(24,0.5f);
         DrawCubeWires({0,0.6f,0}, 4.6f, 2.0f, 3.4f, Color{130,180,255,180});
         if (wall) DrawCube({0,0.6f,0}, 0.05f, 1.9f, 3.2f, Color{170,170,190,130});
 

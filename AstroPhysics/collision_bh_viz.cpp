@@ -12,6 +12,8 @@ namespace {
 
 constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
+constexpr float kWarpExtent = 9.0f;
+constexpr int kWarpGrid = 44;
 
 struct BurstParticle {
     Vector3 dir;
@@ -79,6 +81,64 @@ void DrawWaveRing(float radius, float amp, Color c) {
     }
 }
 
+float WarpHeightBinary(float x, float z, Vector3 bh1, Vector3 bh2, bool merged, float warpScale) {
+    const float soft = 0.42f;
+    const float soft2 = soft * soft;
+    float h = 0.0f;
+
+    if (!merged) {
+        float dx1 = x - bh1.x;
+        float dz1 = z - bh1.z;
+        float dx2 = x - bh2.x;
+        float dz2 = z - bh2.z;
+        h += -1.55f / std::sqrt(dx1 * dx1 + dz1 * dz1 + soft2);
+        h += -1.45f / std::sqrt(dx2 * dx2 + dz2 * dz2 + soft2);
+    } else {
+        h += -2.75f / std::sqrt(x * x + z * z + soft2);
+    }
+
+    h *= warpScale;
+    return std::max(-4.8f, h);
+}
+
+void DrawWarpSheetBinary(Vector3 bh1, Vector3 bh2, bool merged, float warpScale) {
+    for (int i = 0; i < kWarpGrid; ++i) {
+        float z = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(i) / static_cast<float>(kWarpGrid - 1);
+        for (int j = 0; j < kWarpGrid - 1; ++j) {
+            float x0 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(j) / static_cast<float>(kWarpGrid - 1);
+            float x1 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(j + 1) / static_cast<float>(kWarpGrid - 1);
+            Vector3 p0 = {x0, WarpHeightBinary(x0, z, bh1, bh2, merged, warpScale), z};
+            Vector3 p1 = {x1, WarpHeightBinary(x1, z, bh1, bh2, merged, warpScale), z};
+            float glow = 1.0f - std::min(1.0f, std::fabs(p0.y) / 4.8f);
+            Color c = {
+                static_cast<unsigned char>(35 + 65 * glow),
+                static_cast<unsigned char>(80 + 88 * glow),
+                static_cast<unsigned char>(148 + 90 * glow),
+                static_cast<unsigned char>(68 + 90 * glow),
+            };
+            DrawLine3D(p0, p1, c);
+        }
+    }
+
+    for (int j = 0; j < kWarpGrid; ++j) {
+        float x = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(j) / static_cast<float>(kWarpGrid - 1);
+        for (int i = 0; i < kWarpGrid - 1; ++i) {
+            float z0 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(i) / static_cast<float>(kWarpGrid - 1);
+            float z1 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(i + 1) / static_cast<float>(kWarpGrid - 1);
+            Vector3 p0 = {x, WarpHeightBinary(x, z0, bh1, bh2, merged, warpScale), z0};
+            Vector3 p1 = {x, WarpHeightBinary(x, z1, bh1, bh2, merged, warpScale), z1};
+            float glow = 1.0f - std::min(1.0f, std::fabs(p0.y) / 4.8f);
+            Color c = {
+                static_cast<unsigned char>(30 + 52 * glow),
+                static_cast<unsigned char>(70 + 74 * glow),
+                static_cast<unsigned char>(132 + 94 * glow),
+                static_cast<unsigned char>(56 + 78 * glow),
+            };
+            DrawLine3D(p0, p1, c);
+        }
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -99,6 +159,8 @@ int main() {
     float simT = 0.0f;
     float speed = 1.0f;
     bool paused = false;
+    bool showWarp = true;
+    float warpScale = 1.0f;
 
     bool merged = false;
     float mergeTime = 0.0f;
@@ -111,12 +173,17 @@ int main() {
             simT = 0.0f;
             speed = 1.0f;
             paused = false;
+            showWarp = true;
+            warpScale = 1.0f;
             merged = false;
             mergeTime = 0.0f;
             burst.clear();
         }
         if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) speed = std::max(0.25f, speed - 0.25f);
         if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) speed = std::min(6.0f, speed + 0.25f);
+        if (IsKeyPressed(KEY_W)) showWarp = !showWarp;
+        if (IsKeyPressed(KEY_COMMA)) warpScale = std::max(0.45f, warpScale - 0.05f);
+        if (IsKeyPressed(KEY_PERIOD)) warpScale = std::min(1.9f, warpScale + 0.05f);
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
@@ -159,7 +226,9 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(28, 0.5f);
+        if (showWarp) {
+            DrawWarpSheetBinary(bh1, bh2, merged, warpScale);
+        }
 
         if (!merged) {
             DrawSphere(bh1, 0.34f, BLACK);
@@ -198,9 +267,14 @@ int main() {
         EndMode3D();
 
         DrawText("Black Hole Merger (Inspiral -> Ringdown)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | R reset", 20, 56, 20, Color{164, 183, 210, 255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | , . warp | W warp | R reset", 20, 56, 20, Color{164, 183, 210, 255});
         std::string hud = Hud(simT, speed, paused, merged);
         DrawText(hud.c_str(), 20, 86, 21, Color{126, 224, 255, 255});
+        std::ostringstream warpHud;
+        warpHud << std::fixed << std::setprecision(2)
+                << "warp=" << warpScale
+                << "  warpVisible=" << (showWarp ? "yes" : "no");
+        DrawText(warpHud.str().c_str(), 20, 112, 20, Color{149, 201, 255, 255});
         DrawFPS(20, 118);
 
         EndDrawing();

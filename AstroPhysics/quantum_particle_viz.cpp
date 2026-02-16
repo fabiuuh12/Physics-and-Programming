@@ -139,8 +139,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         Vector3 boxCenter = {0.0f, 0.5f, 0.0f};
         DrawCubeWires(boxCenter, L, 1.2f, 1.8f, Color{120, 170, 240, 140});
 

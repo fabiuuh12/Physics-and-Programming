@@ -91,8 +91,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(24, 0.5f);
         DrawCubeWires({0.0f, 0.6f, 0.0f}, 10.8f, 2.5f, 2.2f, Color{130,180,255,180});
 
         for (const auto& m : markers) {

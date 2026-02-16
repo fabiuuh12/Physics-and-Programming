@@ -186,7 +186,6 @@ int main() {
     float camDistance = 11.0f;
     float warpScale = 1.0f;
     bool showWarp = true;
-    bool showGrid = true;
 
     std::vector<DustParticle> disk;
     ResetDisk(&disk, rng, desiredParticles);
@@ -218,7 +217,6 @@ int main() {
         if (IsKeyPressed(KEY_PERIOD)) warpScale = std::min(1.8f, warpScale + 0.05f);
         if (IsKeyPressed(KEY_COMMA)) warpScale = std::max(0.45f, warpScale - 0.05f);
         if (IsKeyPressed(KEY_W)) showWarp = !showWarp;
-        if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
@@ -261,7 +259,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        if (showGrid) DrawGrid(28, 0.5f);
         if (showWarp) DrawWarpSheet(warpScale);
         DrawCircle3DXZ(kDiskInnerRadius, 96, Color{255, 140, 70, 70});
         DrawCircle3DXZ(kPhotonRingRadius, 120, Color{150, 210, 255, 100});
@@ -281,7 +278,7 @@ int main() {
         EndMode3D();
 
         DrawText("Black Hole + Accretion Disk (3D)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | [ ] density | , . warp | W warp | G grid | R reset", 20, 54, 20, Color{164, 183, 210, 255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | [ ] density | , . warp | W warp | R reset", 20, 54, 20, Color{164, 183, 210, 255});
         const std::string hud = HudText(simTime, speed, static_cast<int>(disk.size()), swallowed, paused);
         DrawText(hud.c_str(), 20, 84, 21, Color{126, 224, 255, 255});
         std::ostringstream warpHud;

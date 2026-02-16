@@ -133,8 +133,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(26, 0.5f);
-
         for (const auto& e : edges) {
             int a = e.first;
             int b = e.second;

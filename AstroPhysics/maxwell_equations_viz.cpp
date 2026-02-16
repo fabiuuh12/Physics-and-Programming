@@ -66,8 +66,6 @@ int main() {
         ClearBackground(Color{6, 9, 16, 255});
         BeginMode3D(camera);
 
-        DrawGrid(24, 0.5f);
-
         for (int ix = -4; ix <= 4; ++ix) {
             for (int iz = -4; iz <= 4; ++iz) {
                 Vector3 p = {0.7f * ix, 0.4f, 0.7f * iz};

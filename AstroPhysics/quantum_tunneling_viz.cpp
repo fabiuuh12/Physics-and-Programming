@@ -110,8 +110,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(28, 0.5f);
-
         DrawCube({barrierCenter, barrierHeight * 0.5f, 0.0f}, barrierWidth, barrierHeight, 3.6f, Color{200, 120, 130, 120});
         DrawCubeWires({barrierCenter, barrierHeight * 0.5f, 0.0f}, barrierWidth, barrierHeight, 3.6f, Color{255, 170, 180, 200});
 

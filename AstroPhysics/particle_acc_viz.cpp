@@ -71,8 +71,6 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-
-        DrawGrid(26, 0.5f);
         for (int i=0;i<120;++i) {
             float a0 = 2.0f*PI*i/120.0f;
             float a1 = 2.0f*PI*(i+1)/120.0f;

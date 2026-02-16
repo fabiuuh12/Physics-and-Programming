@@ -115,8 +115,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(28, 0.5f);
-
         for (int ix = 0; ix < NX - 1; ++ix) {
             for (int iz = 0; iz < NZ - 1; ++iz) {
                 float x0 = XMIN + (XMAX - XMIN) * static_cast<float>(ix) / static_cast<float>(NX - 1);

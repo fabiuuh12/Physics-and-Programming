@@ -165,8 +165,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(28, 0.5f);
-
         DrawCircleXY(kSourceZ, 0.7f, Color{120, 170, 255, 60}, 80);
         DrawCircleXY(kLensZ, 1.2f, Color{255, 190, 90, 60}, 90);
         DrawCircleXY(kObserverZ, 0.55f, Color{160, 230, 255, 70}, 80);

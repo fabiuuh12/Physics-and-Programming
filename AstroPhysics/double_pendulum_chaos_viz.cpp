@@ -216,8 +216,6 @@ int main() {
 
         BeginMode3D(camera);
 
-        DrawGrid(22, 0.5f);
-
         const Vector3 pivot = {0.0f, 0.0f, 0.0f};
         DrawSphere(pivot, 0.06f, Color{230, 230, 240, 255});
 

@@ -98,7 +98,6 @@ int main() {
         ClearBackground(Color{7, 10, 16, 255});
 
         BeginMode3D(camera);
-        DrawGrid(24, 0.5f);
 
         if (!fusionMode) {
             DrawSphere({0.0f, 0.0f, 0.0f}, 0.45f, Color{120, 210, 255, 230});
