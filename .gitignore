@@ -1,0 +1,46 @@
+# OS files
+.DS_Store
+
+# Python cache/env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.venv/
+venv/
+
+# C/C++ and CMake build outputs
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Visual Studio / MSBuild artifacts
+.vs/
+*.tlog
+*.recipe
+*.lastbuildstate
+*.sln.docstates
+*.vcxproj.user
+
+# LaTeX temporary files
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Local secrets/env
+.env
+.env.*
