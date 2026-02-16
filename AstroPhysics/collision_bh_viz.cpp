@@ -81,7 +81,7 @@ void DrawWaveRing(float radius, float amp, Color c) {
     }
 }
 
-float WarpHeightBinary(float x, float z, Vector3 bh1, Vector3 bh2, bool merged, float warpScale) {
+float WarpHeightBinary(float x, float z, Vector3 bh1, Vector3 bh2, bool merged, float warpScale, float ringdownT) {
     const float soft = 0.42f;
     const float soft2 = soft * soft;
     float h = 0.0f;
@@ -95,20 +95,30 @@ float WarpHeightBinary(float x, float z, Vector3 bh1, Vector3 bh2, bool merged, 
         h += -1.45f / std::sqrt(dx2 * dx2 + dz2 * dz2 + soft2);
     } else {
         h += -2.75f / std::sqrt(x * x + z * z + soft2);
+
+        // Outgoing, damped spacetime ripples after merger (ringdown).
+        float r = std::sqrt(x * x + z * z);
+        float waveSpeed = 2.15f;
+        float wavelength = 1.65f;
+        float k = 2.0f * PI / wavelength;
+        float phase = k * (r - waveSpeed * ringdownT);
+        float envelope = std::exp(-0.22f * r) * std::exp(-0.6f * ringdownT);
+        float front = std::clamp((waveSpeed * ringdownT + 1.0f - r) * 0.8f + 0.5f, 0.0f, 1.0f);
+        h += 0.33f * warpScale * envelope * front * std::sin(phase);
     }
 
     h *= warpScale;
     return std::max(-4.8f, h);
 }
 
-void DrawWarpSheetBinary(Vector3 bh1, Vector3 bh2, bool merged, float warpScale) {
+void DrawWarpSheetBinary(Vector3 bh1, Vector3 bh2, bool merged, float warpScale, float ringdownT) {
     for (int i = 0; i < kWarpGrid; ++i) {
         float z = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(i) / static_cast<float>(kWarpGrid - 1);
         for (int j = 0; j < kWarpGrid - 1; ++j) {
             float x0 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(j) / static_cast<float>(kWarpGrid - 1);
             float x1 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(j + 1) / static_cast<float>(kWarpGrid - 1);
-            Vector3 p0 = {x0, WarpHeightBinary(x0, z, bh1, bh2, merged, warpScale), z};
-            Vector3 p1 = {x1, WarpHeightBinary(x1, z, bh1, bh2, merged, warpScale), z};
+            Vector3 p0 = {x0, WarpHeightBinary(x0, z, bh1, bh2, merged, warpScale, ringdownT), z};
+            Vector3 p1 = {x1, WarpHeightBinary(x1, z, bh1, bh2, merged, warpScale, ringdownT), z};
             float glow = 1.0f - std::min(1.0f, std::fabs(p0.y) / 4.8f);
             Color c = {
                 static_cast<unsigned char>(35 + 65 * glow),
@@ -125,8 +135,8 @@ void DrawWarpSheetBinary(Vector3 bh1, Vector3 bh2, bool merged, float warpScale)
         for (int i = 0; i < kWarpGrid - 1; ++i) {
             float z0 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(i) / static_cast<float>(kWarpGrid - 1);
             float z1 = -kWarpExtent + 2.0f * kWarpExtent * static_cast<float>(i + 1) / static_cast<float>(kWarpGrid - 1);
-            Vector3 p0 = {x, WarpHeightBinary(x, z0, bh1, bh2, merged, warpScale), z0};
-            Vector3 p1 = {x, WarpHeightBinary(x, z1, bh1, bh2, merged, warpScale), z1};
+            Vector3 p0 = {x, WarpHeightBinary(x, z0, bh1, bh2, merged, warpScale, ringdownT), z0};
+            Vector3 p1 = {x, WarpHeightBinary(x, z1, bh1, bh2, merged, warpScale, ringdownT), z1};
             float glow = 1.0f - std::min(1.0f, std::fabs(p0.y) / 4.8f);
             Color c = {
                 static_cast<unsigned char>(30 + 52 * glow),
@@ -226,8 +236,9 @@ int main() {
 
         BeginMode3D(camera);
 
+        float ringdownT = merged ? (simT - mergeTime) : 0.0f;
         if (showWarp) {
-            DrawWarpSheetBinary(bh1, bh2, merged, warpScale);
+            DrawWarpSheetBinary(bh1, bh2, merged, warpScale, ringdownT);
         }
 
         if (!merged) {
@@ -244,7 +255,6 @@ int main() {
 
             DrawLine3D(bh1, bh2, Color{90, 130, 200, 80});
         } else {
-            float ringdownT = simT - mergeTime;
             float remnantR = 0.44f + 0.05f * std::exp(-1.8f * ringdownT) * std::sin(15.0f * ringdownT);
             DrawSphere({0.0f, 0.0f, 0.0f}, remnantR, BLACK);
             DrawSphere({0.0f, 0.0f, 0.0f}, remnantR + 0.17f, Color{255, 190, 110, 40});
