@@ -1,0 +1,10 @@
+^C:\USERS\FABIO\ONEDRIVE\DOCUMENTS\PHYSICS-AND-PROGRAMMING\ASTROPHYSICS\BUILD\CMAKEFILES\9423BC9C0EF70BC08936DF95669A3594\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics -BC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/astrophysics_cpp_viz.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

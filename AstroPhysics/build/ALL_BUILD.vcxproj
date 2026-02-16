@@ -1,0 +1,345 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ResolveNugetPackages>false</ResolveNugetPackages>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C572433F-15AC-34B0-A5AA-7AE480451C6B}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>ALL_BUILD</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics -BC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build --check-stamp-file C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeCXXCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeRCCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeSystem.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config-version.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics -BC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build --check-stamp-file C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeCXXCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeRCCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeSystem.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config-version.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics -BC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build --check-stamp-file C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeCXXCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeRCCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeSystem.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config-version.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics -BC:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build --check-stamp-file C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeCXXCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeRCCompiler.cmake;C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\4.1.0-rc3\CMakeSystem.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config-version.cmake;C:\vcpkg\installed\x64-windows\share\raylib\raylib-config.cmake;C:\vcpkg\scripts\buildsystems\vcpkg.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\ZERO_CHECK.vcxproj">
+      <Project>{DF75C0E4-3E7B-392B-AF3F-BBACE744F517}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\4th_dimension_viz_cpp.vcxproj">
+      <Project>{306F9E8A-EFAD-3549-AFA3-F95B115B6384}</Project>
+      <Name>4th_dimension_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\angular_momentum_viz_cpp.vcxproj">
+      <Project>{6094001F-69F8-38BD-BBF9-3EF83A933E6A}</Project>
+      <Name>angular_momentum_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\atom_viz_cpp.vcxproj">
+      <Project>{ED68F586-0FB4-3B1D-BA63-2201B20E1DCC}</Project>
+      <Name>atom_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\atomic_bomb_viz_cpp.vcxproj">
+      <Project>{0954627C-F308-3212-A4F3-F82F804AD6D6}</Project>
+      <Name>atomic_bomb_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\blackhole_viz_cpp.vcxproj">
+      <Project>{3F26A126-4E17-337C-98A1-CDA3C4D7BDBA}</Project>
+      <Name>blackhole_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\collision_bh_viz_cpp.vcxproj">
+      <Project>{4D33A93E-583C-343F-8303-AC5A5D0B1BA7}</Project>
+      <Name>collision_bh_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\damped_forced_oscillator_viz_cpp.vcxproj">
+      <Project>{B37D3633-0F93-30FE-882F-8E5C0485E660}</Project>
+      <Name>damped_forced_oscillator_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\dark_matter_viz_cpp.vcxproj">
+      <Project>{16A035B6-C859-397E-8E52-4BEAB99A97B8}</Project>
+      <Name>dark_matter_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\doppler_eff_viz_cpp.vcxproj">
+      <Project>{30D0788E-E970-3C6A-93D0-DFFCFF4B4D03}</Project>
+      <Name>doppler_eff_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\double_pendulum_chaos_viz_cpp.vcxproj">
+      <Project>{CFDAC836-6A94-34B9-AD75-ED270ECB5BBF}</Project>
+      <Name>double_pendulum_chaos_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\double_slit_viz_cpp.vcxproj">
+      <Project>{16BA78FB-DEC9-3E26-83CA-F76907E25DC6}</Project>
+      <Name>double_slit_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\electric_charges_interaction_cpp.vcxproj">
+      <Project>{D1CE681E-01F3-39F2-A0BB-30037DBFF4A3}</Project>
+      <Name>electric_charges_interaction_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\electric_field_cpp.vcxproj">
+      <Project>{FDFF6159-F59D-3288-BF11-742C34CA209A}</Project>
+      <Name>electric_field_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\enthropy_viz_cpp.vcxproj">
+      <Project>{D354371F-30F3-3D09-989A-8B07EC9FE0BC}</Project>
+      <Name>enthropy_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\fission_fusion_viz_cpp.vcxproj">
+      <Project>{5384905D-B27B-32EC-8C1F-B47CE827902C}</Project>
+      <Name>fission_fusion_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\fluid_mechanics_channel_viz_cpp.vcxproj">
+      <Project>{001D39E8-3227-312F-B5AD-93465920FB96}</Project>
+      <Name>fluid_mechanics_channel_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\fluid_vortex_viz_cpp.vcxproj">
+      <Project>{6337D961-1D59-3671-B26B-823F01201C7F}</Project>
+      <Name>fluid_vortex_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\gravitational_lensing_viz_cpp.vcxproj">
+      <Project>{D23D5DDD-7C81-3125-A771-138FD8A8282A}</Project>
+      <Name>gravitational_lensing_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\hawkin_s_rad_viz_cpp.vcxproj">
+      <Project>{CD61E323-AF1A-3B4C-8206-2159DAFF5858}</Project>
+      <Name>hawkin_s_rad_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\hawking_particles_escape_viz_cpp.vcxproj">
+      <Project>{269D108F-D267-3D33-9FE4-7E28DBFD3B9C}</Project>
+      <Name>hawking_particles_escape_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\hydrogen_bomb_viz_cpp.vcxproj">
+      <Project>{B2E96143-2C13-3E0C-BD8B-3EA1C59F5E0E}</Project>
+      <Name>hydrogen_bomb_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\interferometer_gw_viz_cpp.vcxproj">
+      <Project>{EDC4967C-C547-3536-B2DC-DE51B3D0C888}</Project>
+      <Name>interferometer_gw_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\maxwell_equations_viz_cpp.vcxproj">
+      <Project>{289A90B7-63F1-3B48-AF3F-72D5FD678A27}</Project>
+      <Name>maxwell_equations_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\maxwell_wave_viz_cpp.vcxproj">
+      <Project>{9085C792-BE87-3E7D-93EE-706677BA6112}</Project>
+      <Name>maxwell_wave_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\newton_laws_viz_cpp.vcxproj">
+      <Project>{3A39CB88-3DD1-3E4F-9354-98BEEED0AAEC}</Project>
+      <Name>newton_laws_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\particle_acc_viz_cpp.vcxproj">
+      <Project>{07FC0F62-4DF5-3E8A-9956-69B56AED9A3B}</Project>
+      <Name>particle_acc_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\particle_entang_viz_cpp.vcxproj">
+      <Project>{5CFE5E18-7F3C-33B5-B787-AC6694E168BF}</Project>
+      <Name>particle_entang_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\projectile_drag_viz_cpp.vcxproj">
+      <Project>{BFF2BD7D-2383-3A29-A420-29671C80448F}</Project>
+      <Name>projectile_drag_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_cpp.vcxproj">
+      <Project>{F9BBB515-BBC1-3449-B40D-C86C4BDF9AC7}</Project>
+      <Name>quantum_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_particle_viz_cpp.vcxproj">
+      <Project>{C0E175DE-0990-305A-A9EB-FC276C11D33A}</Project>
+      <Name>quantum_particle_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_search_cpp.vcxproj">
+      <Project>{F87DF6CB-EED3-3862-9E5A-C1BE0D0E401C}</Project>
+      <Name>quantum_search_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_slit_wave_viz_cpp.vcxproj">
+      <Project>{76874D1F-C5A2-3CBE-8A17-64C482B11701}</Project>
+      <Name>quantum_slit_wave_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_tunneling_viz_cpp.vcxproj">
+      <Project>{C7A1AEAA-9C85-32CD-B1D3-67C04DB04405}</Project>
+      <Name>quantum_tunneling_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_wave_viz_cpp.vcxproj">
+      <Project>{4A1B5898-6131-33FB-8ECF-D2DA30A5626E}</Project>
+      <Name>quantum_wave_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\relativistic_time_dilation_viz_cpp.vcxproj">
+      <Project>{42458DCC-8CF7-3101-B9E1-4E95385D29CD}</Project>
+      <Name>relativistic_time_dilation_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\schrodinger_cat_viz_cpp.vcxproj">
+      <Project>{C42A968A-A206-3FE3-96D4-1286BC7AB1A3}</Project>
+      <Name>schrodinger_cat_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\simple_harmonic_oscillator_viz_cpp.vcxproj">
+      <Project>{B985220E-5336-339B-8ED4-EFAEB741C56E}</Project>
+      <Name>simple_harmonic_oscillator_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\thermodynamics_laws_viz_cpp.vcxproj">
+      <Project>{FFFDE63D-CC30-3C60-8007-99AA959000BD}</Project>
+      <Name>thermodynamics_laws_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\two_body_orbit_viz_cpp.vcxproj">
+      <Project>{093E9766-A382-355D-8546-82A4577B900C}</Project>
+      <Name>two_body_orbit_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\uncertainty_wavepacket_viz_cpp.vcxproj">
+      <Project>{6FBEFAC3-7C8C-3571-8452-43BA1E237C41}</Project>
+      <Name>uncertainty_wavepacket_viz_cpp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\wormhole_viz_cpp.vcxproj">
+      <Project>{8869FBE8-01FD-33CB-9B09-A6776852A475}</Project>
+      <Name>wormhole_viz_cpp</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
