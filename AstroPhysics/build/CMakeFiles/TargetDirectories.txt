@@ -25,6 +25,7 @@ C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMa
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/newton_laws_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/particle_acc_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/particle_entang_viz_cpp.dir
+C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/pulsar_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/projectile_drag_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/quantum_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/quantum_particle_viz_cpp.dir
@@ -35,8 +36,10 @@ C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMa
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/relativistic_time_dilation_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/schrodinger_cat_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/simple_harmonic_oscillator_viz_cpp.dir
+C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/solar_system_spacetime_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/thermodynamics_laws_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/two_body_orbit_viz_cpp.dir
+C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/sun_planet_spacetime_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/uncertainty_wavepacket_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/wormhole_viz_cpp.dir
 C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/CMakeFiles/ALL_BUILD.dir

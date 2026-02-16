@@ -87,6 +87,9 @@ target_link_libraries(particle_acc_viz_cpp PRIVATE raylib)
 add_executable(particle_entang_viz_cpp "particle_entang_viz.cpp")
 target_link_libraries(particle_entang_viz_cpp PRIVATE raylib)
 
+add_executable(pulsar_viz_cpp "pulsar_viz.cpp")
+target_link_libraries(pulsar_viz_cpp PRIVATE raylib)
+
 add_executable(projectile_drag_viz_cpp "projectile_drag_viz.cpp")
 target_link_libraries(projectile_drag_viz_cpp PRIVATE raylib)
 
@@ -117,11 +120,17 @@ target_link_libraries(schrodinger_cat_viz_cpp PRIVATE raylib)
 add_executable(simple_harmonic_oscillator_viz_cpp "simple_harmonic_oscillator_viz.cpp")
 target_link_libraries(simple_harmonic_oscillator_viz_cpp PRIVATE raylib)
 
+add_executable(solar_system_spacetime_viz_cpp "solar_system_spacetime_viz.cpp")
+target_link_libraries(solar_system_spacetime_viz_cpp PRIVATE raylib)
+
 add_executable(thermodynamics_laws_viz_cpp "thermodynamics_laws_viz.cpp")
 target_link_libraries(thermodynamics_laws_viz_cpp PRIVATE raylib)
 
 add_executable(two_body_orbit_viz_cpp "two_body_orbit_viz.cpp")
 target_link_libraries(two_body_orbit_viz_cpp PRIVATE raylib)
+
+add_executable(sun_planet_spacetime_viz_cpp "sun_planet_spacetime_viz.cpp")
+target_link_libraries(sun_planet_spacetime_viz_cpp PRIVATE raylib)
 
 add_executable(uncertainty_wavepacket_viz_cpp "uncertainty_wavepacket_viz.cpp")
 target_link_libraries(uncertainty_wavepacket_viz_cpp PRIVATE raylib)

@@ -3,9 +3,6 @@
   <PropertyGroup>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
   </PropertyGroup>
-  <PropertyGroup>
-    <ResolveNugetPackages>false</ResolveNugetPackages>
-  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -25,31 +22,32 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{C572433F-15AC-34B0-A5AA-7AE480451C6B}</ProjectGuid>
+    <ProjectGuid>{F9E3E901-AF45-3EB8-8F26-BA8675DDF6D7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
+    <VcpkgEnabled>false</VcpkgEnabled>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
-    <ProjectName>ALL_BUILD</ProjectName>
+    <ProjectName>sun_planet_spacetime_viz_cpp</ProjectName>
     <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Utility</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Utility</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
-    <ConfigurationType>Utility</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
-    <ConfigurationType>Utility</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
@@ -57,55 +55,297 @@
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="do_not_import_user.props" Condition="exists('do_not_import_user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sun_planet_spacetime_viz_cpp.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sun_planet_spacetime_viz_cpp</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sun_planet_spacetime_viz_cpp.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sun_planet_spacetime_viz_cpp</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">sun_planet_spacetime_viz_cpp.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">sun_planet_spacetime_viz_cpp</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">sun_planet_spacetime_viz_cpp.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">sun_planet_spacetime_viz_cpp</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include"</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/Debug/sun_planet_spacetime_viz_cpp.exe -installedDir C:/vcpkg/installed/x64-windows/debug/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/Debug/sun_planet_spacetime_viz_cpp.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/Debug/sun_planet_spacetime_viz_cpp.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include"</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/Release/sun_planet_spacetime_viz_cpp.exe -installedDir C:/vcpkg/installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/Release/sun_planet_spacetime_viz_cpp.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/Release/sun_planet_spacetime_viz_cpp.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include"</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/MinSizeRel/sun_planet_spacetime_viz_cpp.exe -installedDir C:/vcpkg/installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/MinSizeRel/sun_planet_spacetime_viz_cpp.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/MinSizeRel/sun_planet_spacetime_viz_cpp.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/vcpkg/installed/x64-windows/include"</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/RelWithDebInfo/sun_planet_spacetime_viz_cpp.exe -installedDir C:/vcpkg/installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;C:\vcpkg\installed\x64-windows\debug\lib\raylib.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/RelWithDebInfo/sun_planet_spacetime_viz_cpp.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/fabio/OneDrive/Documents/Physics-and-Programming/AstroPhysics/build/RelWithDebInfo/sun_planet_spacetime_viz_cpp.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\CMakeLists.txt">
@@ -165,6 +405,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\sun_planet_spacetime_viz.cpp" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
@@ -173,182 +414,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\4th_dimension_viz_cpp.vcxproj">
-      <Project>{306F9E8A-EFAD-3549-AFA3-F95B115B6384}</Project>
-      <Name>4th_dimension_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\angular_momentum_viz_cpp.vcxproj">
-      <Project>{6094001F-69F8-38BD-BBF9-3EF83A933E6A}</Project>
-      <Name>angular_momentum_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\atom_viz_cpp.vcxproj">
-      <Project>{ED68F586-0FB4-3B1D-BA63-2201B20E1DCC}</Project>
-      <Name>atom_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\atomic_bomb_viz_cpp.vcxproj">
-      <Project>{0954627C-F308-3212-A4F3-F82F804AD6D6}</Project>
-      <Name>atomic_bomb_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\blackhole_viz_cpp.vcxproj">
-      <Project>{3F26A126-4E17-337C-98A1-CDA3C4D7BDBA}</Project>
-      <Name>blackhole_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\collision_bh_viz_cpp.vcxproj">
-      <Project>{4D33A93E-583C-343F-8303-AC5A5D0B1BA7}</Project>
-      <Name>collision_bh_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\damped_forced_oscillator_viz_cpp.vcxproj">
-      <Project>{B37D3633-0F93-30FE-882F-8E5C0485E660}</Project>
-      <Name>damped_forced_oscillator_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\dark_matter_viz_cpp.vcxproj">
-      <Project>{16A035B6-C859-397E-8E52-4BEAB99A97B8}</Project>
-      <Name>dark_matter_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\doppler_eff_viz_cpp.vcxproj">
-      <Project>{30D0788E-E970-3C6A-93D0-DFFCFF4B4D03}</Project>
-      <Name>doppler_eff_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\double_pendulum_chaos_viz_cpp.vcxproj">
-      <Project>{CFDAC836-6A94-34B9-AD75-ED270ECB5BBF}</Project>
-      <Name>double_pendulum_chaos_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\double_slit_viz_cpp.vcxproj">
-      <Project>{16BA78FB-DEC9-3E26-83CA-F76907E25DC6}</Project>
-      <Name>double_slit_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\electric_charges_interaction_cpp.vcxproj">
-      <Project>{D1CE681E-01F3-39F2-A0BB-30037DBFF4A3}</Project>
-      <Name>electric_charges_interaction_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\electric_field_cpp.vcxproj">
-      <Project>{FDFF6159-F59D-3288-BF11-742C34CA209A}</Project>
-      <Name>electric_field_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\enthropy_viz_cpp.vcxproj">
-      <Project>{D354371F-30F3-3D09-989A-8B07EC9FE0BC}</Project>
-      <Name>enthropy_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\fission_fusion_viz_cpp.vcxproj">
-      <Project>{5384905D-B27B-32EC-8C1F-B47CE827902C}</Project>
-      <Name>fission_fusion_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\fluid_mechanics_channel_viz_cpp.vcxproj">
-      <Project>{001D39E8-3227-312F-B5AD-93465920FB96}</Project>
-      <Name>fluid_mechanics_channel_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\fluid_vortex_viz_cpp.vcxproj">
-      <Project>{6337D961-1D59-3671-B26B-823F01201C7F}</Project>
-      <Name>fluid_vortex_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\gravitational_lensing_viz_cpp.vcxproj">
-      <Project>{D23D5DDD-7C81-3125-A771-138FD8A8282A}</Project>
-      <Name>gravitational_lensing_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\hawkin_s_rad_viz_cpp.vcxproj">
-      <Project>{CD61E323-AF1A-3B4C-8206-2159DAFF5858}</Project>
-      <Name>hawkin_s_rad_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\hawking_particles_escape_viz_cpp.vcxproj">
-      <Project>{269D108F-D267-3D33-9FE4-7E28DBFD3B9C}</Project>
-      <Name>hawking_particles_escape_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\hydrogen_bomb_viz_cpp.vcxproj">
-      <Project>{B2E96143-2C13-3E0C-BD8B-3EA1C59F5E0E}</Project>
-      <Name>hydrogen_bomb_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\interferometer_gw_viz_cpp.vcxproj">
-      <Project>{EDC4967C-C547-3536-B2DC-DE51B3D0C888}</Project>
-      <Name>interferometer_gw_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\maxwell_equations_viz_cpp.vcxproj">
-      <Project>{289A90B7-63F1-3B48-AF3F-72D5FD678A27}</Project>
-      <Name>maxwell_equations_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\maxwell_wave_viz_cpp.vcxproj">
-      <Project>{9085C792-BE87-3E7D-93EE-706677BA6112}</Project>
-      <Name>maxwell_wave_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\newton_laws_viz_cpp.vcxproj">
-      <Project>{3A39CB88-3DD1-3E4F-9354-98BEEED0AAEC}</Project>
-      <Name>newton_laws_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\particle_acc_viz_cpp.vcxproj">
-      <Project>{07FC0F62-4DF5-3E8A-9956-69B56AED9A3B}</Project>
-      <Name>particle_acc_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\particle_entang_viz_cpp.vcxproj">
-      <Project>{5CFE5E18-7F3C-33B5-B787-AC6694E168BF}</Project>
-      <Name>particle_entang_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\projectile_drag_viz_cpp.vcxproj">
-      <Project>{BFF2BD7D-2383-3A29-A420-29671C80448F}</Project>
-      <Name>projectile_drag_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\pulsar_viz_cpp.vcxproj">
-      <Project>{D66A308C-7BFA-3A6B-A183-A826A770E4A5}</Project>
-      <Name>pulsar_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_cpp.vcxproj">
-      <Project>{F9BBB515-BBC1-3449-B40D-C86C4BDF9AC7}</Project>
-      <Name>quantum_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_particle_viz_cpp.vcxproj">
-      <Project>{C0E175DE-0990-305A-A9EB-FC276C11D33A}</Project>
-      <Name>quantum_particle_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_search_cpp.vcxproj">
-      <Project>{F87DF6CB-EED3-3862-9E5A-C1BE0D0E401C}</Project>
-      <Name>quantum_search_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_slit_wave_viz_cpp.vcxproj">
-      <Project>{76874D1F-C5A2-3CBE-8A17-64C482B11701}</Project>
-      <Name>quantum_slit_wave_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_tunneling_viz_cpp.vcxproj">
-      <Project>{C7A1AEAA-9C85-32CD-B1D3-67C04DB04405}</Project>
-      <Name>quantum_tunneling_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\quantum_wave_viz_cpp.vcxproj">
-      <Project>{4A1B5898-6131-33FB-8ECF-D2DA30A5626E}</Project>
-      <Name>quantum_wave_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\relativistic_time_dilation_viz_cpp.vcxproj">
-      <Project>{42458DCC-8CF7-3101-B9E1-4E95385D29CD}</Project>
-      <Name>relativistic_time_dilation_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\schrodinger_cat_viz_cpp.vcxproj">
-      <Project>{C42A968A-A206-3FE3-96D4-1286BC7AB1A3}</Project>
-      <Name>schrodinger_cat_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\simple_harmonic_oscillator_viz_cpp.vcxproj">
-      <Project>{B985220E-5336-339B-8ED4-EFAEB741C56E}</Project>
-      <Name>simple_harmonic_oscillator_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\solar_system_spacetime_viz_cpp.vcxproj">
-      <Project>{FBD6550F-3535-36B1-B72D-044AEB97F18E}</Project>
-      <Name>solar_system_spacetime_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\sun_planet_spacetime_viz_cpp.vcxproj">
-      <Project>{F9E3E901-AF45-3EB8-8F26-BA8675DDF6D7}</Project>
-      <Name>sun_planet_spacetime_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\thermodynamics_laws_viz_cpp.vcxproj">
-      <Project>{FFFDE63D-CC30-3C60-8007-99AA959000BD}</Project>
-      <Name>thermodynamics_laws_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\two_body_orbit_viz_cpp.vcxproj">
-      <Project>{093E9766-A382-355D-8546-82A4577B900C}</Project>
-      <Name>two_body_orbit_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\uncertainty_wavepacket_viz_cpp.vcxproj">
-      <Project>{6FBEFAC3-7C8C-3571-8452-43BA1E237C41}</Project>
-      <Name>uncertainty_wavepacket_viz_cpp</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\fabio\OneDrive\Documents\Physics-and-Programming\AstroPhysics\build\wormhole_viz_cpp.vcxproj">
-      <Project>{8869FBE8-01FD-33CB-9B09-A6776852A475}</Project>
-      <Name>wormhole_viz_cpp</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
