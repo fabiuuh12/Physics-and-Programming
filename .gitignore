@@ -12,6 +12,8 @@ venv/
 
 # C/C++ and CMake build outputs
 build/
+build-vcpkg/
+build-vcpkg-*/
 cmake-build-*/
 CMakeCache.txt
 CMakeFiles/
@@ -26,11 +28,21 @@ compile_commands.json
 
 # Visual Studio / MSBuild artifacts
 .vs/
+.vscode/
 *.tlog
 *.recipe
 *.lastbuildstate
 *.sln.docstates
 *.vcxproj.user
+*.VC.db
+*.VC.opendb
+*.suo
+*.user
+*.userosscache
+ipch/
+
+# Local CMake user settings (can contain absolute local paths)
+CMakeUserPresets.json
 
 # LaTeX temporary files
 *.aux
