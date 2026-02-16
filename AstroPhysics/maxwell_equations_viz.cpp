@@ -1,15 +1,17 @@
 #include "raylib.h"
 #include "raymath.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <vector>
+
 namespace {
 constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
-void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
+
+void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
@@ -19,93 +21,101 @@ void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float
     *distance -= GetMouseWheelMove() * 0.6f;
     *distance = std::clamp(*distance, 4.0f, 34.0f);
     float cp = std::cos(*pitch);
-    Vector3 offset = {
-        *distance * cp * std::cos(*yaw),
-        *distance * std::sin(*pitch),
-        *distance * cp * std::sin(*yaw),
-    };
-    camera->position = Vector3Add(camera->target, offset);
+    c->position = Vector3Add(c->target, {*distance * cp * std::cos(*yaw), *distance * std::sin(*pitch), *distance * cp * std::sin(*yaw)});
 }
-struct Node {
-    float r;
-    float phase;
-    float speed;
-    float tilt;
-};
-std::string Hud(float t, float speed, bool paused) {
-    std::ostringstream os;
-    os << std::fixed << std::setprecision(2)
-       << "t=" << t
-       << "  speed=" << speed << "x";
-    if (paused) os << "  [PAUSED]";
-    return os.str();
+
+void DrawArrow(Vector3 a, Vector3 b, Color c) {
+    DrawLine3D(a, b, c);
+    Vector3 d = Vector3Normalize(Vector3Subtract(b, a));
+    Vector3 s = Vector3Normalize(Vector3CrossProduct(d, {0.0f, 1.0f, 0.0f}));
+    if (Vector3Length(s) < 1e-4f) s = {1.0f, 0.0f, 0.0f};
+    DrawLine3D(b, Vector3Add(b, Vector3Add(Vector3Scale(d, -0.14f), Vector3Scale(s, 0.08f))), c);
+    DrawLine3D(b, Vector3Add(b, Vector3Add(Vector3Scale(d, -0.14f), Vector3Scale(s, -0.08f))), c);
 }
-}  // namespace
+} // namespace
+
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "maxwell equations viz 3D - C++ (raylib)");
+    InitWindow(kScreenWidth, kScreenHeight, "Maxwell Equations Field Intuition 3D - C++ (raylib)");
     SetTargetFPS(60);
+
     Camera3D camera{};
-    camera.position = {7.8f, 4.8f, 8.4f};
-    camera.target = {0.0f, 0.0f, 0.0f};
+    camera.position = {8.4f, 5.2f, 8.8f};
+    camera.target = {0.0f, 0.4f, 0.0f};
     camera.up = {0.0f, 1.0f, 0.0f};
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
-    float camYaw = 0.84f;
-    float camPitch = 0.33f;
-    float camDistance = 13.0f;
-    std::vector<Node> nodes;
-    nodes.reserve(140);
-    for (int i = 0; i < 140; ++i) {
-        float fi = static_cast<float>(i);
-        float r = 0.7f + 0.05f * fi;
-        float phase = 0.24f * fi;
-        float speed = 0.25f + 0.01f * static_cast<float>(i % 17) + 0.002f * 859;
-        float tilt = 0.08f * static_cast<float>(i % 11) + 0.001f * 319;
-        nodes.push_back({r, phase, speed, tilt});
-    }
-    float t = 0.0f;
-    float simSpeed = 1.0f;
+
+    float camYaw = 0.84f, camPitch = 0.34f, camDistance = 13.2f;
+
+    int mode = 0; // 0 divE,1 divB,2 curlE,3 curlB
     bool paused = false;
+    float t = 0.0f;
+
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) { t = 0.0f; simSpeed = 1.0f; paused = false; }
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) simSpeed = std::max(0.2f, simSpeed - 0.2f);
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) simSpeed = std::min(6.0f, simSpeed + 0.2f);
+        if (IsKeyPressed(KEY_R)) { mode = 0; paused = false; t = 0.0f; }
+        if (IsKeyPressed(KEY_ONE)) mode = 0;
+        if (IsKeyPressed(KEY_TWO)) mode = 1;
+        if (IsKeyPressed(KEY_THREE)) mode = 2;
+        if (IsKeyPressed(KEY_FOUR)) mode = 3;
+
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
-        if (!paused) {
-            t += GetFrameTime() * simSpeed;
-        }
+        if (!paused) t += GetFrameTime();
+
         BeginDrawing();
-        ClearBackground(Color{6, 9, 17, 255});
+        ClearBackground(Color{6, 9, 16, 255});
         BeginMode3D(camera);
-        DrawGrid(28, 0.5f);
-        DrawSphere({0.0f, 0.0f, 0.0f}, 0.32f + 0.04f * std::sin(0.8f * t), Color{255, 195, 120, 230});
-        for (size_t i = 0; i < nodes.size(); ++i) {
-            const Node& n = nodes[i];
-            float a = n.phase + n.speed * t;
-            float r = n.r + 0.16f * std::sin(a * (1.2f + 0.03f * 101) + n.tilt);
-            float x = r * std::cos(a);
-            float z = r * std::sin(a);
-            float y = 0.35f * std::sin(a * (1.7f + 0.01f * 319) + n.tilt * (1.0f + 0.02f * 859));
-            unsigned char rr = static_cast<unsigned char>(80 + (i * (9 + (859 % 5))) % 155);
-            unsigned char gg = static_cast<unsigned char>(110 + (i * (7 + (319 % 7))) % 130);
-            unsigned char bb = static_cast<unsigned char>(150 + (i * (5 + (101 % 9))) % 105);
-            Color c = Color{rr, gg, bb, 220};
-            Vector3 p = {x, y, z};
-            DrawSphere(p, 0.03f + 0.01f * std::sin(a + i * 0.01f), c);
-            if ((i % (5 + (319 % 5))) == 0) {
-                DrawLine3D({0.0f, 0.0f, 0.0f}, p, Color{100, 150, 220, 45});
+
+        DrawGrid(24, 0.5f);
+
+        for (int ix = -4; ix <= 4; ++ix) {
+            for (int iz = -4; iz <= 4; ++iz) {
+                Vector3 p = {0.7f * ix, 0.4f, 0.7f * iz};
+                Vector3 v = {0.0f, 0.0f, 0.0f};
+                Color c = Color{160, 210, 255, 240};
+
+                if (mode == 0) { // div E = rho/eps0
+                    v = Vector3Scale(Vector3Normalize(p), 0.35f + 0.15f * std::sin(t));
+                    c = Color{130, 220, 255, 240};
+                } else if (mode == 1) { // div B = 0
+                    v = {-(p.z), 0.0f, p.x};
+                    v = Vector3Scale(Vector3Normalize(v), 0.42f);
+                    c = Color{255, 190, 120, 240};
+                } else if (mode == 2) { // curl E = -dB/dt
+                    v = {-(p.z), 0.0f, p.x};
+                    v = Vector3Scale(Vector3Normalize(v), 0.25f + 0.15f * std::sin(2.0f * t));
+                    c = Color{140, 210, 255, 240};
+                } else { // curl B = mu0J + mu0eps0 dE/dt
+                    v = {-(p.z), 0.0f, p.x};
+                    v = Vector3Scale(Vector3Normalize(v), 0.25f + 0.15f * std::cos(2.0f * t));
+                    c = Color{255, 180, 120, 240};
+                }
+
+                DrawArrow(p, Vector3Add(p, v), c);
             }
         }
+
+        if (mode == 0) DrawSphere({0.0f, 0.4f, 0.0f}, 0.12f, Color{255, 140, 120, 255});
+        if (mode == 3) DrawCylinder({0.0f, 0.4f, 0.0f}, 0.08f, 0.08f, 1.2f, 16, Color{255, 170, 120, 180});
+
         EndMode3D();
-        DrawText("maxwell equations viz", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
-        std::string hud = Hud(t, simSpeed, paused);
-        DrawText(hud.c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+
+        const char* labels[4] = {
+            "1: Gauss(E)  div E = rho/eps0",
+            "2: Gauss(B)  div B = 0",
+            "3: Faraday   curl E = -dB/dt",
+            "4: Ampere-Maxwell  curl B = mu0J + mu0eps0 dE/dt"
+        };
+
+        DrawText("Maxwell Equations: Field Intuition", 20, 18, 29, Color{232, 238, 248, 255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | 1..4 equation mode | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
+        DrawText(labels[mode], 20, 82, 20, Color{190, 220, 255, 255});
+        if (paused) DrawText("[PAUSED]", 20, 110, 20, Color{255, 210, 150, 255});
+        DrawFPS(20, 138);
+
         EndDrawing();
     }
+
     CloseWindow();
     return 0;
 }
-

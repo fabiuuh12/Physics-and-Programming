@@ -1,15 +1,19 @@
 #include "raylib.h"
 #include "raymath.h"
+
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <vector>
+
 namespace {
+
 constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
-void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
+
+void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
@@ -17,95 +21,113 @@ void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float
         *pitch = std::clamp(*pitch, -1.35f, 1.35f);
     }
     *distance -= GetMouseWheelMove() * 0.6f;
-    *distance = std::clamp(*distance, 4.0f, 34.0f);
+    *distance = std::clamp(*distance, 4.0f, 35.0f);
     float cp = std::cos(*pitch);
-    Vector3 offset = {
-        *distance * cp * std::cos(*yaw),
-        *distance * std::sin(*pitch),
-        *distance * cp * std::sin(*yaw),
-    };
-    camera->position = Vector3Add(camera->target, offset);
+    c->position = Vector3Add(c->target, {*distance * cp * std::cos(*yaw), *distance * std::sin(*pitch), *distance * cp * std::sin(*yaw)});
 }
-struct Node {
-    float r;
-    float phase;
-    float speed;
-    float tilt;
-};
-std::string Hud(float t, float speed, bool paused) {
-    std::ostringstream os;
-    os << std::fixed << std::setprecision(2)
-       << "t=" << t
-       << "  speed=" << speed << "x";
-    if (paused) os << "  [PAUSED]";
-    return os.str();
+
+void DrawTrail(const std::deque<Vector3>& tr, Color c) {
+    for (size_t i = 1; i < tr.size(); ++i) DrawLine3D(tr[i - 1], tr[i], c);
 }
-}  // namespace
+
+} // namespace
+
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "projectile drag viz 3D - C++ (raylib)");
+    InitWindow(kScreenWidth, kScreenHeight, "Projectile Motion with Drag 3D - C++ (raylib)");
     SetTargetFPS(60);
+
     Camera3D camera{};
-    camera.position = {7.8f, 4.8f, 8.4f};
-    camera.target = {0.0f, 0.0f, 0.0f};
+    camera.position = {10.0f, 6.0f, 8.0f};
+    camera.target = {2.0f, 1.0f, 0.0f};
     camera.up = {0.0f, 1.0f, 0.0f};
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
-    float camYaw = 0.84f;
-    float camPitch = 0.33f;
-    float camDistance = 13.0f;
-    std::vector<Node> nodes;
-    nodes.reserve(140);
-    for (int i = 0; i < 140; ++i) {
-        float fi = static_cast<float>(i);
-        float r = 0.7f + 0.05f * fi;
-        float phase = 0.24f * fi;
-        float speed = 0.25f + 0.01f * static_cast<float>(i % 17) + 0.002f * 589;
-        float tilt = 0.08f * static_cast<float>(i % 11) + 0.001f * 130;
-        nodes.push_back({r, phase, speed, tilt});
-    }
-    float t = 0.0f;
-    float simSpeed = 1.0f;
+
+    float camYaw = 0.8f, camPitch = 0.33f, camDistance = 15.0f;
+
+    auto resetState = [&](Vector3* pNo, Vector3* vNo, Vector3* pDr, Vector3* vDr, std::deque<Vector3>* trNo, std::deque<Vector3>* trDr, float speed, float angleDeg) {
+        float ang = angleDeg * PI / 180.0f;
+        Vector3 v0 = {speed * std::cos(ang), speed * std::sin(ang), 0.0f};
+        *pNo = {0.0f, 0.15f, -0.3f}; *vNo = v0;
+        *pDr = {0.0f, 0.15f, 0.3f};  *vDr = v0;
+        trNo->clear(); trDr->clear();
+        trNo->push_back(*pNo); trDr->push_back(*pDr);
+    };
+
+    float speed = 14.0f;
+    float angleDeg = 44.0f;
+    float dragK = 0.08f;
     bool paused = false;
+
+    Vector3 pNo{}, vNo{}, pDr{}, vDr{};
+    std::deque<Vector3> trNo, trDr;
+    resetState(&pNo, &vNo, &pDr, &vDr, &trNo, &trDr, speed, angleDeg);
+
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) { t = 0.0f; simSpeed = 1.0f; paused = false; }
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) simSpeed = std::max(0.2f, simSpeed - 0.2f);
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) simSpeed = std::min(6.0f, simSpeed + 0.2f);
+        if (IsKeyPressed(KEY_R)) { paused = false; resetState(&pNo, &vNo, &pDr, &vDr, &trNo, &trDr, speed, angleDeg); }
+        if (IsKeyPressed(KEY_LEFT_BRACKET)) dragK = std::max(0.0f, dragK - 0.01f);
+        if (IsKeyPressed(KEY_RIGHT_BRACKET)) dragK = std::min(0.3f, dragK + 0.01f);
+        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) angleDeg = std::max(10.0f, angleDeg - 1.0f);
+        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) angleDeg = std::min(80.0f, angleDeg + 1.0f);
+        if (IsKeyPressed(KEY_COMMA)) speed = std::max(4.0f, speed - 0.5f);
+        if (IsKeyPressed(KEY_PERIOD)) speed = std::min(30.0f, speed + 0.5f);
+
+        if (IsKeyPressed(KEY_SPACE)) resetState(&pNo, &vNo, &pDr, &vDr, &trNo, &trDr, speed, angleDeg);
+
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
+
         if (!paused) {
-            t += GetFrameTime() * simSpeed;
-        }
-        BeginDrawing();
-        ClearBackground(Color{6, 9, 17, 255});
-        BeginMode3D(camera);
-        DrawGrid(28, 0.5f);
-        DrawSphere({0.0f, 0.0f, 0.0f}, 0.32f + 0.04f * std::sin(0.8f * t), Color{255, 195, 120, 230});
-        for (size_t i = 0; i < nodes.size(); ++i) {
-            const Node& n = nodes[i];
-            float a = n.phase + n.speed * t;
-            float r = n.r + 0.16f * std::sin(a * (1.2f + 0.03f * 842) + n.tilt);
-            float x = r * std::cos(a);
-            float z = r * std::sin(a);
-            float y = 0.35f * std::sin(a * (1.7f + 0.01f * 130) + n.tilt * (1.0f + 0.02f * 589));
-            unsigned char rr = static_cast<unsigned char>(80 + (i * (9 + (589 % 5))) % 155);
-            unsigned char gg = static_cast<unsigned char>(110 + (i * (7 + (130 % 7))) % 130);
-            unsigned char bb = static_cast<unsigned char>(150 + (i * (5 + (842 % 9))) % 105);
-            Color c = Color{rr, gg, bb, 220};
-            Vector3 p = {x, y, z};
-            DrawSphere(p, 0.03f + 0.01f * std::sin(a + i * 0.01f), c);
-            if ((i % (5 + (130 % 5))) == 0) {
-                DrawLine3D({0.0f, 0.0f, 0.0f}, p, Color{100, 150, 220, 45});
+            float dt = GetFrameTime();
+            Vector3 g = {0.0f, -9.81f, 0.0f};
+
+            if (pNo.y > 0.0f) {
+                vNo = Vector3Add(vNo, Vector3Scale(g, dt));
+                pNo = Vector3Add(pNo, Vector3Scale(vNo, dt));
+                trNo.push_back(pNo);
             }
+
+            if (pDr.y > 0.0f) {
+                Vector3 drag = Vector3Scale(vDr, -dragK * Vector3Length(vDr));
+                vDr = Vector3Add(vDr, Vector3Scale(Vector3Add(g, drag), dt));
+                pDr = Vector3Add(pDr, Vector3Scale(vDr, dt));
+                trDr.push_back(pDr);
+            }
+
+            if (trNo.size() > 1500) trNo.pop_front();
+            if (trDr.size() > 1500) trDr.pop_front();
         }
+
+        BeginDrawing();
+        ClearBackground(Color{6, 9, 16, 255});
+        BeginMode3D(camera);
+
+        DrawGrid(32, 0.5f);
+        DrawCube({8.0f, -0.02f, 0.0f}, 20.0f, 0.02f, 5.0f, Color{50, 70, 95, 255});
+
+        DrawTrail(trNo, Color{130, 220, 255, 255});
+        DrawTrail(trDr, Color{255, 170, 110, 255});
+
+        DrawSphere(pNo, 0.11f, Color{130, 220, 255, 255});
+        DrawSphere(pDr, 0.11f, Color{255, 170, 110, 255});
+
         EndMode3D();
-        DrawText("projectile drag viz", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
-        std::string hud = Hud(t, simSpeed, paused);
-        DrawText(hud.c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+
+        DrawText("Projectile Motion: Vacuum vs Air Drag", 20, 18, 29, Color{232, 238, 248, 255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] drag | +/- angle | , . speed | SPACE relaunch | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
+
+        std::ostringstream os;
+        os << std::fixed << std::setprecision(2)
+           << "drag=" << dragK << "  angle=" << angleDeg << "deg  speed=" << speed
+           << "  range(no drag)=" << std::max(0.0f, pNo.x)
+           << "  range(drag)=" << std::max(0.0f, pDr.x);
+        if (paused) os << "  [PAUSED]";
+        DrawText(os.str().c_str(), 20, 82, 20, Color{126, 224, 255, 255});
+        DrawFPS(20, 110);
+
         EndDrawing();
     }
+
     CloseWindow();
     return 0;
 }
-

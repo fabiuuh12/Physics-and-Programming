@@ -1,15 +1,17 @@
 #include "raylib.h"
 #include "raymath.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <vector>
+
 namespace {
 constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
-void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
+
+void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
@@ -17,95 +19,75 @@ void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float
         *pitch = std::clamp(*pitch, -1.35f, 1.35f);
     }
     *distance -= GetMouseWheelMove() * 0.6f;
-    *distance = std::clamp(*distance, 4.0f, 34.0f);
+    *distance = std::clamp(*distance, 4.0f, 35.0f);
     float cp = std::cos(*pitch);
-    Vector3 offset = {
-        *distance * cp * std::cos(*yaw),
-        *distance * std::sin(*pitch),
-        *distance * cp * std::sin(*yaw),
-    };
-    camera->position = Vector3Add(camera->target, offset);
+    c->position = Vector3Add(c->target, {*distance * cp * std::cos(*yaw), *distance * std::sin(*pitch), *distance * cp * std::sin(*yaw)});
 }
-struct Node {
-    float r;
-    float phase;
-    float speed;
-    float tilt;
-};
-std::string Hud(float t, float speed, bool paused) {
-    std::ostringstream os;
-    os << std::fixed << std::setprecision(2)
-       << "t=" << t
-       << "  speed=" << speed << "x";
-    if (paused) os << "  [PAUSED]";
-    return os.str();
-}
-}  // namespace
+} // namespace
+
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "particle entang viz 3D - C++ (raylib)");
+    InitWindow(kScreenWidth, kScreenHeight, "Particle Entanglement Correlation 3D - C++ (raylib)");
     SetTargetFPS(60);
+
     Camera3D camera{};
-    camera.position = {7.8f, 4.8f, 8.4f};
-    camera.target = {0.0f, 0.0f, 0.0f};
-    camera.up = {0.0f, 1.0f, 0.0f};
+    camera.position = {7.8f, 4.9f, 8.8f};
+    camera.target = {0,0.6f,0};
+    camera.up = {0,1,0};
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
-    float camYaw = 0.84f;
-    float camPitch = 0.33f;
-    float camDistance = 13.0f;
-    std::vector<Node> nodes;
-    nodes.reserve(140);
-    for (int i = 0; i < 140; ++i) {
-        float fi = static_cast<float>(i);
-        float r = 0.7f + 0.05f * fi;
-        float phase = 0.24f * fi;
-        float speed = 0.25f + 0.01f * static_cast<float>(i % 17) + 0.002f * 377;
-        float tilt = 0.08f * static_cast<float>(i % 11) + 0.001f * 915;
-        nodes.push_back({r, phase, speed, tilt});
-    }
-    float t = 0.0f;
-    float simSpeed = 1.0f;
+    float camYaw=0.84f, camPitch=0.34f, camDistance=13.0f;
+
+    float a = 0.0f;
+    float b = PI/4.0f;
     bool paused = false;
+    float t = 0.0f;
+
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) { t = 0.0f; simSpeed = 1.0f; paused = false; }
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) simSpeed = std::max(0.2f, simSpeed - 0.2f);
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) simSpeed = std::min(6.0f, simSpeed + 0.2f);
-        UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
-        if (!paused) {
-            t += GetFrameTime() * simSpeed;
-        }
+        if (IsKeyPressed(KEY_R)) { a=0.0f; b=PI/4.0f; paused=false; t=0.0f; }
+        if (IsKeyPressed(KEY_LEFT)) a -= 0.06f;
+        if (IsKeyPressed(KEY_RIGHT)) a += 0.06f;
+        if (IsKeyPressed(KEY_DOWN)) b -= 0.06f;
+        if (IsKeyPressed(KEY_UP)) b += 0.06f;
+
+        UpdateOrbitCameraDragOnly(&camera,&camYaw,&camPitch,&camDistance);
+        if (!paused) t += GetFrameTime();
+
+        float corr = -std::cos(2.0f*(a-b));
+        float pSame = 0.5f * (1.0f + corr);
+        float pDiff = 1.0f - pSame;
+
         BeginDrawing();
-        ClearBackground(Color{6, 9, 17, 255});
+        ClearBackground(Color{6,9,16,255});
         BeginMode3D(camera);
-        DrawGrid(28, 0.5f);
-        DrawSphere({0.0f, 0.0f, 0.0f}, 0.32f + 0.04f * std::sin(0.8f * t), Color{255, 195, 120, 230});
-        for (size_t i = 0; i < nodes.size(); ++i) {
-            const Node& n = nodes[i];
-            float a = n.phase + n.speed * t;
-            float r = n.r + 0.16f * std::sin(a * (1.2f + 0.03f * 630) + n.tilt);
-            float x = r * std::cos(a);
-            float z = r * std::sin(a);
-            float y = 0.35f * std::sin(a * (1.7f + 0.01f * 915) + n.tilt * (1.0f + 0.02f * 377));
-            unsigned char rr = static_cast<unsigned char>(80 + (i * (9 + (377 % 5))) % 155);
-            unsigned char gg = static_cast<unsigned char>(110 + (i * (7 + (915 % 7))) % 130);
-            unsigned char bb = static_cast<unsigned char>(150 + (i * (5 + (630 % 9))) % 105);
-            Color c = Color{rr, gg, bb, 220};
-            Vector3 p = {x, y, z};
-            DrawSphere(p, 0.03f + 0.01f * std::sin(a + i * 0.01f), c);
-            if ((i % (5 + (915 % 5))) == 0) {
-                DrawLine3D({0.0f, 0.0f, 0.0f}, p, Color{100, 150, 220, 45});
-            }
-        }
+
+        DrawGrid(24, 0.5f);
+        Vector3 p1 = {-1.8f, 0.6f, 0.0f};
+        Vector3 p2 = { 1.8f, 0.6f, 0.0f};
+        DrawSphere(p1, 0.22f, Color{120,220,255,255});
+        DrawSphere(p2, 0.22f, Color{255,170,120,255});
+        DrawLine3D(p1, p2, Color{170,200,255,120});
+
+        DrawLine3D(p1, Vector3Add(p1, {std::cos(a), 0.0f, std::sin(a)}), Color{130,220,255,255});
+        DrawLine3D(p2, Vector3Add(p2, {std::cos(b), 0.0f, std::sin(b)}), Color{255,180,120,255});
+
+        DrawCube({0.0f, 0.25f + pSame, -1.5f}, 0.5f, 2.0f*pSame, 0.4f, Color{120,220,255,220});
+        DrawCube({0.8f, 0.25f + pDiff, -1.5f}, 0.5f, 2.0f*pDiff, 0.4f, Color{255,170,120,220});
+
         EndMode3D();
-        DrawText("particle entang viz", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
-        std::string hud = Hud(t, simSpeed, paused);
-        DrawText(hud.c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+
+        DrawText("Entanglement Correlation (Singlet-like Model)", 20, 18, 29, Color{232,238,248,255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | LEFT/RIGHT set analyzer A | UP/DOWN set analyzer B | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+
+        std::ostringstream os;
+        os << std::fixed << std::setprecision(3) << "A=" << a << " rad  B=" << b << " rad  corr~" << corr << "  P(same)~" << pSame;
+        if (paused) os << "  [PAUSED]";
+        DrawText(os.str().c_str(), 20, 82, 20, Color{126,224,255,255});
+        DrawFPS(20, 110);
+
         EndDrawing();
     }
+
     CloseWindow();
     return 0;
 }
-
