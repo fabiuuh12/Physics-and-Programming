@@ -60,6 +60,9 @@ target_link_libraries(fluid_vortex_viz_cpp PRIVATE raylib)
 add_executable(gravitational_lensing_viz_cpp "gravitational_lensing_viz.cpp")
 target_link_libraries(gravitational_lensing_viz_cpp PRIVATE raylib)
 
+add_executable(gravity_lagrange_viz_cpp "gravity_lagrange_viz.cpp")
+target_link_libraries(gravity_lagrange_viz_cpp PRIVATE raylib)
+
 add_executable(hawking_particles_escape_viz_cpp "hawking_particles_escape_viz.cpp")
 target_link_libraries(hawking_particles_escape_viz_cpp PRIVATE raylib)
 
