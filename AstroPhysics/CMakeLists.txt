@@ -63,6 +63,12 @@ target_link_libraries(gravitational_lensing_viz_cpp PRIVATE raylib)
 add_executable(gravity_lagrange_viz_cpp "gravity_lagrange_viz.cpp")
 target_link_libraries(gravity_lagrange_viz_cpp PRIVATE raylib)
 
+add_executable(higgs_field_viz_cpp "higgs_field_viz.cpp")
+target_link_libraries(higgs_field_viz_cpp PRIVATE raylib)
+
+add_executable(higgs_particle_viz_cpp "higgs_particle_viz.cpp")
+target_link_libraries(higgs_particle_viz_cpp PRIVATE raylib)
+
 add_executable(hawking_particles_escape_viz_cpp "hawking_particles_escape_viz.cpp")
 target_link_libraries(hawking_particles_escape_viz_cpp PRIVATE raylib)
 
@@ -140,4 +146,3 @@ target_link_libraries(uncertainty_wavepacket_viz_cpp PRIVATE raylib)
 
 add_executable(wormhole_viz_cpp "wormhole_viz.cpp")
 target_link_libraries(wormhole_viz_cpp PRIVATE raylib)
-

@@ -20,6 +20,14 @@ struct Fragment {
     Color color;
 };
 
+void SpawnEnergyBurst(std::vector<Fragment>* frags, Vector3 origin, int count, float speed, float life, Color color) {
+    for (int i = 0; i < count; ++i) {
+        float a = 2.0f * PI * static_cast<float>(i) / static_cast<float>(count);
+        Vector3 dir = {std::cos(a), 0.24f * std::sin(2.4f * a), std::sin(a)};
+        frags->push_back({origin, Vector3Scale(dir, speed), life, color});
+    }
+}
+
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         Vector2 d = GetMouseDelta();
@@ -50,42 +58,73 @@ int main() {
 
     bool fusionMode = false;
     bool paused = false;
-    float t = 0.0f;
     std::vector<Fragment> frags;
 
-    auto trigger = [&]() {
+    float reactionTime = 0.0f;
+    bool reactionActive = false;
+    bool energyReleased = false;
+
+    float neutronX = -3.0f;
+    float splitOffset = 0.0f;
+    float fusionSeparation = 1.8f;
+
+    auto resetReaction = [&]() {
         frags.clear();
-        if (!fusionMode) {
-            Vector3 src = {0.0f, 0.0f, 0.0f};
-            for (int i = 0; i < 16; ++i) {
-                float a = 2.0f * PI * static_cast<float>(i) / 16.0f;
-                Vector3 dir = {std::cos(a), 0.24f * std::sin(2.0f * a), std::sin(a)};
-                frags.push_back({src, Vector3Scale(dir, 2.8f), 2.2f, Color{255, 170, 110, 255}});
-            }
-        } else {
-            Vector3 s1 = {-1.1f, 0.0f, 0.0f};
-            Vector3 s2 = {1.1f, 0.0f, 0.0f};
-            for (int i = 0; i < 22; ++i) {
-                float a = 2.0f * PI * static_cast<float>(i) / 22.0f;
-                Vector3 dir = {std::cos(a), 0.2f * std::sin(3.0f * a), std::sin(a)};
-                frags.push_back({{0.0f, 0.0f, 0.0f}, Vector3Scale(dir, 4.1f), 2.6f, Color{255, 220, 120, 255}});
-            }
-            frags.push_back({s1, {2.0f, 0.0f, 0.0f}, 0.6f, Color{130, 210, 255, 220}});
-            frags.push_back({s2, {-2.0f, 0.0f, 0.0f}, 0.6f, Color{130, 210, 255, 220}});
-        }
+        reactionTime = 0.0f;
+        reactionActive = false;
+        energyReleased = false;
+        neutronX = -3.0f;
+        splitOffset = 0.0f;
+        fusionSeparation = 1.8f;
+    };
+
+    auto trigger = [&]() {
+        resetReaction();
+        reactionActive = true;
     };
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_M)) { fusionMode = !fusionMode; frags.clear(); t = 0.0f; }
+        if (IsKeyPressed(KEY_M)) {
+            fusionMode = !fusionMode;
+            resetReaction();
+        }
         if (IsKeyPressed(KEY_SPACE)) trigger();
-        if (IsKeyPressed(KEY_R)) { frags.clear(); t = 0.0f; paused = false; }
+        if (IsKeyPressed(KEY_R)) {
+            resetReaction();
+            paused = false;
+        }
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
             float dt = GetFrameTime();
-            t += dt;
+
+            if (reactionActive) {
+                reactionTime += dt;
+
+                if (!fusionMode) {
+                    const float impactTime = 0.95f;
+                    if (reactionTime < impactTime) {
+                        neutronX = -3.0f + (reactionTime / impactTime) * 3.0f;
+                    } else {
+                        splitOffset = std::min((reactionTime - impactTime) * 1.35f, 1.35f);
+                        if (!energyReleased) {
+                            SpawnEnergyBurst(&frags, {0.0f, 0.0f, 0.0f}, 22, 3.1f, 2.1f, Color{255, 175, 100, 255});
+                            energyReleased = true;
+                        }
+                    }
+                } else {
+                    const float mergeTime = 1.15f;
+                    if (reactionTime < mergeTime) {
+                        fusionSeparation = std::max(0.0f, 1.8f - (reactionTime / mergeTime) * 1.8f);
+                    } else if (!energyReleased) {
+                        SpawnEnergyBurst(&frags, {0.0f, 0.0f, 0.0f}, 30, 4.0f, 2.5f, Color{255, 225, 120, 255});
+                        energyReleased = true;
+                    }
+                }
+            }
+
             for (Fragment& f : frags) {
                 f.pos = Vector3Add(f.pos, Vector3Scale(f.vel, dt));
                 f.vel = Vector3Scale(f.vel, 0.985f);
@@ -100,12 +139,34 @@ int main() {
         BeginMode3D(camera);
 
         if (!fusionMode) {
-            DrawSphere({0.0f, 0.0f, 0.0f}, 0.45f, Color{120, 210, 255, 230});
-            DrawSphere({0.0f, 0.0f, 0.0f}, 0.62f, Color{120, 180, 255, 70});
+            const bool hasSplit = splitOffset > 0.0f;
+
+            if (!hasSplit) {
+                DrawSphere({0.0f, 0.0f, 0.0f}, 0.48f, Color{120, 210, 255, 230});
+                DrawSphere({0.0f, 0.0f, 0.0f}, 0.66f, Color{120, 180, 255, 70});
+            } else {
+                float daughterDist = 0.35f + splitOffset;
+                DrawSphere({-daughterDist, 0.06f, 0.0f}, 0.30f, Color{130, 215, 255, 235});
+                DrawSphere({daughterDist, -0.06f, 0.0f}, 0.30f, Color{130, 215, 255, 235});
+            }
+
+            if (reactionActive && !energyReleased) {
+                DrawSphere({neutronX, 0.0f, 0.0f}, 0.11f, Color{255, 120, 120, 255});
+                DrawLine3D({neutronX - 0.35f, 0.0f, 0.0f}, {neutronX - 0.12f, 0.0f, 0.0f}, Color{255, 150, 150, 180});
+            }
         } else {
-            DrawSphere({-1.1f, 0.0f, 0.0f}, 0.28f, Color{120, 210, 255, 230});
-            DrawSphere({1.1f, 0.0f, 0.0f}, 0.28f, Color{120, 210, 255, 230});
-            DrawLine3D({-1.1f, 0.0f, 0.0f}, {1.1f, 0.0f, 0.0f}, Color{255, 190, 120, 120});
+            const bool merged = energyReleased;
+
+            if (!merged) {
+                DrawSphere({-fusionSeparation, 0.0f, 0.0f}, 0.30f, Color{120, 210, 255, 230});
+                DrawSphere({fusionSeparation, 0.0f, 0.0f}, 0.30f, Color{120, 210, 255, 230});
+                DrawLine3D({-fusionSeparation, 0.0f, 0.0f}, {fusionSeparation, 0.0f, 0.0f}, Color{255, 190, 120, 120});
+            } else {
+                float pulse = 1.0f + 0.18f * std::exp(-2.0f * std::max(0.0f, reactionTime - 1.15f)) *
+                                         std::sin(15.0f * std::max(0.0f, reactionTime - 1.15f));
+                DrawSphere({0.0f, 0.0f, 0.0f}, 0.42f * pulse, Color{150, 225, 255, 240});
+                DrawSphere({0.0f, 0.0f, 0.0f}, 0.62f * pulse, Color{170, 205, 255, 70});
+            }
         }
 
         for (const Fragment& f : frags) {
@@ -116,11 +177,16 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Fission vs Fusion (Conceptual Energy Release)", 20, 18, 29, Color{235, 240, 250, 255});
+        DrawText("Fission vs Fusion (Reaction Mechanics)", 20, 18, 29, Color{235, 240, 250, 255});
         DrawText("Hold left mouse: orbit | wheel: zoom | M mode toggle | SPACE trigger | P pause | R reset", 20, 54, 18, Color{170, 184, 204, 255});
 
         std::ostringstream os;
-        os << "mode=" << (fusionMode ? "fusion" : "fission") << "  fragments=" << frags.size();
+        if (fusionMode) {
+            os << "mode=fusion: two nuclei merge into one + energy";
+        } else {
+            os << "mode=fission: neutron strikes nucleus, splits into two + energy";
+        }
+        os << "  particles=" << frags.size();
         if (paused) os << "  [PAUSED]";
         DrawText(os.str().c_str(), 20, 82, 20, Color{255, 210, 150, 255});
         DrawFPS(20, 110);
