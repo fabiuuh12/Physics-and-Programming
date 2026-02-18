@@ -5,12 +5,13 @@ Mixed repository of interactive astrophysics/physics visualizations in C++ and p
 ## Repository Layout
 
 - `AstroPhysics/`
-  - 55 Raylib-based C++ visualizers (orbital mechanics, relativity, quantum concepts, fluid dynamics, EM, etc.).
+  - Raylib-based C++ visualizers (orbital mechanics, relativity, quantum concepts, fluid dynamics, EM, etc.).
   - CMake build with one executable per `.cpp` file.
-  - Includes `QuantumStuff_Equations.tex` and `QuantumStuff_Equations.pdf`.
+  - Topic-based folders (`quantum/`, `gravity/`, `mechanics/`, `thermodynamics/`, ...).
+  - Includes `docs/QuantumStuff_Equations.tex` and `docs/QuantumStuff_Equations.pdf`.
 - `CyberTools/`
-  - 24 defensive/local Python scripts for analysis and hygiene tasks.
-  - Examples: hash inventory, URL heuristic scan, DNS checks, IOC extraction, snapshot diff, password tools.
+  - Defensive/local Python scripts for analysis and hygiene tasks.
+  - Topic-based folders (`auth/`, `network/`, `web/`, `forensics/`, ...).
 - `external/`
   - External or third-party assets.
 
@@ -29,7 +30,7 @@ This repo has previously been built with Visual Studio Build Tools + vcpkg-style
 
 - Python 3.10+
 - Most scripts use only the standard library.
-- `OSINT Tool.py` uses `requests`.
+- `CyberTools/osint/OSINT Tool.py` uses `requests`.
 - `AstroPhysics/tests/test_quantum_search.py` uses `pytest` + `numpy`.
 
 Install optional Python deps:
@@ -66,9 +67,9 @@ From repo root:
 
 ```powershell
 cd CyberTools
-python "Password Strength Checker.py" --password "example"
-python "URL Heuristic Scanner.py" --url "https://example.com/login"
-python "Certificate Expiry Checker.py" --host "example.com"
+python "auth/Password Strength Checker.py" --password "example"
+python "web/URL Heuristic Scanner.py" --url "https://example.com/login"
+python "network/Certificate Expiry Checker.py" --host "example.com"
 ```
 
 ## Run Tests
