@@ -57,3 +57,5 @@ CMakeUserPresets.json
 # Local secrets/env
 .env
 .env.*
+
+# Docs-only touch commit to replace old folder commit message.
