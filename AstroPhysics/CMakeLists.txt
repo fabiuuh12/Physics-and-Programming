@@ -12,6 +12,9 @@ target_link_libraries(4th_dimension_viz_cpp PRIVATE raylib)
 add_executable(angular_momentum_viz_cpp "angular_momentum_viz.cpp")
 target_link_libraries(angular_momentum_viz_cpp PRIVATE raylib)
 
+add_executable(aerodynamics_viz_cpp "aerodynamics_viz.cpp")
+target_link_libraries(aerodynamics_viz_cpp PRIVATE raylib)
+
 add_executable(atom_viz_cpp "atom_viz.cpp")
 target_link_libraries(atom_viz_cpp PRIVATE raylib)
 
@@ -21,8 +24,14 @@ target_link_libraries(atomic_bomb_viz_cpp PRIVATE raylib)
 add_executable(blackhole_viz_cpp "blackhole_viz.cpp")
 target_link_libraries(blackhole_viz_cpp PRIVATE raylib)
 
+add_executable(black_hole_accretion_beaming_viz_cpp "black_hole_accretion_beaming_viz.cpp")
+target_link_libraries(black_hole_accretion_beaming_viz_cpp PRIVATE raylib)
+
 add_executable(collision_bh_viz_cpp "collision_bh_viz.cpp")
 target_link_libraries(collision_bh_viz_cpp PRIVATE raylib)
+
+add_executable(cosmic_expansion_sandbox_viz_cpp "cosmic_expansion_sandbox_viz.cpp")
+target_link_libraries(cosmic_expansion_sandbox_viz_cpp PRIVATE raylib)
 
 add_executable(damped_forced_oscillator_viz_cpp "damped_forced_oscillator_viz.cpp")
 target_link_libraries(damped_forced_oscillator_viz_cpp PRIVATE raylib)
@@ -48,6 +57,9 @@ target_link_libraries(electric_field_cpp PRIVATE raylib)
 add_executable(enthropy_viz_cpp "enthropy_viz.cpp")
 target_link_libraries(enthropy_viz_cpp PRIVATE raylib)
 
+add_executable(exoplanet_transit_lab_viz_cpp "exoplanet_transit_lab_viz.cpp")
+target_link_libraries(exoplanet_transit_lab_viz_cpp PRIVATE raylib)
+
 add_executable(fission_fusion_viz_cpp "fission_fusion_viz.cpp")
 target_link_libraries(fission_fusion_viz_cpp PRIVATE raylib)
 
@@ -59,6 +71,9 @@ target_link_libraries(fluid_vortex_viz_cpp PRIVATE raylib)
 
 add_executable(gravitational_lensing_viz_cpp "gravitational_lensing_viz.cpp")
 target_link_libraries(gravitational_lensing_viz_cpp PRIVATE raylib)
+
+add_executable(gravitational_lensing_playground_viz_cpp "gravitational_lensing_playground_viz.cpp")
+target_link_libraries(gravitational_lensing_playground_viz_cpp PRIVATE raylib)
 
 add_executable(gravity_lagrange_viz_cpp "gravity_lagrange_viz.cpp")
 target_link_libraries(gravity_lagrange_viz_cpp PRIVATE raylib)
@@ -77,6 +92,9 @@ target_link_libraries(hawkin_s_rad_viz_cpp PRIVATE raylib)
 
 add_executable(hydrogen_bomb_viz_cpp "hydrogen_bomb_viz.cpp")
 target_link_libraries(hydrogen_bomb_viz_cpp PRIVATE raylib)
+
+add_executable(hr_diagram_evolution_viz_cpp "hr_diagram_evolution_viz.cpp")
+target_link_libraries(hr_diagram_evolution_viz_cpp PRIVATE raylib)
 
 add_executable(interferometer_gw_viz_cpp "interferometer_gw_viz.cpp")
 target_link_libraries(interferometer_gw_viz_cpp PRIVATE raylib)
@@ -98,6 +116,9 @@ target_link_libraries(particle_entang_viz_cpp PRIVATE raylib)
 
 add_executable(pulsar_viz_cpp "pulsar_viz.cpp")
 target_link_libraries(pulsar_viz_cpp PRIVATE raylib)
+
+add_executable(pulsar_timing_gw_viz_cpp "pulsar_timing_gw_viz.cpp")
+target_link_libraries(pulsar_timing_gw_viz_cpp PRIVATE raylib)
 
 add_executable(projectile_drag_viz_cpp "projectile_drag_viz.cpp")
 target_link_libraries(projectile_drag_viz_cpp PRIVATE raylib)
@@ -128,6 +149,9 @@ target_link_libraries(schrodinger_cat_viz_cpp PRIVATE raylib)
 
 add_executable(simple_harmonic_oscillator_viz_cpp "simple_harmonic_oscillator_viz.cpp")
 target_link_libraries(simple_harmonic_oscillator_viz_cpp PRIVATE raylib)
+
+add_executable(galaxy_rotation_dark_matter_viz_cpp "galaxy_rotation_dark_matter_viz.cpp")
+target_link_libraries(galaxy_rotation_dark_matter_viz_cpp PRIVATE raylib)
 
 add_executable(solar_system_spacetime_viz_cpp "solar_system_spacetime_viz.cpp")
 target_link_libraries(solar_system_spacetime_viz_cpp PRIVATE raylib)
