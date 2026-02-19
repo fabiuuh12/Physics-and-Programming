@@ -19,11 +19,15 @@ namespace {
 constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 constexpr float kCameraDistanceMin = 1.6f;
-constexpr float kCameraDistanceMax = 30.0f;
+constexpr float kCameraDistanceMax = 120.0f;
+constexpr float kCameraPitchMin = -3.05f;
+constexpr float kCameraPitchMax = 3.05f;
 constexpr std::int64_t kControlStaleMs = 1200;
 constexpr std::int64_t kPinchSequenceWindowMs = 650;
+constexpr std::int64_t kZoomPinchSuppressMs = 260;
 constexpr float kWarpStep = 0.02f;
 constexpr float kThroatStep = 0.05f;
+constexpr float kBridgePitchGain = 2.20f;
 
 struct FlowParticle {
     float u;
@@ -39,6 +43,7 @@ struct LiveControls {
     float pitchDeg = 0.0f;
     int nIncCount = 0;
     int nDecCount = 0;
+    bool zoomLineActive = false;
     std::string label = "Unknown";
     std::string gesture = "none";
     std::int64_t timestampMs = 0;
@@ -83,6 +88,7 @@ std::optional<LiveControls> ParseLiveControlsFile(const std::filesystem::path& p
             else if (key == "pitch_deg") lc.pitchDeg = std::stof(val);
             else if (key == "n_inc_count") lc.nIncCount = std::stoi(val);
             else if (key == "n_dec_count") lc.nDecCount = std::stoi(val);
+            else if (key == "zoom_line_active") lc.zoomLineActive = (val == "1" || val == "true" || val == "True");
             else if (key == "label") lc.label = val;
             else if (key == "gesture") lc.gesture = val;
             else if (key == "timestamp_ms") lc.timestampMs = std::stoll(val);
@@ -129,7 +135,7 @@ void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
-        *pitch = std::clamp(*pitch, -1.35f, 1.35f);
+        *pitch = std::clamp(*pitch, kCameraPitchMin, kCameraPitchMax);
     }
 
     *distance -= GetMouseWheelMove() * 0.6f;
@@ -245,6 +251,7 @@ int main() {
     int pendingLeftPinches = 0;
     std::int64_t rightPendingDeadlineMs = 0;
     std::int64_t leftPendingDeadlineMs = 0;
+    std::int64_t zoomPinchSuppressUntilMs = 0;
     std::string bridgeStatus = "bridge: waiting for AstroPhysics/vision/live_controls.txt";
 
     std::vector<FlowParticle> flow;
@@ -300,21 +307,32 @@ int main() {
 
                     const float pitchDeltaDeg = live->pitchDeg - prevLivePitchDeg;
                     prevLivePitchDeg = live->pitchDeg;
-                    camPitch += pitchDeltaDeg * DEG2RAD;
-                    camPitch = std::clamp(camPitch, -1.35f, 1.35f);
+                    camPitch += pitchDeltaDeg * kBridgePitchGain * DEG2RAD;
+                    camPitch = std::clamp(camPitch, kCameraPitchMin, kCameraPitchMax);
 
-                    if (live->nIncCount >= prevLiveNIncCount) {
-                        const int incDelta = live->nIncCount - prevLiveNIncCount;
-                        if (incDelta > 0) {
-                            pendingRightPinches += incDelta;
-                            rightPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
-                        }
+                    if (live->zoomLineActive) {
+                        zoomPinchSuppressUntilMs = nowMs + kZoomPinchSuppressMs;
+                        pendingRightPinches = 0;
+                        pendingLeftPinches = 0;
+                        rightPendingDeadlineMs = 0;
+                        leftPendingDeadlineMs = 0;
                     }
-                    if (live->nDecCount >= prevLiveNDecCount) {
-                        const int decDelta = live->nDecCount - prevLiveNDecCount;
-                        if (decDelta > 0) {
-                            pendingLeftPinches += decDelta;
-                            leftPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+
+                    const bool allowPinchActions = (nowMs >= zoomPinchSuppressUntilMs) && !live->zoomLineActive;
+                    if (allowPinchActions) {
+                        if (live->nIncCount >= prevLiveNIncCount) {
+                            const int incDelta = live->nIncCount - prevLiveNIncCount;
+                            if (incDelta > 0) {
+                                pendingRightPinches += incDelta;
+                                rightPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+                            }
+                        }
+                        if (live->nDecCount >= prevLiveNDecCount) {
+                            const int decDelta = live->nDecCount - prevLiveNDecCount;
+                            if (decDelta > 0) {
+                                pendingLeftPinches += decDelta;
+                                leftPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+                            }
                         }
                     }
                     prevLiveNIncCount = live->nIncCount;
