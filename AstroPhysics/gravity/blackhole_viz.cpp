@@ -40,8 +40,13 @@ struct DustParticle {
 };
 
 struct LiveControls {
+    float zoom = 1.0f;
+    float rotationDeg = 0.0f;
+    float pitchDeg = 0.0f;
     int nIncCount = 0;
     int nDecCount = 0;
+    std::string label = "Unknown";
+    std::string gesture = "none";
     std::int64_t timestampMs = 0;
 };
 
@@ -57,6 +62,16 @@ std::int64_t UnixMsNow() {
     return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
+float NormalizeDeg(float deg) {
+    while (deg > 180.0f) deg -= 360.0f;
+    while (deg < -180.0f) deg += 360.0f;
+    return deg;
+}
+
+float AngleDeltaDeg(float current, float previous) {
+    return NormalizeDeg(current - previous);
+}
+
 std::optional<LiveControls> ParseLiveControlsFile(const std::filesystem::path& path) {
     std::ifstream in(path);
     if (!in.is_open()) return std::nullopt;
@@ -69,8 +84,13 @@ std::optional<LiveControls> ParseLiveControlsFile(const std::filesystem::path& p
         const std::string key = Trim(line.substr(0, eq));
         const std::string val = Trim(line.substr(eq + 1));
         try {
-            if (key == "n_inc_count") lc.nIncCount = std::stoi(val);
+            if (key == "zoom") lc.zoom = std::stof(val);
+            else if (key == "rotation_deg") lc.rotationDeg = std::stof(val);
+            else if (key == "pitch_deg") lc.pitchDeg = std::stof(val);
+            else if (key == "n_inc_count") lc.nIncCount = std::stoi(val);
             else if (key == "n_dec_count") lc.nDecCount = std::stoi(val);
+            else if (key == "label") lc.label = val;
+            else if (key == "gesture") lc.gesture = val;
             else if (key == "timestamp_ms") lc.timestampMs = std::stoll(val);
         } catch (...) {
             // Ignore malformed values and keep defaults.
@@ -184,6 +204,16 @@ void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float
     camera->position = Vector3Add(camera->target, offset);
 }
 
+void UpdateCameraFromOrbit(Camera3D* camera, float yaw, float pitch, float distance) {
+    const float cp = std::cos(pitch);
+    const Vector3 offset = {
+        distance * cp * std::cos(yaw),
+        distance * std::sin(pitch),
+        distance * cp * std::sin(yaw),
+    };
+    camera->position = Vector3Add(camera->target, offset);
+}
+
 void DrawCircle3DXZ(float radius, int segments, Color color) {
     for (int i = 0; i < segments; ++i) {
         const float a0 = 2.0f * PI * static_cast<float>(i) / static_cast<float>(segments);
@@ -268,6 +298,9 @@ int main() {
     float warpScale = 1.0f;
     bool showWarp = true;
     bool hasPrevLive = false;
+    float prevLiveZoom = 1.0f;
+    float prevLiveRotDeg = 0.0f;
+    float prevLivePitchDeg = 0.0f;
     int prevLiveNIncCount = 0;
     int prevLiveNDecCount = 0;
     int pendingRightPinches = 0;
@@ -311,12 +344,29 @@ int main() {
         if (auto live = LoadLiveControls()) {
             const std::int64_t ageMs = nowMs - live->timestampMs;
             if (ageMs <= kControlStaleMs) {
-                bridgeStatus = "bridge: live  R/L single=matter +/-  R/L double=speed +/-";
                 if (!hasPrevLive) {
                     hasPrevLive = true;
+                    prevLiveZoom = std::max(0.25f, live->zoom);
+                    prevLiveRotDeg = live->rotationDeg;
+                    prevLivePitchDeg = live->pitchDeg;
                     prevLiveNIncCount = live->nIncCount;
                     prevLiveNDecCount = live->nDecCount;
                 } else {
+                    const float currentLiveZoom = std::max(0.25f, live->zoom);
+                    float zoomRatio = currentLiveZoom / std::max(0.25f, prevLiveZoom);
+                    zoomRatio = std::clamp(zoomRatio, 0.65f, 1.55f);
+                    camDistance = std::clamp(camDistance / zoomRatio, 3.0f, 26.0f);
+                    prevLiveZoom = currentLiveZoom;
+
+                    const float rotDeltaDeg = AngleDeltaDeg(live->rotationDeg, prevLiveRotDeg);
+                    prevLiveRotDeg = live->rotationDeg;
+                    camYaw += rotDeltaDeg * DEG2RAD;
+
+                    const float pitchDeltaDeg = live->pitchDeg - prevLivePitchDeg;
+                    prevLivePitchDeg = live->pitchDeg;
+                    camPitch += pitchDeltaDeg * DEG2RAD;
+                    camPitch = std::clamp(camPitch, -1.35f, 1.35f);
+
                     if (live->nIncCount >= prevLiveNIncCount) {
                         const int incDelta = live->nIncCount - prevLiveNIncCount;
                         if (incDelta > 0) {
@@ -334,6 +384,13 @@ int main() {
                     prevLiveNIncCount = live->nIncCount;
                     prevLiveNDecCount = live->nDecCount;
                 }
+
+                UpdateCameraFromOrbit(&camera, camYaw, camPitch, camDistance);
+                std::ostringstream cs;
+                cs << "bridge: live  hand=" << live->label
+                   << "  gesture=" << live->gesture
+                   << "  age=" << ageMs << "ms";
+                bridgeStatus = cs.str();
             } else {
                 bridgeStatus = "bridge: stale";
                 hasPrevLive = false;

@@ -900,7 +900,7 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
                         (1.0 - ZOOM_MOVE_ALPHA) * control.zoom_move_smooth_y + ZOOM_MOVE_ALPHA * cy
                     )
 
-                x_offset = control.zoom_move_smooth_x - control.zoom_move_anchor_x
+                x_offset = control.zoom_move_anchor_x - control.zoom_move_smooth_x
                 y_offset = control.zoom_move_anchor_y - control.zoom_move_smooth_y
                 rot_speed = _axis_speed_from_offset(
                     x_offset,
