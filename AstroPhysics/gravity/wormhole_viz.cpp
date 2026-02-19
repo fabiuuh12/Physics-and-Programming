@@ -289,14 +289,14 @@ int main() {
             if (ageMs <= kControlStaleMs) {
                 if (!hasPrevLive) {
                     hasPrevLive = true;
-                    prevLiveZoom = std::max(0.25f, live->zoom);
+                    prevLiveZoom = std::max(0.05f, live->zoom);
                     prevLiveRotDeg = live->rotationDeg;
                     prevLivePitchDeg = live->pitchDeg;
                     prevLiveNIncCount = live->nIncCount;
                     prevLiveNDecCount = live->nDecCount;
                 } else {
-                    const float currentLiveZoom = std::max(0.25f, live->zoom);
-                    float zoomRatio = currentLiveZoom / std::max(0.25f, prevLiveZoom);
+                    const float currentLiveZoom = std::max(0.05f, live->zoom);
+                    float zoomRatio = currentLiveZoom / std::max(0.05f, prevLiveZoom);
                     zoomRatio = std::clamp(zoomRatio, 0.65f, 1.55f);
                     camDistance = std::clamp(camDistance / zoomRatio, kCameraDistanceMin, kCameraDistanceMax);
                     prevLiveZoom = currentLiveZoom;

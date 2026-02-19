@@ -25,7 +25,8 @@ constexpr float kExtent = 24.0f;
 constexpr int kGrid = 60;
 constexpr int kTrailMax = 280;
 constexpr std::int64_t kControlStaleMs = 1200;
-constexpr std::int64_t kPinchSequenceWindowMs = 650;
+constexpr std::int64_t kPinchSequenceWindowMs = 850;
+constexpr std::int64_t kZoomPinchSuppressMs = 260;
 constexpr float kSpeedStep = 0.25f;
 constexpr float kWarpStep = 0.05f;
 
@@ -48,6 +49,7 @@ struct LiveControls {
     float pitchDeg = 0.0f;
     int nIncCount = 0;
     int nDecCount = 0;
+    bool zoomLineActive = false;
     std::string label = "Unknown";
     std::string gesture = "none";
     std::int64_t timestampMs = 0;
@@ -93,6 +95,7 @@ std::optional<LiveControls> ParseLiveControlsFile(const std::filesystem::path& p
             else if (key == "pitch_deg") lc.pitchDeg = std::stof(val);
             else if (key == "n_inc_count") lc.nIncCount = std::stoi(val);
             else if (key == "n_dec_count") lc.nDecCount = std::stoi(val);
+            else if (key == "zoom_line_active") lc.zoomLineActive = (val == "1" || val == "true" || val == "True");
             else if (key == "label") lc.label = val;
             else if (key == "gesture") lc.gesture = val;
             else if (key == "timestamp_ms") lc.timestampMs = std::stoll(val);
@@ -295,6 +298,7 @@ int main() {
     int pendingLeftPinches = 0;
     std::int64_t rightPendingDeadlineMs = 0;
     std::int64_t leftPendingDeadlineMs = 0;
+    std::int64_t zoomPinchSuppressUntilMs = 0;
     std::string bridgeStatus = "bridge: waiting for AstroPhysics/vision/live_controls.txt";
 
     while (!WindowShouldClose()) {
@@ -322,14 +326,14 @@ int main() {
             if (ageMs <= kControlStaleMs) {
                 if (!hasPrevLive) {
                     hasPrevLive = true;
-                    prevLiveZoom = std::max(0.25f, live->zoom);
+                    prevLiveZoom = std::max(0.05f, live->zoom);
                     prevLiveRotDeg = live->rotationDeg;
                     prevLivePitchDeg = live->pitchDeg;
                     prevLiveNIncCount = live->nIncCount;
                     prevLiveNDecCount = live->nDecCount;
                 } else {
-                    const float currentLiveZoom = std::max(0.25f, live->zoom);
-                    float zoomRatio = currentLiveZoom / std::max(0.25f, prevLiveZoom);
+                    const float currentLiveZoom = std::max(0.05f, live->zoom);
+                    float zoomRatio = currentLiveZoom / std::max(0.05f, prevLiveZoom);
                     zoomRatio = std::clamp(zoomRatio, 0.65f, 1.55f);
                     camDistance = std::clamp(camDistance / zoomRatio, 9.0f, 72.0f);
                     prevLiveZoom = currentLiveZoom;
@@ -343,18 +347,29 @@ int main() {
                     camPitch += pitchDeltaDeg * DEG2RAD;
                     camPitch = std::clamp(camPitch, -1.35f, 1.35f);
 
-                    if (live->nIncCount >= prevLiveNIncCount) {
-                        const int incDelta = live->nIncCount - prevLiveNIncCount;
-                        if (incDelta > 0) {
-                            pendingRightPinches += incDelta;
-                            rightPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
-                        }
+                    if (live->zoomLineActive) {
+                        zoomPinchSuppressUntilMs = nowMs + kZoomPinchSuppressMs;
+                        pendingRightPinches = 0;
+                        pendingLeftPinches = 0;
+                        rightPendingDeadlineMs = 0;
+                        leftPendingDeadlineMs = 0;
                     }
-                    if (live->nDecCount >= prevLiveNDecCount) {
-                        const int decDelta = live->nDecCount - prevLiveNDecCount;
-                        if (decDelta > 0) {
-                            pendingLeftPinches += decDelta;
-                            leftPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+
+                    const bool allowPinchActions = (nowMs >= zoomPinchSuppressUntilMs) && !live->zoomLineActive;
+                    if (allowPinchActions) {
+                        if (live->nIncCount >= prevLiveNIncCount) {
+                            const int incDelta = live->nIncCount - prevLiveNIncCount;
+                            if (incDelta > 0) {
+                                pendingRightPinches += incDelta;
+                                rightPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+                            }
+                        }
+                        if (live->nDecCount >= prevLiveNDecCount) {
+                            const int decDelta = live->nDecCount - prevLiveNDecCount;
+                            if (decDelta > 0) {
+                                pendingLeftPinches += decDelta;
+                                leftPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+                            }
                         }
                     }
                     prevLiveNIncCount = live->nIncCount;
