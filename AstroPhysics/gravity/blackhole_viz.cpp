@@ -2,8 +2,14 @@
 #include "raymath.h"
 
 #include <algorithm>
+#include <cctype>
+#include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <string>
@@ -21,6 +27,10 @@ constexpr float kDiskOuterRadius = 4.5f;
 constexpr float kGravityMu = 12.0f;
 constexpr float kSheetExtent = 11.0f;
 constexpr int kSheetGrid = 52;
+constexpr int kMatterStep = 100;
+constexpr float kSpeedStep = 0.25f;
+constexpr std::int64_t kControlStaleMs = 1200;
+constexpr std::int64_t kPinchSequenceWindowMs = 650;
 
 struct DustParticle {
     Vector3 pos;
@@ -28,6 +38,77 @@ struct DustParticle {
     float size;
     float heat;
 };
+
+struct LiveControls {
+    int nIncCount = 0;
+    int nDecCount = 0;
+    std::int64_t timestampMs = 0;
+};
+
+std::string Trim(std::string s) {
+    auto notSpace = [](unsigned char ch) { return !std::isspace(ch); };
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), notSpace));
+    s.erase(std::find_if(s.rbegin(), s.rend(), notSpace).base(), s.end());
+    return s;
+}
+
+std::int64_t UnixMsNow() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
+std::optional<LiveControls> ParseLiveControlsFile(const std::filesystem::path& path) {
+    std::ifstream in(path);
+    if (!in.is_open()) return std::nullopt;
+
+    LiveControls lc;
+    std::string line;
+    while (std::getline(in, line)) {
+        const std::size_t eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        const std::string key = Trim(line.substr(0, eq));
+        const std::string val = Trim(line.substr(eq + 1));
+        try {
+            if (key == "n_inc_count") lc.nIncCount = std::stoi(val);
+            else if (key == "n_dec_count") lc.nDecCount = std::stoi(val);
+            else if (key == "timestamp_ms") lc.timestampMs = std::stoll(val);
+        } catch (...) {
+            // Ignore malformed values and keep defaults.
+        }
+    }
+
+    if (lc.timestampMs <= 0) return std::nullopt;
+    return lc;
+}
+
+std::optional<LiveControls> LoadLiveControls() {
+    static std::optional<std::filesystem::path> cachedPath;
+
+    auto tryPath = [](const std::filesystem::path& p) -> std::optional<LiveControls> {
+        if (!std::filesystem::exists(p)) return std::nullopt;
+        return ParseLiveControlsFile(p);
+    };
+
+    if (cachedPath) {
+        if (auto parsed = tryPath(*cachedPath)) return parsed;
+    }
+
+    const std::vector<std::filesystem::path> candidates = {
+        "vision/live_controls.txt",
+        "../vision/live_controls.txt",
+        "../../vision/live_controls.txt",
+        "AstroPhysics/vision/live_controls.txt",
+        std::filesystem::path(__FILE__).parent_path().parent_path() / "vision" / "live_controls.txt",
+    };
+
+    for (const auto& p : candidates) {
+        if (auto parsed = tryPath(p)) {
+            cachedPath = p;
+            return parsed;
+        }
+    }
+    return std::nullopt;
+}
 
 float RandRange(std::mt19937& rng, float lo, float hi) {
     std::uniform_real_distribution<float> d(lo, hi);
@@ -186,6 +267,14 @@ int main() {
     float camDistance = 11.0f;
     float warpScale = 1.0f;
     bool showWarp = true;
+    bool hasPrevLive = false;
+    int prevLiveNIncCount = 0;
+    int prevLiveNDecCount = 0;
+    int pendingRightPinches = 0;
+    int pendingLeftPinches = 0;
+    std::int64_t rightPendingDeadlineMs = 0;
+    std::int64_t leftPendingDeadlineMs = 0;
+    std::string bridgeStatus = "bridge: waiting for AstroPhysics/vision/live_controls.txt";
 
     std::vector<DustParticle> disk;
     ResetDisk(&disk, rng, desiredParticles);
@@ -217,6 +306,61 @@ int main() {
         if (IsKeyPressed(KEY_PERIOD)) warpScale = std::min(1.8f, warpScale + 0.05f);
         if (IsKeyPressed(KEY_COMMA)) warpScale = std::max(0.45f, warpScale - 0.05f);
         if (IsKeyPressed(KEY_W)) showWarp = !showWarp;
+
+        const std::int64_t nowMs = UnixMsNow();
+        if (auto live = LoadLiveControls()) {
+            const std::int64_t ageMs = nowMs - live->timestampMs;
+            if (ageMs <= kControlStaleMs) {
+                bridgeStatus = "bridge: live  R/L single=matter +/-  R/L double=speed +/-";
+                if (!hasPrevLive) {
+                    hasPrevLive = true;
+                    prevLiveNIncCount = live->nIncCount;
+                    prevLiveNDecCount = live->nDecCount;
+                } else {
+                    if (live->nIncCount >= prevLiveNIncCount) {
+                        const int incDelta = live->nIncCount - prevLiveNIncCount;
+                        if (incDelta > 0) {
+                            pendingRightPinches += incDelta;
+                            rightPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+                        }
+                    }
+                    if (live->nDecCount >= prevLiveNDecCount) {
+                        const int decDelta = live->nDecCount - prevLiveNDecCount;
+                        if (decDelta > 0) {
+                            pendingLeftPinches += decDelta;
+                            leftPendingDeadlineMs = nowMs + kPinchSequenceWindowMs;
+                        }
+                    }
+                    prevLiveNIncCount = live->nIncCount;
+                    prevLiveNDecCount = live->nDecCount;
+                }
+            } else {
+                bridgeStatus = "bridge: stale";
+                hasPrevLive = false;
+            }
+        } else {
+            bridgeStatus = "bridge: waiting for AstroPhysics/vision/live_controls.txt";
+            hasPrevLive = false;
+        }
+
+        auto applyPinchBuffer = [&](int* pending, std::int64_t* deadline, int matterDir, float speedDir) {
+            if (*pending >= 2) {
+                const int doubleCount = *pending / 2;
+                speed = std::clamp(speed + speedDir * kSpeedStep * static_cast<float>(doubleCount), 0.25f, 4.0f);
+                *pending %= 2;
+                *deadline = (*pending > 0) ? (nowMs + kPinchSequenceWindowMs) : 0;
+            }
+
+            if (*pending == 1 && *deadline > 0 && nowMs >= *deadline) {
+                desiredParticles = std::clamp(desiredParticles + matterDir * kMatterStep, 120, 1400);
+                ResetDisk(&disk, rng, desiredParticles);
+                *pending = 0;
+                *deadline = 0;
+            }
+        };
+
+        applyPinchBuffer(&pendingRightPinches, &rightPendingDeadlineMs, +1, +1.0f);
+        applyPinchBuffer(&pendingLeftPinches, &leftPendingDeadlineMs, -1, -1.0f);
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
@@ -286,7 +430,8 @@ int main() {
                 << "warp=" << warpScale
                 << "  warpVisible=" << (showWarp ? "yes" : "no");
         DrawText(warpHud.str().c_str(), 20, 110, 20, Color{149, 201, 255, 255});
-        DrawFPS(20, 116);
+        DrawText(bridgeStatus.c_str(), 20, 136, 19, Color{152, 234, 198, 255});
+        DrawFPS(20, 162);
 
         EndDrawing();
     }

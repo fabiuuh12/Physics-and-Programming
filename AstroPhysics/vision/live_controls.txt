@@ -1,0 +1,17 @@
+timestamp_ms=1771514455323
+zoom=0.716052
+rotation_deg=-2.006888
+pitch_deg=0.522128
+wave_amp=0.708396
+paused=0
+camera_locked=0
+zoom_line_active=0
+zoom_line_ax=0.312893
+zoom_line_ay=0.688613
+zoom_line_bx=0.664062
+zoom_line_by=0.596732
+label=Unknown
+gesture=none
+pinch_ratio=0.000000
+n_inc_count=7
+n_dec_count=1
