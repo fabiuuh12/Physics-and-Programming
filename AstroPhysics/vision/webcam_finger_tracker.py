@@ -42,6 +42,7 @@ if "MPLCONFIGDIR" not in os.environ:
 try:
     import cv2
     import mediapipe as mp
+    import numpy as np
 except ImportError as exc:
     print(
         "Missing dependency: "
@@ -90,6 +91,7 @@ ZOOM_SNAP_WINDOW = 0.12
 ZOOM_SNAP_STRENGTH = 0.55
 ZOOM_VEL_NEUTRAL = 0.04
 ZOOM_VEL_GLOW_REF = 0.95
+ZOOM_DEPTH_DELTA_REF = 0.14
 FIST_TOGGLE_COOLDOWN_SEC = 0.70
 FIST_HOLD_TO_TOGGLE_SEC = 0.25
 FIST_RELEASE_RESET_SEC = 0.25
@@ -125,6 +127,9 @@ TWO_HAND_DISTANCE_NEAR = 1.2
 TWO_HAND_DISTANCE_FAR = 4.8
 PINCH_POSE_THRESHOLD = 0.36
 PINCH_STEP_COOLDOWN_SEC = 0.30
+PINCH_STATE_DOUBLE_WINDOW_SEC = 0.55
+PINCH_STATE_HOLD_SEC = 0.65
+PINCH_STATE_RESOLVE_HOLD_SEC = 0.45
 
 MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
@@ -190,6 +195,15 @@ class CameraControlState:
     neutral_wrist_deg: float = -90.0
     neutral_wrist_x: float = 0.50
     rotation_enable_ts: float = 0.0
+    right_pinch_pending_count: int = 0
+    left_pinch_pending_count: int = 0
+    right_pinch_pending_deadline_ts: float = 0.0
+    left_pinch_pending_deadline_ts: float = 0.0
+    right_pinch_state: str = "idle"
+    left_pinch_state: str = "idle"
+    right_pinch_state_until_ts: float = 0.0
+    left_pinch_state_until_ts: float = 0.0
+    pinch_suppressed_reason: str = "none"
 
 
 @dataclass
@@ -425,6 +439,68 @@ def _draw_overlay_text(frame, fps: float, hand_count: int, control: CameraContro
     )
 
 
+def _draw_state_machine_hud(frame, control: CameraControlState) -> None:
+    panel_x = 10
+    panel_y = 126
+    panel_w = 430
+    panel_h = 106
+    cv2.rectangle(frame, (panel_x, panel_y), (panel_x + panel_w, panel_y + panel_h), (42, 42, 42), -1)
+    cv2.rectangle(frame, (panel_x, panel_y), (panel_x + panel_w, panel_y + panel_h), (78, 78, 78), 1)
+
+    zoom_txt = "zooming" if control.zoom_gesture_active else "idle"
+    zoom_col = (120, 235, 255) if control.zoom_gesture_active else (188, 188, 188)
+    cv2.putText(
+        frame,
+        "STATE MACHINE HUD",
+        (panel_x + 10, panel_y + 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.56,
+        (250, 240, 180),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        f"zoom: {zoom_txt}",
+        (panel_x + 10, panel_y + 44),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.52,
+        zoom_col,
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        f"right pinch: {control.right_pinch_state}",
+        (panel_x + 10, panel_y + 66),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.50,
+        (215, 240, 180),
+        1,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        f"left pinch:  {control.left_pinch_state}",
+        (panel_x + 10, panel_y + 86),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.50,
+        (215, 240, 180),
+        1,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        f"suppressed: {control.pinch_suppressed_reason}",
+        (panel_x + 10, panel_y + 104),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.48,
+        (180, 210, 240),
+        1,
+        cv2.LINE_AA,
+    )
+
+
 def _draw_controls_guide(frame) -> None:
     h, w, _ = frame.shape
     bar_h = 112
@@ -506,6 +582,7 @@ def _draw_camera_preview(frame, control: CameraControlState) -> None:
     ]
 
     projected: List[Tuple[int, int, float]] = []
+    rotated: List[Tuple[float, float, float]] = []
     for x, y, z in cube:
         # yaw around Y axis
         x1 = x * cyaw + z * syaw
@@ -518,6 +595,53 @@ def _draw_camera_preview(frame, control: CameraControlState) -> None:
         sx = int(cx + x1 * cube_scale * perspective)
         sy = int(cy + y2 * cube_scale * perspective)
         projected.append((sx, sy, z2))
+        rotated.append((x1, y2, z2))
+
+    # Fill faces first so the cube is solid (not see-through), then draw edges on top.
+    faces = [
+        (0, 1, 2, 3),  # back
+        (4, 5, 6, 7),  # front
+        (0, 3, 7, 4),  # left
+        (1, 2, 6, 5),  # right
+        (3, 2, 6, 7),  # top
+        (0, 1, 5, 4),  # bottom
+    ]
+    light = (-0.40, -0.30, -0.86)
+    light_mag = max(1e-6, math.sqrt(light[0] * light[0] + light[1] * light[1] + light[2] * light[2]))
+    lx, ly, lz = (light[0] / light_mag, light[1] / light_mag, light[2] / light_mag)
+    base_color = (108, 185, 235)  # BGR
+    face_draw_list: List[Tuple[float, np.ndarray, Tuple[int, int, int]]] = []
+
+    for face in faces:
+        p0 = rotated[face[0]]
+        p1 = rotated[face[1]]
+        p2 = rotated[face[2]]
+        ux, uy, uz = (p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2])
+        vx, vy, vz = (p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2])
+        nx = uy * vz - uz * vy
+        ny = uz * vx - ux * vz
+        nz = ux * vy - uy * vx
+        nmag = max(1e-6, math.sqrt(nx * nx + ny * ny + nz * nz))
+        nx, ny, nz = (nx / nmag, ny / nmag, nz / nmag)
+
+        shade = 0.35 + 0.65 * abs(nx * lx + ny * ly + nz * lz)
+        face_color = (
+            int(_clamp(base_color[0] * shade, 0.0, 255.0)),
+            int(_clamp(base_color[1] * shade, 0.0, 255.0)),
+            int(_clamp(base_color[2] * shade, 0.0, 255.0)),
+        )
+
+        poly = np.array(
+            [(projected[idx][0], projected[idx][1]) for idx in face],
+            dtype=np.int32,
+        )
+        depth = sum(rotated[idx][2] for idx in face) / 4.0
+        face_draw_list.append((depth, poly, face_color))
+
+    # Painter's algorithm: far faces first, near faces last.
+    face_draw_list.sort(key=lambda item: item[0], reverse=True)
+    for _, poly, face_color in face_draw_list:
+        cv2.fillConvexPoly(frame, poly, face_color, cv2.LINE_AA)
 
     for a, b in edges:
         p0 = projected[a]
@@ -745,11 +869,68 @@ def _zoom_pinch_confidence(a: dict, b: dict) -> float:
 
 def _zoom_color_for_velocity(zoom_velocity: float) -> Tuple[int, int, int]:
     # BGR colors for OpenCV.
-    if zoom_velocity > ZOOM_VEL_NEUTRAL:
-        return (80, 245, 120)  # green-ish (zoom in)
-    if zoom_velocity < -ZOOM_VEL_NEUTRAL:
-        return (255, 170, 80)  # blue-ish (zoom out)
-    return (0, 230, 255)  # neutral cyan
+    # User preference: blue while moving, green while mostly still.
+    if abs(zoom_velocity) > ZOOM_VEL_NEUTRAL:
+        return (255, 120, 35)  # vivid blue (moving)
+    return (35, 255, 95)  # vivid green (still)
+
+
+def _scale_bgr(color: Tuple[int, int, int], scale: float) -> Tuple[int, int, int]:
+    return (
+        int(_clamp(color[0] * scale, 0.0, 255.0)),
+        int(_clamp(color[1] * scale, 0.0, 255.0)),
+        int(_clamp(color[2] * scale, 0.0, 255.0)),
+    )
+
+
+def _lerp_bgr(
+    a: Tuple[int, int, int], b: Tuple[int, int, int], t: float
+) -> Tuple[int, int, int]:
+    return (
+        int((1.0 - t) * a[0] + t * b[0]),
+        int((1.0 - t) * a[1] + t * b[1]),
+        int((1.0 - t) * a[2] + t * b[2]),
+    )
+
+
+def _draw_zoom_depth_line(
+    frame,
+    p_far: Tuple[int, int],
+    p_near: Tuple[int, int],
+    line_color: Tuple[int, int, int],
+    depth_strength: float,
+    glow_norm: float,
+) -> None:
+    # Perspective cue: far end dimmer/thinner, near end brighter/thicker.
+    segments = 20
+    base_thickness = 2 + int(2 * glow_norm)
+    far_color = _scale_bgr(line_color, 0.72)
+    near_color = _scale_bgr(line_color, 1.08)
+    glow_color = _scale_bgr(line_color, 0.52)
+
+    # Soft colored glow so the line stays vivid instead of looking black.
+    cv2.line(frame, p_far, p_near, glow_color, base_thickness + 6, cv2.LINE_AA)
+
+    for i in range(segments):
+        t0 = i / segments
+        t1 = (i + 1) / segments
+        t_mid = 0.5 * (t0 + t1)
+
+        x0 = int((1.0 - t0) * p_far[0] + t0 * p_near[0])
+        y0 = int((1.0 - t0) * p_far[1] + t0 * p_near[1])
+        x1 = int((1.0 - t1) * p_far[0] + t1 * p_near[0])
+        y1 = int((1.0 - t1) * p_far[1] + t1 * p_near[1])
+
+        color = _lerp_bgr(far_color, near_color, t_mid)
+        thick_scale = 0.92 + depth_strength * (0.12 + 0.78 * t_mid)
+        thickness = max(2, int(base_thickness * thick_scale))
+        cv2.line(frame, (x0, y0), (x1, y1), color, thickness, cv2.LINE_AA)
+
+    far_r = 5 + int(2 * depth_strength)
+    near_r = 5 + int(5 * depth_strength)
+    cv2.circle(frame, p_far, far_r, far_color, -1, cv2.LINE_AA)
+    cv2.circle(frame, p_near, near_r + 2, _scale_bgr(near_color, 0.72), 2, cv2.LINE_AA)
+    cv2.circle(frame, p_near, near_r, near_color, -1, cv2.LINE_AA)
 
 
 def _export_live_controls(control: CameraControlState, now: float) -> None:
@@ -814,6 +995,7 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
     control.last_frame_ts = now
 
     active = _select_control_hand(candidates)
+    control.pinch_suppressed_reason = "none"
 
     if active is not None:
         control.source_label = active["label"]
@@ -900,8 +1082,10 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
                         (1.0 - ZOOM_MOVE_ALPHA) * control.zoom_move_smooth_y + ZOOM_MOVE_ALPHA * cy
                     )
 
-                x_offset = control.zoom_move_anchor_x - control.zoom_move_smooth_x
-                y_offset = control.zoom_move_anchor_y - control.zoom_move_smooth_y
+                # Continuous drive: while the dual-pinch line center is held off-center,
+                # keep rotating/pitching instead of depending on a transient anchor delta.
+                x_offset = 0.50 - control.zoom_move_smooth_x
+                y_offset = PITCH_CENTER_Y - control.zoom_move_smooth_y
                 rot_speed = _axis_speed_from_offset(
                     x_offset,
                     ZOOM_MOVE_X_DEADZONE_NORM,
@@ -923,11 +1107,7 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
                 if rot_speed != 0.0:
                     control.rotation_deg = _normalize_angle_deg(control.rotation_deg + rot_speed * dt)
                 if pitch_speed != 0.0:
-                    control.pitch_deg = _clamp(
-                        control.pitch_deg + pitch_speed * dt,
-                        PITCH_MIN_DEG,
-                        PITCH_MAX_DEG,
-                    )
+                    control.pitch_deg = _normalize_angle_deg(control.pitch_deg + pitch_speed * dt)
             else:
                 control.zoom_move_anchor_active = False
         else:
@@ -943,7 +1123,31 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
 
         if right_pinching:
             cooldown_ok = (now - control.last_n_step_ts) >= PINCH_STEP_COOLDOWN_SEC
-            if (not control.right_pinch_latched) and (not zoom_active) and cooldown_ok:
+            is_edge = not control.right_pinch_latched
+            if is_edge:
+                if zoom_active:
+                    control.pinch_suppressed_reason = "zooming"
+                    control.right_pinch_pending_count = 0
+                    control.right_pinch_pending_deadline_ts = 0.0
+                    control.right_pinch_state = "suppressed"
+                    control.right_pinch_state_until_ts = now + PINCH_STATE_HOLD_SEC
+                elif not cooldown_ok:
+                    control.pinch_suppressed_reason = "cooldown"
+                    control.right_pinch_state = "suppressed"
+                    control.right_pinch_state_until_ts = now + PINCH_STATE_HOLD_SEC
+                else:
+                    control.right_pinch_pending_count += 1
+                    if control.right_pinch_pending_count >= 2:
+                        control.right_pinch_state = "double-pinch detected"
+                        control.right_pinch_state_until_ts = now + PINCH_STATE_HOLD_SEC
+                        control.right_pinch_pending_count = 0
+                        control.right_pinch_pending_deadline_ts = 0.0
+                    else:
+                        control.right_pinch_state = "single-pinch pending"
+                        control.right_pinch_pending_deadline_ts = now + PINCH_STATE_DOUBLE_WINDOW_SEC
+                        control.right_pinch_state_until_ts = control.right_pinch_pending_deadline_ts
+
+            if is_edge and (not zoom_active) and cooldown_ok:
                 control.n_inc_count += 1
                 control.last_n_step_ts = now
             control.right_pinch_latched = True
@@ -952,7 +1156,31 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
 
         if left_pinching:
             cooldown_ok = (now - control.last_n_step_ts) >= PINCH_STEP_COOLDOWN_SEC
-            if (not control.left_pinch_latched) and (not zoom_active) and cooldown_ok:
+            is_edge = not control.left_pinch_latched
+            if is_edge:
+                if zoom_active:
+                    control.pinch_suppressed_reason = "zooming"
+                    control.left_pinch_pending_count = 0
+                    control.left_pinch_pending_deadline_ts = 0.0
+                    control.left_pinch_state = "suppressed"
+                    control.left_pinch_state_until_ts = now + PINCH_STATE_HOLD_SEC
+                elif not cooldown_ok:
+                    control.pinch_suppressed_reason = "cooldown"
+                    control.left_pinch_state = "suppressed"
+                    control.left_pinch_state_until_ts = now + PINCH_STATE_HOLD_SEC
+                else:
+                    control.left_pinch_pending_count += 1
+                    if control.left_pinch_pending_count >= 2:
+                        control.left_pinch_state = "double-pinch detected"
+                        control.left_pinch_state_until_ts = now + PINCH_STATE_HOLD_SEC
+                        control.left_pinch_pending_count = 0
+                        control.left_pinch_pending_deadline_ts = 0.0
+                    else:
+                        control.left_pinch_state = "single-pinch pending"
+                        control.left_pinch_pending_deadline_ts = now + PINCH_STATE_DOUBLE_WINDOW_SEC
+                        control.left_pinch_state_until_ts = control.left_pinch_pending_deadline_ts
+
+            if is_edge and (not zoom_active) and cooldown_ok:
                 control.n_dec_count += 1
                 control.last_n_step_ts = now
             control.left_pinch_latched = True
@@ -1013,6 +1241,24 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
         control.right_pinch_latched = False
         control.left_pinch_latched = False
 
+    if control.right_pinch_pending_count == 1 and now >= control.right_pinch_pending_deadline_ts > 0.0:
+        control.right_pinch_state = "single-pinch detected"
+        control.right_pinch_state_until_ts = now + PINCH_STATE_RESOLVE_HOLD_SEC
+        control.right_pinch_pending_count = 0
+        control.right_pinch_pending_deadline_ts = 0.0
+    if control.left_pinch_pending_count == 1 and now >= control.left_pinch_pending_deadline_ts > 0.0:
+        control.left_pinch_state = "single-pinch detected"
+        control.left_pinch_state_until_ts = now + PINCH_STATE_RESOLVE_HOLD_SEC
+        control.left_pinch_pending_count = 0
+        control.left_pinch_pending_deadline_ts = 0.0
+
+    if control.right_pinch_pending_count == 0 and now >= control.right_pinch_state_until_ts > 0.0:
+        control.right_pinch_state = "idle"
+        control.right_pinch_state_until_ts = 0.0
+    if control.left_pinch_pending_count == 0 and now >= control.left_pinch_state_until_ts > 0.0:
+        control.left_pinch_state = "idle"
+        control.left_pinch_state_until_ts = 0.0
+
     if not control.paused:
         control.demo_phase += dt * 2.2
 
@@ -1048,8 +1294,8 @@ def _render_tracked_hands(
         smoothed = smoother.smooth(hand_key, hand.landmarks)
         gesture = classify_gesture(smoothed)
         pinch_pose, palm_scale = _is_thumb_index_pinch_pose(smoothed)
-        tx, ty, _ = smoothed[THUMB_TIP]
-        ix, iy, _ = smoothed[INDEX_TIP]
+        tx, ty, tz = smoothed[THUMB_TIP]
+        ix, iy, iz = smoothed[INDEX_TIP]
 
         control_candidates.append(
             {
@@ -1062,6 +1308,7 @@ def _render_tracked_hands(
                 "wrist_y": smoothed[WRIST][1],
                 "pinch_pose": pinch_pose,
                 "pair_center": ((tx + ix) * 0.5, (ty + iy) * 0.5),
+                "pair_depth": 0.5 * (tz + iz),
                 "palm_scale": palm_scale,
             }
         )
@@ -1105,14 +1352,21 @@ def _render_tracked_hands(
         a, b, _ = zoom_pair
         ax, ay = a["pair_center"]
         bx, by = b["pair_center"]
+        az = a.get("pair_depth", 0.0)
+        bz = b.get("pair_depth", 0.0)
 
         line_color = _zoom_color_for_velocity(control.zoom_velocity)
         glow_norm = _clamp(abs(control.zoom_velocity) / ZOOM_VEL_GLOW_REF, 0.0, 1.0)
+        depth_strength = _clamp(abs(az - bz) / ZOOM_DEPTH_DELTA_REF, 0.0, 1.0)
 
         p0 = (int(ax * w), int(ay * h))
         p1 = (int(bx * w), int(by * h))
-        main_thickness = 3 + int(3 * glow_norm)
-        cv2.line(frame, p0, p1, line_color, main_thickness, cv2.LINE_AA)
+        if az <= bz:
+            p_near, p_far = p0, p1
+        else:
+            p_near, p_far = p1, p0
+        _draw_zoom_depth_line(frame, p_far, p_near, line_color, depth_strength, glow_norm)
+
         mx = (p0[0] + p1[0]) // 2
         my = (p0[1] + p1[1]) // 2
 
@@ -1140,12 +1394,22 @@ def _render_tracked_hands(
             2,
             cv2.LINE_AA,
         )
+        cv2.putText(
+            frame,
+            f"depth {int(depth_strength * 100):d}%",
+            (mx, my + 34),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            (205, 230, 245),
+            1,
+            cv2.LINE_AA,
+        )
 
         # Pinch confidence bar.
         bar_w = 110
         bar_h = 8
         bar_x = mx - bar_w // 2
-        bar_y = my + 10
+        bar_y = my + 44
         cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (35, 35, 35), -1)
         fill_w = int(bar_w * _clamp(control.zoom_confidence, 0.0, 1.0))
         if fill_w > 0:
@@ -1186,6 +1450,7 @@ def _render_tracked_hands(
 
     fps = fps_counter.update()
     _draw_overlay_text(frame, fps=fps, hand_count=kept_hands, control=control)
+    _draw_state_machine_hud(frame, control)
     _draw_camera_preview(frame, control)
     _draw_wave_panel(frame, control)
     _draw_controls_guide(frame)
