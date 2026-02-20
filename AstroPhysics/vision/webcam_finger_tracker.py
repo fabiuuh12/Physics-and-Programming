@@ -86,6 +86,9 @@ AMP_RATIO_POWER = 1.10
 ZOOM_RATIO_MIN = 0.45
 ZOOM_RATIO_MAX = 2.20
 ZOOM_RATIO_DEADBAND = 0.045
+ZOOM_GESTURE_DELTA_DEADZONE_NORM = 0.0035
+ZOOM_GESTURE_DELTA_GAIN = 1.00
+AMP_GESTURE_DELTA_GAIN = 1.00
 ZOOM_SNAP_MARKS = (1.00, 1.50, 2.00)
 ZOOM_SNAP_WINDOW = 0.12
 ZOOM_SNAP_STRENGTH = 0.55
@@ -1031,28 +1034,18 @@ def _update_camera_controls(control: CameraControlState, candidates: Sequence[di
                     control.zoom_move_smooth_x = cx
                     control.zoom_move_smooth_y = cy
 
-            ratio = zoom_metric / max(1e-4, control.zoom_anchor_metric)
-            if abs(ratio - 1.0) < ZOOM_RATIO_DEADBAND:
-                ratio = 1.0
-            ratio = _clamp(ratio, ZOOM_RATIO_MIN, ZOOM_RATIO_MAX)
-            target_zoom = _clamp(
-                control.zoom_anchor_zoom * (ratio ** ZOOM_RATIO_POWER),
-                ZOOM_MIN,
-                ZOOM_MAX,
-            )
-            nearest_snap = min(ZOOM_SNAP_MARKS, key=lambda s: abs(target_zoom - s))
-            snap_dist = abs(target_zoom - nearest_snap)
-            if snap_dist < ZOOM_SNAP_WINDOW:
-                snap_t = 1.0 - snap_dist / max(1e-6, ZOOM_SNAP_WINDOW)
-                snap_alpha = ZOOM_SNAP_STRENGTH * snap_t
-                target_zoom = (1.0 - snap_alpha) * target_zoom + snap_alpha * nearest_snap
-            target_amp = _clamp(
-                control.zoom_anchor_amp * (ratio ** AMP_RATIO_POWER),
-                WAVE_AMP_MIN,
-                WAVE_AMP_MAX,
-            )
+            metric_span = max(1e-6, TWO_HAND_DISTANCE_FAR - TWO_HAND_DISTANCE_NEAR)
+            delta_norm = (zoom_metric - control.zoom_anchor_metric) / metric_span
+            if abs(delta_norm) < ZOOM_GESTURE_DELTA_DEADZONE_NORM:
+                delta_norm = 0.0
+
+            zoom_delta = delta_norm * (ZOOM_MAX - ZOOM_MIN) * ZOOM_GESTURE_DELTA_GAIN
+            amp_delta = delta_norm * (WAVE_AMP_MAX - WAVE_AMP_MIN) * AMP_GESTURE_DELTA_GAIN
+            target_zoom = _clamp(control.zoom + zoom_delta, ZOOM_MIN, ZOOM_MAX)
+            target_amp = _clamp(control.wave_amp + amp_delta, WAVE_AMP_MIN, WAVE_AMP_MAX)
             control.zoom = (1.0 - ZOOM_GESTURE_LERP) * control.zoom + ZOOM_GESTURE_LERP * target_zoom
             control.wave_amp = (1.0 - ZOOM_GESTURE_LERP) * control.wave_amp + ZOOM_GESTURE_LERP * target_amp
+            control.zoom_anchor_metric = zoom_metric
         else:
             control.zoom_gesture_active = False
             control.zoom_move_anchor_active = False

@@ -18,8 +18,13 @@ namespace {
 
 constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
-constexpr float kCameraDistanceMin = 1.6f;
+constexpr int kWindowMinWidth = 840;
+constexpr int kWindowMinHeight = 560;
+// Keep a small positive floor to avoid singular orbit math, but allow going inside the throat.
+constexpr float kCameraDistanceMin = 0.12f;
 constexpr float kCameraDistanceMax = 120.0f;
+constexpr float kBridgeLiveZoomMin = 0.05f;
+constexpr float kBridgeLiveZoomMax = 2.60f;
 constexpr float kCameraPitchMin = -3.05f;
 constexpr float kCameraPitchMax = 3.05f;
 constexpr std::int64_t kControlStaleMs = 1200;
@@ -224,7 +229,9 @@ std::string Hud(float throatRadius, float flare, int particles, bool paused) {
 }  // namespace
 
 int main() {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(kScreenWidth, kScreenHeight, "Wormhole 3D Visualization - C++ (raylib)");
+    SetWindowMinSize(kWindowMinWidth, kWindowMinHeight);
     SetTargetFPS(60);
 
     Camera3D camera{};
@@ -242,7 +249,6 @@ int main() {
     float flare = 0.22f;
     bool paused = false;
     bool hasPrevLive = false;
-    float prevLiveZoom = 1.0f;
     float prevLiveRotDeg = 0.0f;
     float prevLivePitchDeg = 0.0f;
     int prevLiveNIncCount = 0;
@@ -289,18 +295,11 @@ int main() {
             if (ageMs <= kControlStaleMs) {
                 if (!hasPrevLive) {
                     hasPrevLive = true;
-                    prevLiveZoom = std::max(0.05f, live->zoom);
                     prevLiveRotDeg = live->rotationDeg;
                     prevLivePitchDeg = live->pitchDeg;
                     prevLiveNIncCount = live->nIncCount;
                     prevLiveNDecCount = live->nDecCount;
                 } else {
-                    const float currentLiveZoom = std::max(0.05f, live->zoom);
-                    float zoomRatio = currentLiveZoom / std::max(0.05f, prevLiveZoom);
-                    zoomRatio = std::clamp(zoomRatio, 0.65f, 1.55f);
-                    camDistance = std::clamp(camDistance / zoomRatio, kCameraDistanceMin, kCameraDistanceMax);
-                    prevLiveZoom = currentLiveZoom;
-
                     const float rotDeltaDeg = AngleDeltaDeg(live->rotationDeg, prevLiveRotDeg);
                     prevLiveRotDeg = live->rotationDeg;
                     camYaw += rotDeltaDeg * DEG2RAD;
@@ -339,6 +338,10 @@ int main() {
                     prevLiveNDecCount = live->nDecCount;
                 }
 
+                // Absolute bridge: full live zoom span always maps to full camera distance span.
+                const float currentLiveZoom = std::clamp(live->zoom, kBridgeLiveZoomMin, kBridgeLiveZoomMax);
+                const float liveZoomNorm = (currentLiveZoom - kBridgeLiveZoomMin) / (kBridgeLiveZoomMax - kBridgeLiveZoomMin);
+                camDistance = kCameraDistanceMax + (kCameraDistanceMin - kCameraDistanceMax) * liveZoomNorm;
                 UpdateCameraFromOrbit(&camera, camYaw, camPitch, camDistance);
                 std::ostringstream cs;
                 cs << "bridge: live  hand=" << live->label
@@ -404,7 +407,7 @@ int main() {
         EndMode3D();
 
         DrawText("Wormhole Tunnel (Morris-Thorne Style Visual)", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] throat | +/- flare | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
+        DrawText("Hold left mouse: orbit | wheel: zoom | drag edge: resize | [ ] throat | +/- flare | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
         std::string hud = Hud(throatRadius, flare, static_cast<int>(flow.size()), paused);
         DrawText(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
         DrawText(bridgeStatus.c_str(), 20, 108, 19, Color{152, 234, 198, 255});
