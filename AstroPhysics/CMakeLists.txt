@@ -170,3 +170,9 @@ target_link_libraries(uncertainty_wavepacket_viz_cpp PRIVATE raylib)
 
 add_executable(wormhole_viz_cpp "gravity/wormhole_viz.cpp")
 target_link_libraries(wormhole_viz_cpp PRIVATE raylib)
+
+add_executable(defensive_sys_3d_cpp "DefensiveSys/defensive_sys_3d.cpp")
+target_link_libraries(defensive_sys_3d_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(defensive_sys_3d_cpp PRIVATE ws2_32)
+endif()
