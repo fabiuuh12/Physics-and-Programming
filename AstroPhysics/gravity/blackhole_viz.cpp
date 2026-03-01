@@ -21,12 +21,14 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 constexpr float kEventHorizonRadius = 0.65f;
+constexpr float kShadowCutoffRadius = 1.05f;
 constexpr float kPhotonRingRadius = 1.15f;
 constexpr float kDiskInnerRadius = 1.35f;
 constexpr float kDiskOuterRadius = 4.5f;
 constexpr float kGravityMu = 12.0f;
 constexpr float kSheetExtent = 11.0f;
 constexpr int kSheetGrid = 52;
+constexpr int kLensStarCount = 520;
 constexpr int kMatterStep = 100;
 constexpr float kSpeedStep = 0.25f;
 constexpr std::int64_t kControlStaleMs = 1200;
@@ -37,6 +39,13 @@ struct DustParticle {
     Vector3 vel;
     float size;
     float heat;
+};
+
+struct BackgroundStar {
+    Vector2 baseScreenPos;
+    float size;
+    float brightness;
+    float phase;
 };
 
 struct LiveControls {
@@ -165,10 +174,10 @@ void ResetDisk(std::vector<DustParticle>* disk, std::mt19937& rng, int count) {
 
 Color DiskColor(float heat) {
     const float h = std::clamp(heat, 0.0f, 1.0f);
-    const unsigned char r = static_cast<unsigned char>(180 + 70 * h);
-    const unsigned char g = static_cast<unsigned char>(100 + 90 * h);
-    const unsigned char b = static_cast<unsigned char>(45 + 35 * (1.0f - h));
-    return Color{r, g, b, 220};
+    const unsigned char r = static_cast<unsigned char>(230 + 25 * h);
+    const unsigned char g = static_cast<unsigned char>(165 + 85 * h);
+    const unsigned char b = static_cast<unsigned char>(28 + 35 * (1.0f - h));
+    return Color{r, g, b, 228};
 }
 
 std::string HudText(float t, float speed, int particles, int swallowed, bool paused) {
@@ -271,6 +280,100 @@ void DrawWarpSheet(float scale) {
     }
 }
 
+std::vector<BackgroundStar> BuildBackgroundStars(std::mt19937& rng, int count) {
+    std::vector<BackgroundStar> stars;
+    stars.reserve(count);
+    for (int i = 0; i < count; ++i) {
+        const float x = RandRange(rng, 0.0f, static_cast<float>(kScreenWidth - 1));
+        const float y = RandRange(rng, 0.0f, static_cast<float>(kScreenHeight - 1));
+        const float size = RandRange(rng, 0.8f, 2.2f);
+        const float brightness = RandRange(rng, 0.35f, 1.0f);
+        const float phase = RandRange(rng, 0.0f, 2.0f * PI);
+        stars.push_back({{x, y}, size, brightness, phase});
+    }
+    return stars;
+}
+
+void DrawAccretionRibbon(float t) {
+    const int segments = 180;
+    for (int i = 0; i < segments; ++i) {
+        const float a0 = 2.0f * PI * static_cast<float>(i) / static_cast<float>(segments) + t * 1.45f;
+        const float a1 = 2.0f * PI * static_cast<float>(i + 1) / static_cast<float>(segments) + t * 1.45f;
+
+        const float wave0 = 0.5f + 0.5f * std::sin(8.5f * a0 - t * 3.8f);
+        const float wave1 = 0.5f + 0.5f * std::sin(8.5f * a1 - t * 3.8f);
+        const float span = (kDiskOuterRadius - kDiskInnerRadius) - 0.45f;
+        const float r0 = kDiskInnerRadius + 0.25f + span * wave0;
+        const float r1 = kDiskInnerRadius + 0.25f + span * wave1;
+        const float y0 = 0.03f * std::sin(5.0f * a0 + t * 2.4f);
+        const float y1 = 0.03f * std::sin(5.0f * a1 + t * 2.4f);
+
+        Color c = {
+            255,
+            static_cast<unsigned char>(185 + 65 * wave0),
+            static_cast<unsigned char>(34 + 25 * (1.0f - wave0)),
+            static_cast<unsigned char>(52 + 85 * wave0),
+        };
+        DrawLine3D({r0 * std::cos(a0), y0, r0 * std::sin(a0)},
+                   {r1 * std::cos(a1), y1, r1 * std::sin(a1)},
+                   c);
+    }
+}
+
+void DrawLensedBackground(const std::vector<BackgroundStar>& stars,
+                          Vector2 lensCenter,
+                          float shadowRadiusPx,
+                          float einsteinRadiusPx,
+                          float t) {
+    const float thetaE = std::max(6.0f, einsteinRadiusPx);
+
+    for (const BackgroundStar& s : stars) {
+        const Vector2 rel = Vector2Subtract(s.baseScreenPos, lensCenter);
+        const float beta = Vector2Length(rel);
+        if (beta < 0.001f) continue;
+
+        const Vector2 dir = Vector2Scale(rel, 1.0f / beta);
+        const float betaSafe = std::max(beta, 1.0f);
+        const float root = std::sqrt(betaSafe * betaSafe + 4.0f * thetaE * thetaE);
+        const float thetaPlus = 0.5f * (betaSafe + root);
+        const float thetaMinus = 0.5f * (betaSafe - root);
+
+        const float u = betaSafe / thetaE;
+        const float den = std::max(0.2f, u * std::sqrt(u * u + 4.0f));
+        const float muPlus = std::clamp(0.5f + (u * u + 2.0f) / (2.0f * den), 0.0f, 4.0f);
+        const float muMinus = std::clamp(std::fabs(0.5f - (u * u + 2.0f) / (2.0f * den)), 0.0f, 2.5f);
+        const float twinkle = 0.72f + 0.28f * std::sin(2.2f * t + s.phase);
+
+        auto drawImage = [&](float theta, float magnification, bool secondary) {
+            if (theta <= shadowRadiusPx * 1.03f) return;
+            const Vector2 p = Vector2Add(lensCenter, Vector2Scale(dir, theta));
+            if (p.x < -4.0f || p.x > static_cast<float>(kScreenWidth + 4) ||
+                p.y < -4.0f || p.y > static_cast<float>(kScreenHeight + 4)) return;
+
+            const float sigma = 0.55f * thetaE + 1.0f;
+            const float halo = std::exp(-((theta - thetaE) * (theta - thetaE)) / (sigma * sigma));
+            const float luminance = std::clamp(s.brightness * twinkle * (0.56f + 0.32f * magnification + 0.52f * halo), 0.08f, 1.0f);
+            const float radius = s.size * (0.85f + 0.35f * magnification + (secondary ? 0.0f : 0.12f * halo));
+            const unsigned char alpha = static_cast<unsigned char>(85 + 170 * luminance);
+            Color c = {
+                static_cast<unsigned char>(170 + 85 * luminance),
+                static_cast<unsigned char>(160 + 90 * luminance),
+                static_cast<unsigned char>(140 + 60 * luminance),
+                alpha
+            };
+            DrawCircleV(p, radius, c);
+        };
+
+        drawImage(thetaPlus, muPlus, false);
+        if (betaSafe < 6.0f * thetaE) {
+            drawImage(std::fabs(thetaMinus), muMinus, true);
+        }
+    }
+
+    DrawRing(lensCenter, thetaE * 0.97f, thetaE * 1.03f, 0.0f, 360.0f, 128, Color{255, 218, 120, 40});
+    DrawCircleV(lensCenter, shadowRadiusPx * 1.07f, Color{0, 0, 0, 238});
+}
+
 }  // namespace
 
 int main() {
@@ -311,6 +414,7 @@ int main() {
 
     std::vector<DustParticle> disk;
     ResetDisk(&disk, rng, desiredParticles);
+    const std::vector<BackgroundStar> backgroundStars = BuildBackgroundStars(rng, kLensStarCount);
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) {
@@ -455,22 +559,31 @@ int main() {
             }
         }
 
+        const Vector2 lensCenter = GetWorldToScreen({0.0f, 0.0f, 0.0f}, camera);
+        const float eventHorizonPx = Vector2Distance(lensCenter, GetWorldToScreen({kEventHorizonRadius, 0.0f, 0.0f}, camera));
+        const float photonRingPx = Vector2Distance(lensCenter, GetWorldToScreen({kPhotonRingRadius, 0.0f, 0.0f}, camera));
+        const float shadowRadiusPx = std::max(8.0f, eventHorizonPx * 1.02f);
+        const float einsteinRadiusPx = std::max(photonRingPx * 1.08f, shadowRadiusPx * 1.35f);
+
         BeginDrawing();
         ClearBackground(Color{4, 6, 14, 255});
+        DrawLensedBackground(backgroundStars, lensCenter, shadowRadiusPx, einsteinRadiusPx, simTime);
 
         BeginMode3D(camera);
 
         if (showWarp) DrawWarpSheet(warpScale);
-        DrawCircle3DXZ(kDiskInnerRadius, 96, Color{255, 140, 70, 70});
-        DrawCircle3DXZ(kPhotonRingRadius, 120, Color{150, 210, 255, 100});
-        DrawCircle3DXZ(kDiskOuterRadius, 120, Color{90, 130, 190, 45});
+        DrawCircle3DXZ(kDiskInnerRadius, 96, Color{255, 210, 90, 95});
+        DrawCircle3DXZ(kPhotonRingRadius, 120, Color{255, 232, 160, 110});
+        DrawCircle3DXZ(kDiskOuterRadius, 120, Color{232, 168, 58, 55});
 
         float sheetCenter = WarpHeight(0.0f, 0.0f, warpScale);
         DrawLine3D({0.0f, sheetCenter, 0.0f}, {0.0f, 0.0f, 0.0f}, Color{170, 220, 255, 110});
         DrawSphere({0.0f, sheetCenter, 0.0f}, 0.11f, Color{130, 190, 255, 90});
 
-        DrawSphere({0.0f, 0.0f, 0.0f}, kPhotonRingRadius, Color{80, 130, 200, 18});
+        DrawSphere({0.0f, 0.0f, 0.0f}, kPhotonRingRadius, Color{255, 228, 165, 22});
+        DrawSphere({0.0f, 0.0f, 0.0f}, kShadowCutoffRadius, Color{0, 0, 0, 248});
         DrawSphere({0.0f, 0.0f, 0.0f}, kEventHorizonRadius, BLACK);
+        DrawAccretionRibbon(simTime);
 
         for (const DustParticle& d : disk) {
             DrawSphere(d.pos, d.size, DiskColor(d.heat));
