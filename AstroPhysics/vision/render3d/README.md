@@ -10,11 +10,13 @@ This folder is the right place for high-quality C++ rendering used by the hand-t
 ## Current file
 - `astro_interactions_renderer_3d.cpp`
   - UDP-bridge 3D renderer for:
+    - Floating hand avatars (left/right)
     - Planet
     - Star
     - Black hole
     - Pair interactions (including star+star supernova)
   - Receives state packets from `hand_planet_overlay.py` on UDP `127.0.0.1:50506`
+  - Objects are rendered above hand anchors to mimic floating-over-hand AR behavior.
 
 ## Controls
 - `Z`: cycle left object
@@ -34,11 +36,17 @@ bash AstroPhysics/tools/build_vision_astro_renderer.sh
 ```
 
 This uses `AstroPhysics/cmakew.sh` to find CMake even if it is not in your shell `PATH`.
+If CMake is unavailable, it falls back to direct `clang++` build using your existing `build-native/raylib-local` object cache and creates a symlink in `build-cmake/`.
 
 ## Run (bridge mode)
 1. Start renderer:
 ```bash
 ./AstroPhysics/build-cmake/vision_astro_interactions_3d_cpp
+```
+
+Equivalent fallback output path:
+```bash
+./AstroPhysics/build-native/vision_astro_interactions_3d_cpp
 ```
 
 2. In another terminal, start Python tracker (bridge is enabled by default):

@@ -28,6 +28,7 @@ constexpr float kPi = 3.14159265358979323846f;
 constexpr int kUdpPort = 50506;
 constexpr float kBridgeTimeoutSec = 0.55f;
 constexpr float kRemoteSmooth = 10.0f;
+constexpr float kObjectLiftScale = 1.10f;
 
 enum class AstroKind : int {
     Planet = 0,
@@ -46,6 +47,8 @@ struct RemoteInput {
     int rightKind = 1;
     bool interactionHint = false;
     float interactionStrength = 0.0f;
+    float leftGrip = 0.0f;
+    float rightGrip = 0.0f;
     double timestamp = 0.0;
 };
 
@@ -127,7 +130,7 @@ class UdpBridgeReceiver {
             int ia = 0;
             int got = std::sscanf(
                 buffer.data(),
-                "%lf,%d,%f,%f,%d,%f,%f,%d,%d,%d,%f",
+                "%lf,%d,%f,%f,%d,%f,%f,%d,%d,%d,%f,%f,%f",
                 &parsed.timestamp,
                 &lv,
                 &parsed.leftX,
@@ -138,14 +141,19 @@ class UdpBridgeReceiver {
                 &parsed.leftKind,
                 &parsed.rightKind,
                 &ia,
-                &parsed.interactionStrength
+                &parsed.interactionStrength,
+                &parsed.leftGrip,
+                &parsed.rightGrip
             );
 
-            if (got >= 9) {
+            if (got >= 11) {
                 parsed.leftValid = (lv != 0);
                 parsed.rightValid = (rv != 0);
                 parsed.interactionHint = (ia != 0);
-                if (got < 11) parsed.interactionStrength = 0.0f;
+                if (got < 13) {
+                    parsed.leftGrip = 0.0f;
+                    parsed.rightGrip = 0.0f;
+                }
 
                 parsed.leftX = std::clamp(parsed.leftX, 0.0f, 1.0f);
                 parsed.leftY = std::clamp(parsed.leftY, 0.0f, 1.0f);
@@ -154,6 +162,8 @@ class UdpBridgeReceiver {
                 parsed.leftKind = std::clamp(parsed.leftKind, 0, 2);
                 parsed.rightKind = std::clamp(parsed.rightKind, 0, 2);
                 parsed.interactionStrength = std::clamp(parsed.interactionStrength, 0.0f, 1.0f);
+                parsed.leftGrip = std::clamp(parsed.leftGrip, 0.0f, 1.0f);
+                parsed.rightGrip = std::clamp(parsed.rightGrip, 0.0f, 1.0f);
 
                 outInput = parsed;
                 gotAny = true;
@@ -218,6 +228,101 @@ Vector3 HandSpaceToWorld(float x, float y, bool rightSide) {
     const float worldY = Lerp(0.8f, 6.2f, 1.0f - y);
     const float worldZ = rightSide ? 1.7f : -1.7f;
     return {worldX, worldY, worldZ};
+}
+
+void DrawFingerChain3D(
+    const Vector3& base,
+    Vector3 dir,
+    const Vector3& bendAxis,
+    const std::array<float, 3>& segLen,
+    float curl,
+    float baseRadius,
+    Color color
+) {
+    Vector3 p0 = base;
+    dir = Vector3Normalize(dir);
+    for (int i = 0; i < 3; ++i) {
+        const float w = (i == 0) ? 0.85f : (i == 1 ? 1.10f : 0.95f);
+        const float a = curl * w;
+        dir = Vector3Normalize(Vector3RotateByAxisAngle(dir, bendAxis, a));
+        const Vector3 p1 = Vector3Add(p0, Vector3Scale(dir, segLen[static_cast<size_t>(i)]));
+
+        const float r0 = baseRadius * (1.00f - 0.20f * static_cast<float>(i));
+        const float r1 = baseRadius * (0.82f - 0.18f * static_cast<float>(i));
+        DrawCylinderEx(p0, p1, r0, r1, 10, color);
+        DrawSphere(p1, r1 * 0.92f, color);
+        p0 = p1;
+    }
+}
+
+void DrawHandAvatar3D(const Vector3& palm, bool rightHand, float grip, float t) {
+    const float side = rightHand ? 1.0f : -1.0f;
+    const float clench = std::clamp(grip, 0.0f, 1.0f);
+    const Vector3 sideDir = {side, 0.0f, 0.0f};
+    const Vector3 upDir = {0.0f, 1.0f, 0.0f};
+    const Vector3 fwdDir = {0.0f, 0.0f, 1.0f};
+    const Color palmColor = rightHand ? Color{246, 180, 130, 205} : Color{128, 198, 255, 205};
+    const Color fingerColor = rightHand ? Color{236, 166, 114, 210} : Color{106, 176, 245, 210};
+    const Color glowColor = rightHand ? Color{255, 222, 150, 150} : Color{138, 224, 255, 150};
+
+    DrawSphere(palm, 0.38f, palmColor);
+    DrawSphere(Vector3Add(palm, Vector3Scale(upDir, 0.10f)), 0.34f, Fade(palmColor, 0.85f));
+    DrawCylinderEx(
+        Vector3Add(palm, Vector3Scale(sideDir, -0.22f)),
+        Vector3Add(palm, Vector3Scale(sideDir, 0.22f)),
+        0.25f, 0.25f, 12, Fade(palmColor, 0.92f)
+    );
+    DrawSphereWires(palm, 0.43f, 10, 10, Fade(BLACK, 0.45f));
+    DrawSphere(Vector3Add(palm, {0.0f, 0.07f, 0.0f}), 0.46f, Color{255, 255, 255, 24});
+
+    const std::array<float, 4> spread = {0.24f, 0.08f, -0.08f, -0.24f};
+    const std::array<std::array<float, 3>, 4> segs = {
+        std::array<float, 3>{0.27f, 0.23f, 0.18f},  // index
+        std::array<float, 3>{0.31f, 0.25f, 0.20f},  // middle
+        std::array<float, 3>{0.29f, 0.24f, 0.19f},  // ring
+        std::array<float, 3>{0.24f, 0.21f, 0.17f},  // pinky
+    };
+    for (int i = 0; i < 4; ++i) {
+        const float sf = spread[static_cast<size_t>(i)] * side;
+        const Vector3 base = Vector3Add(
+            palm,
+            Vector3Add(
+                Vector3Scale(sideDir, sf),
+                Vector3Add(
+                    Vector3Scale(upDir, 0.16f + 0.01f * std::cos(t * 1.6f + i)),
+                    Vector3Scale(fwdDir, 0.04f - 0.03f * std::abs(sf))
+                )
+            )
+        );
+        const float idleCurl = 0.08f * std::sin(t * 2.2f + 0.7f * static_cast<float>(i));
+        const float curl = (0.10f + 1.00f * clench) + idleCurl;
+        const Vector3 dir = Vector3Normalize(
+            Vector3Add(
+                Vector3Scale(upDir, 1.0f),
+                Vector3Add(
+                    Vector3Scale(fwdDir, 0.16f + 0.05f * std::sin(t + i)),
+                    Vector3Scale(sideDir, 0.10f * sf)
+                )
+            )
+        );
+        DrawFingerChain3D(base, dir, sideDir, segs[static_cast<size_t>(i)], curl, 0.073f, fingerColor);
+    }
+
+    // Thumb with its own articulation axis and diagonal base direction.
+    const Vector3 thumbBase = Vector3Add(
+        palm,
+        Vector3Add(Vector3Scale(sideDir, 0.28f), Vector3Add(Vector3Scale(upDir, 0.02f), Vector3Scale(fwdDir, 0.14f)))
+    );
+    const Vector3 thumbDir = Vector3Normalize(
+        Vector3Add(Vector3Scale(sideDir, 0.85f), Vector3Add(Vector3Scale(upDir, 0.36f), Vector3Scale(fwdDir, 0.26f)))
+    );
+    const Vector3 thumbAxis = Vector3Normalize(Vector3CrossProduct(thumbDir, upDir));
+    const float thumbIdle = 0.07f * std::sin(t * 2.6f + (rightHand ? 1.2f : 0.4f));
+    const float thumbCurl = (0.24f + 0.92f * clench) + thumbIdle;
+    DrawFingerChain3D(thumbBase, thumbDir, thumbAxis, {0.24f, 0.20f, 0.16f}, thumbCurl, 0.077f, fingerColor);
+
+    const float pulse = 0.5f + 0.5f * std::sin(2.0f * t + (rightHand ? 1.0f : 0.0f));
+    DrawSphere(palm, 0.52f + 0.04f * pulse, Fade(glowColor, 0.25f));
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
@@ -440,15 +545,19 @@ int main() {
 
     BodyState left{};
     left.kind = AstroKind::Planet;
-    left.pos = {-4.2f, 1.8f, 0.0f};
     left.radius = BaseRadiusFor(left.kind);
     left.valid = true;
 
     BodyState right{};
     right.kind = AstroKind::Star;
-    right.pos = {4.2f, 1.8f, 0.0f};
     right.radius = BaseRadiusFor(right.kind);
     right.valid = true;
+    Vector3 leftHand = {-4.2f, 1.0f, 0.0f};
+    Vector3 rightHand = {4.2f, 1.0f, 0.0f};
+    left.pos = Vector3Add(leftHand, {0.0f, kObjectLiftScale * left.radius, 0.0f});
+    right.pos = Vector3Add(rightHand, {0.0f, kObjectLiftScale * right.radius, 0.0f});
+    float leftGrip = 0.0f;
+    float rightGrip = 0.0f;
 
     InteractionState interaction{};
 
@@ -482,22 +591,26 @@ int main() {
             right.kind = KindFromId(remote.rightKind);
             left.radius = BaseRadiusFor(left.kind);
             right.radius = BaseRadiusFor(right.kind);
+            leftGrip = remote.leftGrip;
+            rightGrip = remote.rightGrip;
 
             left.valid = remote.leftValid;
             right.valid = remote.rightValid;
             if (left.valid) {
                 const Vector3 target = HandSpaceToWorld(remote.leftX, remote.leftY, false);
                 const float alpha = 1.0f - std::exp(-kRemoteSmooth * dt);
-                left.pos = Vector3Lerp(left.pos, target, alpha);
+                leftHand = Vector3Lerp(leftHand, target, alpha);
             }
             if (right.valid) {
                 const Vector3 target = HandSpaceToWorld(remote.rightX, remote.rightY, true);
                 const float alpha = 1.0f - std::exp(-kRemoteSmooth * dt);
-                right.pos = Vector3Lerp(right.pos, target, alpha);
+                rightHand = Vector3Lerp(rightHand, target, alpha);
             }
         } else {
             left.valid = true;
             right.valid = true;
+            leftGrip = 0.5f + 0.5f * std::sin(t * 1.6f);
+            rightGrip = 0.5f + 0.5f * std::sin(t * 1.35f + 1.1f);
 
             if (IsKeyPressed(KEY_Z)) {
                 left.kind = NextKind(left.kind);
@@ -509,27 +622,30 @@ int main() {
             }
 
             const float move = 5.2f * dt;
-            if (IsKeyDown(KEY_A)) left.pos.x -= move;
-            if (IsKeyDown(KEY_D)) left.pos.x += move;
-            if (IsKeyDown(KEY_W)) left.pos.z -= move;
-            if (IsKeyDown(KEY_S)) left.pos.z += move;
-            if (IsKeyDown(KEY_R)) left.pos.y += move;
-            if (IsKeyDown(KEY_F)) left.pos.y -= move;
+            if (IsKeyDown(KEY_A)) leftHand.x -= move;
+            if (IsKeyDown(KEY_D)) leftHand.x += move;
+            if (IsKeyDown(KEY_W)) leftHand.z -= move;
+            if (IsKeyDown(KEY_S)) leftHand.z += move;
+            if (IsKeyDown(KEY_R)) leftHand.y += move;
+            if (IsKeyDown(KEY_F)) leftHand.y -= move;
 
-            if (IsKeyDown(KEY_LEFT)) right.pos.x -= move;
-            if (IsKeyDown(KEY_RIGHT)) right.pos.x += move;
-            if (IsKeyDown(KEY_UP)) right.pos.z -= move;
-            if (IsKeyDown(KEY_DOWN)) right.pos.z += move;
-            if (IsKeyDown(KEY_PAGE_UP)) right.pos.y += move;
-            if (IsKeyDown(KEY_PAGE_DOWN)) right.pos.y -= move;
+            if (IsKeyDown(KEY_LEFT)) rightHand.x -= move;
+            if (IsKeyDown(KEY_RIGHT)) rightHand.x += move;
+            if (IsKeyDown(KEY_UP)) rightHand.z -= move;
+            if (IsKeyDown(KEY_DOWN)) rightHand.z += move;
+            if (IsKeyDown(KEY_PAGE_UP)) rightHand.y += move;
+            if (IsKeyDown(KEY_PAGE_DOWN)) rightHand.y -= move;
 
-            left.pos.x = std::clamp(left.pos.x, -8.5f, 8.5f);
-            right.pos.x = std::clamp(right.pos.x, -8.5f, 8.5f);
-            left.pos.y = std::clamp(left.pos.y, 0.3f, 6.2f);
-            right.pos.y = std::clamp(right.pos.y, 0.3f, 6.2f);
-            left.pos.z = std::clamp(left.pos.z, -8.5f, 8.5f);
-            right.pos.z = std::clamp(right.pos.z, -8.5f, 8.5f);
+            leftHand.x = std::clamp(leftHand.x, -8.5f, 8.5f);
+            rightHand.x = std::clamp(rightHand.x, -8.5f, 8.5f);
+            leftHand.y = std::clamp(leftHand.y, 0.3f, 6.2f);
+            rightHand.y = std::clamp(rightHand.y, 0.3f, 6.2f);
+            leftHand.z = std::clamp(leftHand.z, -8.5f, 8.5f);
+            rightHand.z = std::clamp(rightHand.z, -8.5f, 8.5f);
         }
+
+        if (left.valid) left.pos = Vector3Add(leftHand, {0.0f, kObjectLiftScale * left.radius, 0.0f});
+        if (right.valid) right.pos = Vector3Add(rightHand, {0.0f, kObjectLiftScale * right.radius, 0.0f});
 
         float d = -1.0f;
         float enter = -1.0f;
@@ -586,6 +702,10 @@ int main() {
         BeginMode3D(camera);
         DrawBackdrop(stars);
         DrawGrid(22, 1.0f);
+        if (left.valid) DrawHandAvatar3D(leftHand, false, leftGrip, t);
+        if (right.valid) DrawHandAvatar3D(rightHand, true, rightGrip, t);
+        if (left.valid) DrawLine3D(leftHand, left.pos, Color{110, 200, 255, 120});
+        if (right.valid) DrawLine3D(rightHand, right.pos, Color{255, 205, 140, 120});
 
         if (interaction.blend > 0.06f && left.valid && right.valid) {
             DrawInteraction3D(left, right, interaction, t);
@@ -619,7 +739,8 @@ int main() {
 
         DrawText(
             receiverOk
-                ? TextFormat("%s  |  UDP:%d  |  Z/X + move keys work when bridge idle", modeText, kUdpPort)
+                ? TextFormat("%s  |  UDP:%d  |  grip L/R: %.2f / %.2f  |  Z/X + move keys work when bridge idle",
+                             modeText, kUdpPort, leftGrip, rightGrip)
                 : "udp receiver failed: running in local-only mode",
             18, 40, 16, Color{165, 188, 220, 255}
         );

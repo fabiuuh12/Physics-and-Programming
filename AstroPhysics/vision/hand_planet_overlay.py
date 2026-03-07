@@ -882,6 +882,8 @@ def _send_render_bridge(
     now_ts: float,
     left_state: BodyState,
     right_state: BodyState,
+    left_cycle: HandCycleState,
+    right_cycle: HandCycleState,
     left_kind: str,
     right_kind: str,
     interaction_state: InteractionState,
@@ -902,7 +904,9 @@ def _send_render_bridge(
         f"{now_ts:.3f},{int(left_state.valid)},{lx:.4f},{ly:.4f},"
         f"{int(right_state.valid)},{rx:.4f},{ry:.4f},"
         f"{_kind_to_id(left_kind)},{_kind_to_id(right_kind)},"
-        f"{int(interaction_state.active)},{float(np.clip(interaction_state.strength, 0.0, 1.0)):.3f}"
+        f"{int(interaction_state.active)},{float(np.clip(interaction_state.strength, 0.0, 1.0)):.3f},"
+        f"{float(np.clip(left_cycle.fist_score_ema, 0.0, 1.0)):.3f},"
+        f"{float(np.clip(right_cycle.fist_score_ema, 0.0, 1.0)):.3f}"
     )
     try:
         bridge_sock.sendto(msg.encode("ascii", errors="ignore"), (RENDER_BRIDGE_HOST, RENDER_BRIDGE_PORT))
@@ -1451,6 +1455,8 @@ def main() -> int:
             now_ts,
             left_state,
             right_state,
+            left_cycle,
+            right_cycle,
             left_key,
             right_key,
             interact_state,
