@@ -24,6 +24,9 @@ target_link_libraries(atomic_bomb_viz_cpp PRIVATE raylib)
 add_executable(blackhole_viz_cpp "gravity/blackhole_viz.cpp")
 target_link_libraries(blackhole_viz_cpp PRIVATE raylib)
 
+add_executable(blackhole_realism_viz_cpp "gravity/blackhole_realism_viz.cpp")
+target_link_libraries(blackhole_realism_viz_cpp PRIVATE raylib)
+
 add_executable(black_hole_accretion_beaming_viz_cpp "gravity/black_hole_accretion_beaming_viz.cpp")
 target_link_libraries(black_hole_accretion_beaming_viz_cpp PRIVATE raylib)
 
@@ -38,6 +41,9 @@ target_link_libraries(damped_forced_oscillator_viz_cpp PRIVATE raylib)
 
 add_executable(dark_matter_viz_cpp "astronomy/dark_matter_viz.cpp")
 target_link_libraries(dark_matter_viz_cpp PRIVATE raylib)
+
+add_executable(neutron_star_merger_kilonova_viz_cpp "astronomy/neutron_star_merger_kilonova_viz.cpp")
+target_link_libraries(neutron_star_merger_kilonova_viz_cpp PRIVATE raylib)
 
 add_executable(doppler_eff_viz_cpp "relativity/doppler_eff_viz.cpp")
 target_link_libraries(doppler_eff_viz_cpp PRIVATE raylib)
@@ -153,6 +159,9 @@ target_link_libraries(simple_harmonic_oscillator_viz_cpp PRIVATE raylib)
 add_executable(galaxy_rotation_dark_matter_viz_cpp "astronomy/galaxy_rotation_dark_matter_viz.cpp")
 target_link_libraries(galaxy_rotation_dark_matter_viz_cpp PRIVATE raylib)
 
+add_executable(galaxy_merger_nbody_viz_cpp "astronomy/galaxy_merger_nbody_viz.cpp")
+target_link_libraries(galaxy_merger_nbody_viz_cpp PRIVATE raylib)
+
 add_executable(solar_system_spacetime_viz_cpp "gravity/solar_system_spacetime_viz.cpp")
 target_link_libraries(solar_system_spacetime_viz_cpp PRIVATE raylib)
 
@@ -182,3 +191,18 @@ target_link_libraries(vision_two_hands_scene_cpp PRIVATE raylib)
 if (WIN32)
     target_link_libraries(vision_two_hands_scene_cpp PRIVATE ws2_32)
 endif()
+
+add_executable(vision_astro_interactions_3d_cpp "vision/render3d/astro_interactions_renderer_3d.cpp")
+target_link_libraries(vision_astro_interactions_3d_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(vision_astro_interactions_3d_cpp PRIVATE ws2_32)
+endif()
+
+add_executable(gravitational_microlensing_viz_cpp "gravity/gravitational_microlensing_viz.cpp")
+target_link_libraries(gravitational_microlensing_viz_cpp PRIVATE raylib)
+
+add_executable(pulsar_beam_timing_viz_cpp "astronomy/pulsar_beam_timing_viz.cpp")
+target_link_libraries(pulsar_beam_timing_viz_cpp PRIVATE raylib)
+
+add_executable(supernova_remnant_expansion_viz_cpp "astronomy/supernova_remnant_expansion_viz.cpp")
+target_link_libraries(supernova_remnant_expansion_viz_cpp PRIVATE raylib)
