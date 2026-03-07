@@ -192,12 +192,6 @@ if (WIN32)
     target_link_libraries(vision_two_hands_scene_cpp PRIVATE ws2_32)
 endif()
 
-add_executable(vision_astro_interactions_3d_cpp "vision/render3d/astro_interactions_renderer_3d.cpp")
-target_link_libraries(vision_astro_interactions_3d_cpp PRIVATE raylib)
-if (WIN32)
-    target_link_libraries(vision_astro_interactions_3d_cpp PRIVATE ws2_32)
-endif()
-
 add_executable(gravitational_microlensing_viz_cpp "gravity/gravitational_microlensing_viz.cpp")
 target_link_libraries(gravitational_microlensing_viz_cpp PRIVATE raylib)
 

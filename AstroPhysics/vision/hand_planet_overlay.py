@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import math
 import os
-import socket
 import tempfile
 import time
 from dataclasses import dataclass
@@ -80,9 +79,6 @@ DUPLICATE_LANDMARK_DIST_NORM = 0.030
 MP_MIN_DETECTION_CONF = 0.62
 MP_MIN_TRACKING_CONF = 0.60
 MP_MIN_PRESENCE_CONF = 0.60
-RENDER_BRIDGE_ENABLED = os.environ.get("ASTRO_RENDER_BRIDGE", "1") != "0"
-RENDER_BRIDGE_HOST = os.environ.get("ASTRO_RENDER_BRIDGE_HOST", "127.0.0.1")
-RENDER_BRIDGE_PORT = int(os.environ.get("ASTRO_RENDER_BRIDGE_PORT", "50506"))
 
 CACHE_MAX = 320
 PHASE_BUCKETS = 96
@@ -872,49 +868,6 @@ def _pair_key(a: str, b: str) -> Tuple[str, str]:
     return tuple(sorted((a, b), key=lambda k: order.get(k, 99)))
 
 
-def _kind_to_id(kind: str) -> int:
-    table = {"earth": 0, "star": 1, "blackhole": 2}
-    return int(table.get(kind, 0))
-
-
-def _send_render_bridge(
-    bridge_sock: socket.socket | None,
-    now_ts: float,
-    left_state: BodyState,
-    right_state: BodyState,
-    left_cycle: HandCycleState,
-    right_cycle: HandCycleState,
-    left_kind: str,
-    right_kind: str,
-    interaction_state: InteractionState,
-    frame_shape: Tuple[int, int, int],
-) -> None:
-    if bridge_sock is None:
-        return
-
-    h, w = frame_shape[:2]
-    if w <= 0 or h <= 0:
-        return
-
-    lx = float(np.clip(left_state.x / w, 0.0, 1.0))
-    ly = float(np.clip(left_state.y / h, 0.0, 1.0))
-    rx = float(np.clip(right_state.x / w, 0.0, 1.0))
-    ry = float(np.clip(right_state.y / h, 0.0, 1.0))
-    msg = (
-        f"{now_ts:.3f},{int(left_state.valid)},{lx:.4f},{ly:.4f},"
-        f"{int(right_state.valid)},{rx:.4f},{ry:.4f},"
-        f"{_kind_to_id(left_kind)},{_kind_to_id(right_kind)},"
-        f"{int(interaction_state.active)},{float(np.clip(interaction_state.strength, 0.0, 1.0)):.3f},"
-        f"{float(np.clip(left_cycle.fist_score_ema, 0.0, 1.0)):.3f},"
-        f"{float(np.clip(right_cycle.fist_score_ema, 0.0, 1.0)):.3f}"
-    )
-    try:
-        bridge_sock.sendto(msg.encode("ascii", errors="ignore"), (RENDER_BRIDGE_HOST, RENDER_BRIDGE_PORT))
-    except OSError:
-        # UDP bridge is optional; ignore transient socket errors.
-        pass
-
-
 def _pair_label(pair: Tuple[str, str]) -> str:
     labels = {
         ("earth", "earth"): "planet collision",
@@ -1310,13 +1263,6 @@ def main() -> int:
     earth_renderer = EarthRenderer()
     star_renderer = StarRenderer()
     blackhole_renderer = BlackHoleRenderer()
-    bridge_sock: socket.socket | None = None
-    if RENDER_BRIDGE_ENABLED:
-        try:
-            bridge_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            bridge_sock.setblocking(False)
-        except OSError:
-            bridge_sock = None
 
     fps = 0.0
     last_ts = time.perf_counter()
@@ -1450,18 +1396,6 @@ def main() -> int:
             interact_state, left_state, right_state, left_params, right_params, now_ts
         )
         last_norm_dist = norm_dist
-        _send_render_bridge(
-            bridge_sock,
-            now_ts,
-            left_state,
-            right_state,
-            left_cycle,
-            right_cycle,
-            left_key,
-            right_key,
-            interact_state,
-            frame.shape,
-        )
 
         if interact_state.active:
             _draw_interaction_result(
@@ -1611,8 +1545,6 @@ def main() -> int:
         hands_solution.close()
     if hand_landmarker is not None:
         hand_landmarker.close()
-    if bridge_sock is not None:
-        bridge_sock.close()
     return 0
 
 
