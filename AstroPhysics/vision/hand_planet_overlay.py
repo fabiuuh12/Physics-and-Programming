@@ -25,7 +25,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 # Some MediaPipe builds import matplotlib internally; keep cache writable.
 if "MPLCONFIGDIR" not in os.environ:
@@ -79,6 +79,11 @@ DUPLICATE_LANDMARK_DIST_NORM = 0.030
 MP_MIN_DETECTION_CONF = 0.62
 MP_MIN_TRACKING_CONF = 0.60
 MP_MIN_PRESENCE_CONF = 0.60
+
+SLOT_KEYS: Tuple[str, str] = ("slot0", "slot1")
+HAND_SLOT_STALE_SEC = 0.45
+HAND_SLOT_PRUNE_SEC = 1.35
+LANDMARK_SMOOTH_ALPHA = 0.34
 
 CACHE_MAX = 320
 PHASE_BUCKETS = 96
@@ -149,6 +154,38 @@ class Patch:
     image: np.ndarray
     alpha: np.ndarray
     center: int
+
+
+@dataclass
+class TrackedHand:
+    pose: np.ndarray
+    label: str
+    score: float
+    last_seen_ts: float
+
+
+class MultiLandmarkSmoother:
+    def __init__(self, alpha: float = 0.33) -> None:
+        self.alpha = float(np.clip(alpha, 0.01, 0.99))
+        self._state: Dict[str, np.ndarray] = {}
+
+    def reset(self) -> None:
+        self._state.clear()
+
+    def smooth(self, key: str, points: Sequence[Tuple[float, float, float]]) -> np.ndarray:
+        current = np.asarray(points, dtype=np.float32)
+        prev = self._state.get(key)
+        if prev is None or prev.shape != current.shape:
+            self._state[key] = current.copy()
+        else:
+            self._state[key] = (1.0 - self.alpha) * prev + self.alpha * current
+        return self._state[key].copy()
+
+    def prune(self, active_keys: Sequence[str]) -> None:
+        keep = set(active_keys)
+        stale = [k for k in self._state if k not in keep]
+        for key in stale:
+            del self._state[key]
 
 
 def _extract_solution_hands(result: object, mirror: bool) -> List[HandObservation]:
@@ -255,6 +292,140 @@ def _suppress_duplicate_hands(hands: List[HandObservation]) -> List[HandObservat
 
     kept.sort(key=lambda h: _center_of_hand(h)[0])
     return kept
+
+
+def _wrist_xy(hand: HandObservation) -> np.ndarray:
+    p = np.asarray(hand.landmarks, dtype=np.float32)
+    return p[WRIST, 0:2]
+
+
+def _slot_wrist_xy(tracked: Dict[str, TrackedHand], slot: str) -> np.ndarray | None:
+    item = tracked.get(slot)
+    if item is None:
+        return None
+    return item.pose[WRIST, 0:2].astype(np.float32)
+
+
+def _assign_hands_to_slots(
+    hands: List[HandObservation],
+    tracked: Dict[str, TrackedHand],
+) -> List[Tuple[str, HandObservation]]:
+    if not hands:
+        return []
+
+    hands = sorted(hands, key=_hand_weight, reverse=True)[:2]
+    existing = [slot for slot in SLOT_KEYS if slot in tracked]
+
+    if len(hands) == 1:
+        hand = hands[0]
+        if existing:
+            wx = _wrist_xy(hand)
+            dists: List[Tuple[float, str]] = []
+            for slot in existing:
+                sw = _slot_wrist_xy(tracked, slot)
+                if sw is not None:
+                    dists.append((float(np.linalg.norm(wx - sw)), slot))
+            if dists:
+                return [(min(dists, key=lambda t: t[0])[1], hand)]
+        for slot in SLOT_KEYS:
+            if slot not in tracked:
+                return [(slot, hand)]
+        return [(SLOT_KEYS[0], hand)]
+
+    h0, h1 = hands[0], hands[1]
+    w0 = _wrist_xy(h0)
+    w1 = _wrist_xy(h1)
+
+    if all(slot in tracked for slot in SLOT_KEYS):
+        s0 = _slot_wrist_xy(tracked, SLOT_KEYS[0])
+        s1 = _slot_wrist_xy(tracked, SLOT_KEYS[1])
+        if s0 is not None and s1 is not None:
+            c_direct = float(np.linalg.norm(w0 - s0) + np.linalg.norm(w1 - s1))
+            c_cross = float(np.linalg.norm(w1 - s0) + np.linalg.norm(w0 - s1))
+            if c_direct <= c_cross:
+                return [(SLOT_KEYS[0], h0), (SLOT_KEYS[1], h1)]
+            return [(SLOT_KEYS[0], h1), (SLOT_KEYS[1], h0)]
+
+    if len(existing) == 1:
+        used = existing[0]
+        free = SLOT_KEYS[1] if used == SLOT_KEYS[0] else SLOT_KEYS[0]
+        sw = _slot_wrist_xy(tracked, used)
+        if sw is not None:
+            d0 = float(np.linalg.norm(w0 - sw))
+            d1 = float(np.linalg.norm(w1 - sw))
+            if d0 <= d1:
+                return [(used, h0), (free, h1)]
+            return [(used, h1), (free, h0)]
+        return [(used, h0), (free, h1)]
+
+    if w0[0] <= w1[0]:
+        return [(SLOT_KEYS[0], h0), (SLOT_KEYS[1], h1)]
+    return [(SLOT_KEYS[0], h1), (SLOT_KEYS[1], h0)]
+
+
+def _tracked_to_observation(hand: TrackedHand) -> HandObservation:
+    points = [tuple(map(float, row)) for row in hand.pose.tolist()]
+    return HandObservation(label=hand.label, score=hand.score, landmarks=points)
+
+
+def _pick_best_by_label(
+    alive: List[Tuple[str, TrackedHand]],
+    want_label: str,
+    used_slots: set[str],
+) -> Tuple[str, TrackedHand] | None:
+    want = want_label.lower()
+    best: Tuple[str, TrackedHand] | None = None
+    best_score = -1.0
+    for slot, hand in alive:
+        if slot in used_slots:
+            continue
+        if hand.label.lower() != want:
+            continue
+        if hand.score > best_score:
+            best = (slot, hand)
+            best_score = hand.score
+    return best
+
+
+def _select_hands_from_tracked(
+    tracked: Dict[str, TrackedHand],
+    now_ts: float,
+    max_age: float,
+) -> Tuple[HandObservation | None, HandObservation | None]:
+    alive = [(slot, hand) for slot, hand in tracked.items() if (now_ts - hand.last_seen_ts) <= max_age]
+    if not alive:
+        return None, None
+
+    used_slots: set[str] = set()
+    left_pick = _pick_best_by_label(alive, "left", used_slots)
+    if left_pick is not None:
+        used_slots.add(left_pick[0])
+    right_pick = _pick_best_by_label(alive, "right", used_slots)
+    if right_pick is not None:
+        used_slots.add(right_pick[0])
+
+    remaining = [(slot, hand) for slot, hand in alive if slot not in used_slots]
+    if left_pick is None and right_pick is None:
+        if len(remaining) == 1:
+            wrist_x = float(remaining[0][1].pose[WRIST, 0])
+            if wrist_x < 0.5:
+                left_pick = remaining[0]
+            else:
+                right_pick = remaining[0]
+        elif len(remaining) >= 2:
+            left_pick = min(remaining, key=lambda item: float(item[1].pose[WRIST, 0]))
+            right_pick = max(remaining, key=lambda item: float(item[1].pose[WRIST, 0]))
+    else:
+        if left_pick is None and remaining:
+            left_pick = min(remaining, key=lambda item: float(item[1].pose[WRIST, 0]))
+            used_slots.add(left_pick[0])
+            remaining = [(slot, hand) for slot, hand in remaining if slot != left_pick[0]]
+        if right_pick is None and remaining:
+            right_pick = max(remaining, key=lambda item: float(item[1].pose[WRIST, 0]))
+
+    left_obs = _tracked_to_observation(left_pick[1]) if left_pick is not None else None
+    right_obs = _tracked_to_observation(right_pick[1]) if right_pick is not None else None
+    return left_obs, right_obs
 
 
 def _split_hands_by_side(hands: List[HandObservation]) -> Tuple[HandObservation | None, HandObservation | None]:
@@ -1244,6 +1415,8 @@ def main() -> int:
     right_state = BodyState()
     left_track = HandTrackState()
     right_track = HandTrackState()
+    tracked_hands: Dict[str, TrackedHand] = {}
+    landmark_smoother = MultiLandmarkSmoother(alpha=LANDMARK_SMOOTH_ALPHA)
     interact_state = InteractionState()
     left_cycle = HandCycleState(object_index=0)
     right_cycle = HandCycleState(object_index=0)
@@ -1321,7 +1494,27 @@ def main() -> int:
                     )
 
         now_ts = time.perf_counter()
-        left_hand, right_hand = _stable_assign_hands(observations, left_track, right_track, now_ts=now_ts)
+        assignments = _assign_hands_to_slots(observations, tracked_hands)
+        for slot, hand in assignments:
+            tracked_hands[slot] = TrackedHand(
+                pose=landmark_smoother.smooth(slot, hand.landmarks),
+                label=hand.label,
+                score=hand.score,
+                last_seen_ts=now_ts,
+            )
+
+        stale_slots = [
+            slot
+            for slot, tracked in tracked_hands.items()
+            if (now_ts - tracked.last_seen_ts) > HAND_SLOT_PRUNE_SEC
+        ]
+        for slot in stale_slots:
+            del tracked_hands[slot]
+
+        landmark_smoother.prune(list(tracked_hands.keys()))
+        left_hand, right_hand = _select_hands_from_tracked(
+            tracked_hands, now_ts, max_age=HAND_SLOT_STALE_SEC
+        )
         _update_track(left_track, left_hand, now_ts)
         _update_track(right_track, right_hand, now_ts)
 
@@ -1530,6 +1723,12 @@ def main() -> int:
             break
         if key == ord("m"):
             mirror = not mirror
+            tracked_hands.clear()
+            landmark_smoother.reset()
+            left_track = HandTrackState()
+            right_track = HandTrackState()
+            left_state.valid = False
+            right_state.valid = False
         if key == ord("["):
             global_size_scale = max(0.45, global_size_scale - 0.05)
         if key == ord("]"):
