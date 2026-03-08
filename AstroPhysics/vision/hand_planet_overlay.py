@@ -2,7 +2,7 @@
 """
 Hand object overlay lab.
 
-Both hands cycle: earth <-> star <-> blackhole
+Both hands cycle: atom <-> neutron <-> star <-> blackhole
 
 Make a fist to cycle that hand's object.
 When two objects get too close, pair-specific interaction appears at midpoint.
@@ -685,19 +685,19 @@ def _temp_to_bgr(color_temp: float) -> Tuple[float, float, float]:
     return float(c[0]), float(c[1]), float(c[2])
 
 
-class EarthRenderer:
+class AtomRenderer:
     def __init__(self) -> None:
         self._cache: Dict[Tuple[int, int, int, int], Patch] = {}
 
-    def _key(self, radius: int, main_phase: float, cloud_phase: float, params: BodyParams) -> Tuple[int, int, int, int]:
+    def _key(self, radius: int, phase: float, orbit_phase: float, params: BodyParams) -> Tuple[int, int, int, int]:
         rq = max(8, int(round(radius / float(RADIUS_QUANT)) * RADIUS_QUANT))
-        pb_main = int((main_phase % (2.0 * math.pi)) / (2.0 * math.pi) * PHASE_BUCKETS) % PHASE_BUCKETS
-        pb_cloud = int((cloud_phase % (2.0 * math.pi)) / (2.0 * math.pi) * PHASE_BUCKETS) % PHASE_BUCKETS
-        em = int(np.clip(params.emissive * 10.0, 0.0, 50.0))
-        return rq, pb_main, pb_cloud, em
+        pb = int((phase % (2.0 * math.pi)) / (2.0 * math.pi) * PHASE_BUCKETS) % PHASE_BUCKETS
+        ob = int((orbit_phase % (2.0 * math.pi)) / (2.0 * math.pi) * PHASE_BUCKETS) % PHASE_BUCKETS
+        em = int(np.clip(params.emissive * 10.0, 0.0, 60.0))
+        return rq, pb, ob, em
 
-    def _get_patch(self, radius: int, main_phase: float, cloud_phase: float, params: BodyParams) -> Patch:
-        key = self._key(radius, main_phase, cloud_phase, params)
+    def _get_patch(self, radius: int, phase: float, orbit_phase: float, params: BodyParams) -> Patch:
+        key = self._key(radius, phase, orbit_phase, params)
         cached = self._cache.get(key)
         if cached is not None:
             return cached
@@ -709,12 +709,12 @@ class EarthRenderer:
             del self._cache[first_key]
         return patch
 
-    def _build_patch(self, radius: int, phase_bucket: int, cloud_bucket: int, emissive_bucket: int) -> Patch:
+    def _build_patch(self, radius: int, phase_bucket: int, orbit_bucket: int, emissive_bucket: int) -> Patch:
         phase = (2.0 * math.pi * phase_bucket) / float(PHASE_BUCKETS)
-        cloud_phase = (2.0 * math.pi * cloud_bucket) / float(PHASE_BUCKETS)
-        emissive = 0.8 + 0.02 * emissive_bucket
+        orbit_phase = (2.0 * math.pi * orbit_bucket) / float(PHASE_BUCKETS)
+        emissive = 0.82 + 0.032 * emissive_bucket
 
-        pad = int(radius * 1.14) + 6
+        pad = int(radius * 1.82) + 8
         size = 2 * pad + 1
         cy = cx = pad
 
@@ -722,99 +722,172 @@ class EarthRenderer:
         nx = (xx.astype(np.float32) - cx) / float(radius)
         ny = (yy.astype(np.float32) - cy) / float(radius)
         r2 = nx * nx + ny * ny
-        sphere = r2 <= 1.0
-        nz = np.sqrt(np.clip(1.0 - r2, 0.0, 1.0))
+        rr = np.sqrt(r2)
 
-        lat = np.arcsin(np.clip(ny, -1.0, 1.0))
-        lon = np.arctan2(nx, nz + 1e-6) + 0.92 * phase
+        image = np.zeros((size, size, 3), dtype=np.float32)
 
-        n1 = np.sin(2.5 * lon + 1.1 * np.sin(1.9 * lat))
-        n2 = np.sin(4.2 * lat - 1.7 * lon + 1.3)
-        n3 = np.sin(7.3 * lon + 5.2 * lat + 0.4)
-        elev = 0.54 * n1 + 0.31 * n2 + 0.15 * n3
+        # Soft electric field envelope.
+        cloud = np.exp(-(r2 / 2.4))
+        image[..., 0] += 84.0 * cloud
+        image[..., 1] += 46.0 * cloud
+        image[..., 2] += 26.0 * cloud
 
-        abs_lat = np.abs(lat)
-        lat_norm = abs_lat / (math.pi * 0.5)
+        # Bright nucleus with structured shell.
+        nucleus_core = np.exp(-(r2 / 0.17))
+        nucleus_hot = np.exp(-(r2 / 0.045))
+        nucleus_shell = np.exp(-np.square((rr - 0.37) / 0.10))
+        shell_band = np.exp(-np.square((rr - 0.58) / 0.14)) * np.exp(-(ny * ny) / 0.23)
 
-        ocean_b = 106.0 + 40.0 * (1.0 - lat_norm)
-        ocean_g = 64.0 + 36.0 * (1.0 - lat_norm)
-        ocean_r = 22.0 + 10.0 * (1.0 - lat_norm)
+        image[..., 0] += 62.0 * nucleus_shell + 126.0 * nucleus_core + 80.0 * nucleus_hot + 52.0 * shell_band
+        image[..., 1] += 74.0 * nucleus_shell + 92.0 * nucleus_core + 92.0 * nucleus_hot + 34.0 * shell_band
+        image[..., 2] += 196.0 * nucleus_shell + 108.0 * nucleus_core + 138.0 * nucleus_hot + 16.0 * shell_band
 
-        image = np.stack([ocean_b, ocean_g, ocean_r], axis=-1).astype(np.float32)
+        nuc_r = max(4, int(radius * (0.33 + 0.03 * math.sin(phase * 2.0))))
+        cv2.circle(image, (cx, cy), int(nuc_r * 1.52), (62, 78, 124), -1, cv2.LINE_AA)
 
-        land = elev > 0.11
-        tropical = np.exp(-np.square(lat / 0.86))
-        highland = np.clip((elev - 0.11) / 0.55, 0.0, 1.0)
+        # Proton/neutron cluster with subtle parallax.
+        nucleons = 14
+        for i in range(nucleons):
+            a = phase * 1.28 + i * (2.0 * math.pi / nucleons)
+            layer = 0.16 + 0.76 * ((i % 5) / 4.0)
+            nr = nuc_r * layer
+            px = int(cx + nr * math.cos(a))
+            py = int(cy + nr * math.sin(a + 0.35 * math.sin(phase)))
+            col = (112, 138, 255) if (i % 2 == 0) else (176, 191, 222)
+            cv2.circle(image, (px, py), max(2, int(radius * 0.082)), col, -1, cv2.LINE_AA)
 
-        land_b = 44.0 + 18.0 * tropical + 14.0 * highland
-        land_g = 90.0 + 82.0 * tropical - 24.0 * highland
-        land_r = 52.0 + 40.0 * (1.0 - tropical) + 44.0 * highland
+        # Electron orbits with depth cues.
+        orbits = [
+            (1.22, 0.56, 0.0),
+            (0.92, 1.16, 1.35),
+            (1.08, 0.84, 2.15),
+        ]
+        for i, (ax_s, ay_s, base) in enumerate(orbits):
+            rot = orbit_phase * (1.0 + 0.16 * i) + base
+            ax = int(radius * ax_s)
+            ay = int(radius * ay_s)
+            # Main orbital trace.
+            cv2.ellipse(
+                image,
+                (cx, cy),
+                (max(1, ax), max(1, ay)),
+                math.degrees(rot),
+                0,
+                360,
+                (88 + 22 * i, 176 + 22 * i, 250),
+                1,
+                cv2.LINE_AA,
+            )
+            # Front arc highlight.
+            cv2.ellipse(
+                image,
+                (cx, cy),
+                (max(1, ax), max(1, ay)),
+                math.degrees(rot),
+                220,
+                340,
+                (118 + 18 * i, 212 + 18 * i, 255),
+                1,
+                cv2.LINE_AA,
+            )
+            ea = phase * (2.4 + 0.8 * i) + base
+            ex = int(cx + ax * math.cos(ea))
+            ey = int(cy + ay * math.sin(ea))
+            er = max(2, int(radius * 0.09))
+            # Electron glow + core.
+            cv2.circle(image, (ex, ey), er + 2, (116, 214, 255), -1, cv2.LINE_AA)
+            cv2.circle(image, (ex, ey), er + 1, (160, 236, 255), -1, cv2.LINE_AA)
+            cv2.circle(image, (ex, ey), er, (212, 252, 255), -1, cv2.LINE_AA)
+            # Motion streak.
+            tx = int(ex - 0.35 * er * math.cos(ea))
+            ty = int(ey - 0.35 * er * math.sin(ea))
+            cv2.line(image, (tx, ty), (ex, ey), (140, 225, 255), 1, cv2.LINE_AA)
 
-        image[..., 0] = np.where(land, land_b, image[..., 0])
-        image[..., 1] = np.where(land, land_g, image[..., 1])
-        image[..., 2] = np.where(land, land_r, image[..., 2])
-
-        desert = land & (abs_lat < 0.45) & (elev < 0.24)
-        image[..., 0] = np.where(desert, 70.0, image[..., 0])
-        image[..., 1] = np.where(desert, 145.0, image[..., 1])
-        image[..., 2] = np.where(desert, 196.0, image[..., 2])
-
-        coast = np.abs(elev - 0.11) < 0.028
-        image[..., 0] = np.where(coast, 76.0, image[..., 0])
-        image[..., 1] = np.where(coast, 168.0, image[..., 1])
-        image[..., 2] = np.where(coast, 176.0, image[..., 2])
-
-        polar = abs_lat > 1.08
-        image[polar] = image[polar] * 0.35 + np.array([240.0, 246.0, 252.0], dtype=np.float32) * 0.65
-
-        cloud_base = (
-            0.48 * np.sin(8.4 * (lon + 0.35 * cloud_phase) - 2.1 * lat)
-            + 0.33 * np.sin(15.2 * (lon + 0.52 * cloud_phase) + 10.6 * lat + 0.7)
-            + 0.19 * np.sin(20.0 * (lon + 0.44 * cloud_phase) - 5.7 * lat + 2.0)
-        )
-        clouds = cloud_base > 0.56
-
-        light_dir = np.array([-0.42, -0.35, 0.84], dtype=np.float32)
-        light_dir /= np.linalg.norm(light_dir)
-        diffuse = np.clip(light_dir[0] * nx + light_dir[1] * ny + light_dir[2] * nz, 0.0, 1.0)
-        shade = 0.21 + 0.79 * diffuse
-        image *= shade[..., None]
-
-        dark = diffuse < 0.11
-        city_noise = np.sin(13.4 * lon + 8.2 * lat) * np.sin(9.6 * lon - 11.0 * lat + 1.2)
-        cities = land & dark & (abs_lat < 1.25) & (city_noise > 0.84)
-        image[cities] += np.array([32.0, 78.0, 172.0], dtype=np.float32) * emissive
-
-        hx = nx + 0.30
-        hy = ny + 0.27
-        spec = np.exp(-((hx * hx + hy * hy) / 0.023))
-        spec *= (~land).astype(np.float32)
-        image += spec[..., None] * np.array([80.0, 125.0, 190.0], dtype=np.float32)
-
-        cloud_alpha = np.where(clouds, 0.16 + 0.54 * diffuse, 0.0).astype(np.float32)
-        image = image * (1.0 - cloud_alpha[..., None]) + 255.0 * cloud_alpha[..., None]
-
-        halo = (r2 > 1.0) & (r2 <= 1.11 * 1.11)
-        halo_strength = np.zeros_like(r2, dtype=np.float32)
-        halo_strength[halo] = (1.11 - np.sqrt(r2[halo])) / 0.11
-        image[..., 0] += 120.0 * halo_strength
-        image[..., 1] += 82.0 * halo_strength
-        image[..., 2] += 26.0 * halo_strength
-
+        image *= (0.88 + 0.12 * emissive)
         image = np.clip(image, 0.0, 255.0).astype(np.uint8)
-        alpha = np.zeros_like(r2, dtype=np.float32)
-        alpha[sphere] = 0.95
-        alpha = np.maximum(alpha, 0.32 * halo_strength)
-        alpha = np.clip(alpha, 0.0, 1.0)
-        alpha[~(sphere | halo)] = 0.0
 
-        cv2.circle(image, (cx, cy), radius, (230, 238, 252), 1, cv2.LINE_AA)
+        lum = np.max(image.astype(np.float32), axis=2) / 255.0
+        aura = np.exp(-r2 / 3.2)
+        alpha = np.clip(0.92 * lum + 0.22 * aura, 0.0, 1.0)
+        alpha[rr > 2.15] = 0.0
+
         return Patch(image=image, alpha=alpha, center=pad)
 
-    def draw(self, frame: np.ndarray, center: Tuple[int, int], radius: int, main_phase: float, cloud_phase: float, params: BodyParams) -> None:
+    def draw(self, frame: np.ndarray, center: Tuple[int, int], radius: int, phase: float, orbit_phase: float, params: BodyParams) -> None:
         if radius < 8:
             return
-        patch = self._get_patch(radius, main_phase, cloud_phase, params)
+        patch = self._get_patch(radius, phase, orbit_phase, params)
+        _blit_patch(frame, patch, center)
+
+
+class NeutronRenderer:
+    def __init__(self) -> None:
+        self._cache: Dict[Tuple[int, int, int], Patch] = {}
+
+    def _key(self, radius: int, phase: float, params: BodyParams) -> Tuple[int, int, int]:
+        rq = max(5, int(round(radius / float(RADIUS_QUANT)) * RADIUS_QUANT))
+        pb = int((phase % (2.0 * math.pi)) / (2.0 * math.pi) * PHASE_BUCKETS) % PHASE_BUCKETS
+        em = int(np.clip(params.emissive * 12.0, 0.0, 60.0))
+        return rq, pb, em
+
+    def _get_patch(self, radius: int, phase: float, params: BodyParams) -> Patch:
+        key = self._key(radius, phase, params)
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        patch = self._build_patch(*key)
+        self._cache[key] = patch
+        if len(self._cache) > CACHE_MAX:
+            first_key = next(iter(self._cache))
+            del self._cache[first_key]
+        return patch
+
+    def _build_patch(self, radius: int, phase_bucket: int, emissive_bucket: int) -> Patch:
+        phase = (2.0 * math.pi * phase_bucket) / float(PHASE_BUCKETS)
+        emissive = 0.72 + 0.03 * emissive_bucket
+
+        pad = int(radius * 2.25) + 6
+        size = 2 * pad + 1
+        cy = cx = pad
+        yy, xx = np.mgrid[0:size, 0:size]
+        nx = (xx.astype(np.float32) - cx) / float(max(1, radius))
+        ny = (yy.astype(np.float32) - cy) / float(max(1, radius))
+        r2 = nx * nx + ny * ny
+        rr = np.sqrt(r2)
+
+        image = np.zeros((size, size, 3), dtype=np.float32)
+        core = np.exp(-(r2 / 0.30))
+        core_hot = np.exp(-(r2 / 0.09))
+        shell = np.exp(-np.square((rr - 0.80) / 0.16))
+        wake_axis = nx * math.cos(phase) + ny * math.sin(phase)
+        wake_cross = -nx * math.sin(phase) + ny * math.cos(phase)
+        streak = np.exp(-np.square(wake_cross / 0.34)) * np.exp(-(r2 / 1.9))
+        tail = np.exp(-np.square((wake_axis + 0.55) / 0.52)) * np.exp(-(wake_cross * wake_cross) / 0.24)
+
+        image[..., 0] += 146.0 * core + 86.0 * core_hot + 78.0 * shell + 56.0 * streak + 42.0 * tail
+        image[..., 1] += 124.0 * core + 82.0 * core_hot + 64.0 * shell + 62.0 * streak + 46.0 * tail
+        image[..., 2] += 116.0 * core + 90.0 * core_hot + 56.0 * shell + 74.0 * streak + 54.0 * tail
+
+        # Sub-structure hints (stylized quark triad).
+        q_r = max(1, int(radius * 0.18))
+        for k in range(3):
+            a = phase + k * (2.0 * math.pi / 3.0)
+            qx = int(cx + 0.23 * radius * math.cos(a))
+            qy = int(cy + 0.23 * radius * math.sin(a))
+            cv2.circle(image, (qx, qy), q_r, (168, 182, 236), -1, cv2.LINE_AA)
+            cv2.circle(image, (qx, qy), max(1, q_r - 1), (188, 204, 246), -1, cv2.LINE_AA)
+        image *= (0.88 + 0.12 * emissive)
+        image = np.clip(image, 0.0, 255.0).astype(np.uint8)
+
+        alpha = np.clip(0.90 * core + 0.45 * shell + 0.32 * streak + 0.26 * tail, 0.0, 1.0)
+        alpha[rr > 2.20] = 0.0
+        return Patch(image=image, alpha=alpha, center=pad)
+
+    def draw(self, frame: np.ndarray, center: Tuple[int, int], radius: int, phase: float, params: BodyParams) -> None:
+        if radius < 4:
+            return
+        patch = self._get_patch(radius, phase, params)
         _blit_patch(frame, patch, center)
 
 
@@ -861,42 +934,56 @@ class StarRenderer:
         rr = np.sqrt(r2)
         sphere = rr <= 1.0
 
+        mu = np.sqrt(np.clip(1.0 - r2, 0.0, 1.0))
+        limb_dark = 0.22 + 0.78 * mu
+
         gran = (
-            0.50 * np.sin((11.0 + 0.3 * spin) * nx + 8.0 * ny + 2.2 * main_phase)
-            + 0.32 * np.sin((17.0 + 0.2 * spin) * nx - 13.0 * ny - 1.1 * main_phase)
-            + 0.18 * np.sin(24.0 * nx + 6.0 * ny + 0.6)
+            0.48 * np.sin((10.0 + 0.28 * spin) * nx + 8.0 * ny + 2.2 * main_phase)
+            + 0.34 * np.sin((16.0 + 0.22 * spin) * nx - 12.0 * ny - 1.4 * main_phase)
+            + 0.18 * np.sin(23.0 * nx + 7.0 * ny + 0.7)
         )
         gran = 0.5 + 0.5 * gran
-        core = np.exp(-(r2 / 0.58))
-        limb = np.clip(1.0 - r2, 0.0, 1.0)
+
+        # Dark magnetic spots + bright active regions.
+        spot_noise = (
+            np.sin(5.0 * nx - 3.8 * ny + 1.3 * main_phase)
+            + 0.8 * np.sin(7.2 * nx + 5.4 * ny - 1.6 * main_phase)
+        )
+        spots = sphere & (spot_noise > 1.25) & (rr < 0.92)
+        active_1 = np.exp(-((nx - 0.26 * math.sin(main_phase)) ** 2 + (ny + 0.16 * math.cos(1.2 * main_phase)) ** 2) / 0.040)
+        active_2 = np.exp(-((nx + 0.21 * math.cos(0.8 * main_phase)) ** 2 + (ny - 0.22 * math.sin(1.5 * main_phase)) ** 2) / 0.052)
+        active = np.clip(active_1 + 0.8 * active_2, 0.0, 1.0)
 
         image = np.zeros((size, size, 3), dtype=np.float32)
-        image[..., 0] = b0 * (0.58 + 0.42 * gran) + 35.0 * core
-        image[..., 1] = g0 * (0.58 + 0.42 * gran) + 35.0 * core
-        image[..., 2] = r0 * (0.58 + 0.42 * gran) + 18.0 * core
-        image *= (0.48 + 0.52 * limb)[..., None]
+        image[..., 0] = b0 * (0.57 + 0.43 * gran) + 28.0 * active
+        image[..., 1] = g0 * (0.57 + 0.43 * gran) + 34.0 * active
+        image[..., 2] = r0 * (0.57 + 0.43 * gran) + 20.0 * active
+        image *= limb_dark[..., None]
+        image[spots] *= np.array([0.38, 0.42, 0.46], dtype=np.float32)
 
         # Micro flares.
         flare_dir = np.arctan2(ny, nx)
-        flare_gate = np.exp(-np.square((rr - 1.0) / 0.12))
+        flare_gate = np.exp(-np.square((rr - 1.0) / 0.11))
         flare_pattern = (
-            np.sin(6.0 * flare_dir + 3.6 * flare_phase)
-            + 0.6 * np.sin(11.0 * flare_dir - 2.8 * flare_phase)
+            np.sin(6.0 * flare_dir + 3.4 * flare_phase)
+            + 0.62 * np.sin(10.5 * flare_dir - 2.9 * flare_phase)
         )
         flare_strength = np.clip(0.5 + 0.5 * flare_pattern, 0.0, 1.0) * flare_gate
-        image[..., 0] += 85.0 * flare_strength
-        image[..., 1] += 95.0 * flare_strength
-        image[..., 2] += 55.0 * flare_strength
+        image[..., 0] += 90.0 * flare_strength
+        image[..., 1] += 102.0 * flare_strength
+        image[..., 2] += 58.0 * flare_strength
 
-        halo = np.exp(-(r2 / 2.25))
-        image[..., 0] += 90.0 * halo
-        image[..., 1] += 110.0 * halo
-        image[..., 2] += 85.0 * halo
+        corona_inner = np.exp(-(r2 / 2.3))
+        corona_outer = np.exp(-(r2 / 5.9))
+        corona = 0.75 * corona_inner + 0.45 * corona_outer
+        image[..., 0] += 96.0 * corona
+        image[..., 1] += 118.0 * corona
+        image[..., 2] += 90.0 * corona
 
         image = np.clip(image, 0.0, 255.0).astype(np.uint8)
         alpha = np.zeros_like(rr, dtype=np.float32)
-        alpha[sphere] = 0.96
-        alpha += 0.45 * halo * (rr <= 1.85)
+        alpha[sphere] = 0.97
+        alpha += 0.52 * corona * (rr <= 2.05)
         alpha = np.clip(alpha, 0.0, 1.0)
         return Patch(image=image, alpha=alpha, center=pad)
 
@@ -937,7 +1024,7 @@ class BlackHoleRenderer:
         spin = 0.083 * spin_bucket
         mass = 0.25 * mass_bucket
 
-        pad = int(radius * 2.35) + 8
+        pad = int(radius * 2.55) + 8
         size = 2 * pad + 1
         cy = cx = pad
         yy, xx = np.mgrid[0:size, 0:size]
@@ -948,54 +1035,61 @@ class BlackHoleRenderer:
 
         image = np.zeros((size, size, 3), dtype=np.float32)
 
-        # Event horizon.
-        horizon = np.clip(1.0 - rr, 0.0, 1.0)
-        image[..., 0] += 8.0 * horizon
-        image[..., 1] += 8.0 * horizon
-        image[..., 2] += 14.0 * horizon
+        # Central shadow and event horizon.
+        shadow = np.clip(1.0 - rr / 0.95, 0.0, 1.0)
+        image[..., 0] += 5.0 * shadow
+        image[..., 1] += 6.0 * shadow
+        image[..., 2] += 11.0 * shadow
 
-        # Stronger photon ring with mass scaling.
-        ring_pos = 1.02 + 0.02 * np.tanh((mass - 10.0) / 20.0)
-        photon = np.exp(-np.square((rr - ring_pos) / 0.032))
-        image[..., 0] += 110.0 * photon
-        image[..., 1] += 160.0 * photon
-        image[..., 2] += 230.0 * photon
+        # Photon rings with mass scaling.
+        ring_pos = 1.02 + 0.026 * np.tanh((mass - 14.0) / 22.0)
+        photon_inner = np.exp(-np.square((rr - ring_pos) / 0.024))
+        photon_outer = 0.58 * np.exp(-np.square((rr - (ring_pos + 0.06)) / 0.036))
+        photon = photon_inner + photon_outer
+        image[..., 0] += 126.0 * photon
+        image[..., 1] += 182.0 * photon
+        image[..., 2] += 246.0 * photon
 
         # Tilted accretion disk, with Doppler bright side.
-        tilt = 0.38 + 0.06 * np.sin(0.35 * phase)
+        tilt = 0.35 + 0.07 * np.sin(0.35 * phase)
         c = math.cos(disk_phase * (1.0 + 0.05 * spin))
         s = math.sin(disk_phase * (1.0 + 0.05 * spin))
         xr = nx * c + ny * s
         yr = -nx * s + ny * c
 
-        re = np.sqrt((xr / 1.62) ** 2 + (yr / tilt) ** 2)
-        disk_band = np.exp(-np.square((re - 1.0) / 0.12))
+        re = np.sqrt((xr / 1.72) ** 2 + (yr / tilt) ** 2)
+        disk_core = np.exp(-np.square((re - 1.00) / 0.10))
+        disk_outer = 0.52 * np.exp(-np.square((re - 1.30) / 0.22))
+        disk_band = disk_core + disk_outer
         turbulence = (
             0.5
-            + 0.5 * np.sin((18.0 + 0.4 * spin) * xr + 7.0 * yr + 2.4 * disk_phase)
-            + 0.20 * np.sin(34.0 * xr - 10.0 * yr + 1.2 * phase)
+            + 0.45 * np.sin((16.0 + 0.35 * spin) * xr + 7.0 * yr + 2.4 * disk_phase)
+            + 0.30 * np.sin(30.0 * xr - 11.0 * yr + 1.1 * phase)
         )
         turbulence = np.clip(turbulence, 0.0, 1.0)
 
         # Doppler beaming approximation: approaching side brighter.
-        doppler = np.clip(0.48 + 0.52 * xr, 0.12, 1.1)
-        disk = disk_band * (0.26 + 0.74 * turbulence) * doppler
-        disk *= (rr >= 0.90)
+        doppler = np.clip(0.46 + 0.62 * xr, 0.10, 1.25)
+        disk = disk_band * (0.30 + 0.70 * turbulence) * doppler
+        disk *= (rr >= 0.86)
 
-        image[..., 0] += 58.0 * disk
-        image[..., 1] += 170.0 * disk
-        image[..., 2] += 255.0 * disk
+        # Radial temperature gradient: hotter inner disk.
+        temp = np.clip(1.45 - re, 0.0, 1.0)
+        image[..., 0] += (72.0 + 152.0 * temp) * disk
+        image[..., 1] += (90.0 + 146.0 * temp) * disk
+        image[..., 2] += (214.0 - 34.0 * temp) * disk
 
-        lens = np.exp(-np.square((rr - 1.35) / 0.28))
-        image[..., 0] += 40.0 * lens
-        image[..., 1] += 92.0 * lens
-        image[..., 2] += 170.0 * lens
+        # Lensing glow around photon region.
+        lens = np.exp(-np.square((rr - 1.46) / 0.30))
+        image[..., 0] += 46.0 * lens
+        image[..., 1] += 104.0 * lens
+        image[..., 2] += 188.0 * lens
 
         image = np.clip(image, 0.0, 255.0).astype(np.uint8)
         alpha = np.zeros_like(rr, dtype=np.float32)
-        alpha[rr <= 1.0] = 0.98
-        alpha = np.maximum(alpha, 0.70 * np.clip(photon + disk + 0.62 * lens, 0.0, 1.0))
-        alpha[rr > 2.05] = 0.0
+        alpha[rr <= 1.0] = 0.99
+        alpha = np.maximum(alpha, 0.72 * np.clip(photon + 0.95 * disk + 0.62 * lens, 0.0, 1.0))
+        alpha[rr > 2.25] = 0.0
         alpha = np.clip(alpha, 0.0, 1.0)
 
         return Patch(image=image, alpha=alpha, center=pad)
@@ -1034,19 +1128,56 @@ def _blit_patch(frame: np.ndarray, patch: Patch, center: Tuple[int, int]) -> Non
     frame[y0:y1, x0:x1] = np.clip(blended, 0.0, 255.0).astype(np.uint8)
 
 
+def _blend_filled_circle(
+    frame: np.ndarray,
+    center: Tuple[int, int],
+    radius: int,
+    color: Tuple[int, int, int],
+    alpha: float,
+) -> None:
+    if radius <= 0:
+        return
+    a = float(np.clip(alpha, 0.0, 1.0))
+    if a <= 0.0:
+        return
+
+    h, w = frame.shape[:2]
+    cx, cy = center
+    x0 = max(0, cx - radius)
+    y0 = max(0, cy - radius)
+    x1 = min(w, cx + radius + 1)
+    y1 = min(h, cy + radius + 1)
+    if x1 <= x0 or y1 <= y0:
+        return
+
+    yy, xx = np.ogrid[y0:y1, x0:x1]
+    mask = (xx - cx) * (xx - cx) + (yy - cy) * (yy - cy) <= radius * radius
+    if not np.any(mask):
+        return
+
+    roi = frame[y0:y1, x0:x1].astype(np.float32)
+    c = np.asarray(color, dtype=np.float32)
+    roi[mask] = roi[mask] * (1.0 - a) + c * a
+    frame[y0:y1, x0:x1] = np.clip(roi, 0.0, 255.0).astype(np.uint8)
+
+
 def _pair_key(a: str, b: str) -> Tuple[str, str]:
-    order = {"earth": 0, "star": 1, "blackhole": 2}
+    order = {"atom": 0, "neutron": 1, "star": 2, "blackhole": 3}
     return tuple(sorted((a, b), key=lambda k: order.get(k, 99)))
 
 
 def _pair_label(pair: Tuple[str, str]) -> str:
     labels = {
-        ("earth", "earth"): "planet collision",
-        ("earth", "star"): "planet evaporation",
-        ("earth", "blackhole"): "spaghettification",
-        ("star", "star"): "supernova",
-        ("star", "blackhole"): "accretion burst",
-        ("blackhole", "blackhole"): "bh merger",
+        ("atom", "atom"): "fusion ignition",
+        ("atom", "neutron"): "induced fission",
+        ("atom", "star"): "stellar ionization",
+        ("atom", "blackhole"): "tidal stripping",
+        ("neutron", "neutron"): "elastic scattering",
+        ("neutron", "star"): "neutron capture",
+        ("neutron", "blackhole"): "relativistic infall",
+        ("star", "star"): "stellar merger",
+        ("star", "blackhole"): "tidal disruption event",
+        ("blackhole", "blackhole"): "gw ringdown merger",
     }
     return labels.get(pair, "interaction")
 
@@ -1145,7 +1276,8 @@ def _update_interaction_state(
 def _draw_interaction_result(
     frame: np.ndarray,
     state: InteractionState,
-    earth_renderer: EarthRenderer,
+    atom_renderer: AtomRenderer,
+    neutron_renderer: NeutronRenderer,
     star_renderer: StarRenderer,
     blackhole_renderer: BlackHoleRenderer,
     phase_main: float,
@@ -1163,25 +1295,64 @@ def _draw_interaction_result(
     pair = state.pair
 
     # Reusable interaction params.
-    p_earth = BodyParams("earth", "Earth", 1.0, 1.0, 1.0, 5778.0, 1.2 + 0.8 * s, 1.5)
-    p_star = BodyParams("star", "Merger Star", 6.0, 1.15, 2.6, 12000.0, 1.8 + 0.9 * s, 2.0)
-    p_bh = BodyParams("blackhole", "Interaction BH", 16.0, 1.2, 3.2, 0.0, 1.0 + 0.5 * s, 2.8)
+    p_atom = BodyParams("atom", "Atom", 1.0, 1.0, 1.3, 0.0, 1.25 + 0.8 * s, 1.40)
+    p_neutron = BodyParams("neutron", "Neutron", 1.0, 0.46, 2.7, 0.0, 1.2 + 0.8 * s, 0.95)
+    p_star = BodyParams("star", "Merger Star", 18.0, 1.15, 2.6, 12000.0, 1.8 + 0.9 * s, 2.15)
+    p_bh = BodyParams("blackhole", "Interaction BH", 45.0, 1.2, 3.2, 0.0, 1.0 + 0.5 * s, 2.70)
 
-    if pair == ("earth", "earth"):
-        # Grazing-impact debris field with split rocky cores.
-        off = int(0.34 * r)
-        earth_renderer.draw(frame, (cx - off, cy), int(r * 0.68), phase_main * 1.2, phase_cloud * 1.2, p_earth)
-        earth_renderer.draw(frame, (cx + off, cy), int(r * 0.68), phase_main * 1.35 + 0.7, phase_cloud * 1.1, p_earth)
-        for i in range(26):
-            a = phase_flare * 2.1 + i * (2.0 * math.pi / 26.0)
-            rr = r * (0.95 + 0.50 * ((i % 6) / 5.0))
-            ex = int(cx + rr * math.cos(a))
-            ey = int(cy + rr * math.sin(a))
-            cv2.circle(frame, (ex, ey), max(1, int(1 + 2 * s)), (80, 160, 255), -1, cv2.LINE_AA)
-        cv2.circle(frame, (cx, cy), int(r * (1.55 + 0.20 * s)), (90, 180, 255), 1, cv2.LINE_AA)
+    if pair == ("atom", "atom"):
+        # Fusion: two nuclei overlap into a brighter fused atom.
+        sep = r * (0.28 - 0.15 * s)
+        yoff = int(0.10 * r * math.sin(phase_main * 1.5))
+        left_c = (cx - int(sep), cy - yoff)
+        right_c = (cx + int(sep), cy + yoff)
+        atom_renderer.draw(frame, left_c, int(r * 0.44), phase_main * 1.1, phase_cloud * 1.3, p_atom)
+        atom_renderer.draw(frame, right_c, int(r * 0.44), phase_main * 1.33 + 0.7, phase_cloud * 1.2, p_atom)
 
-    elif pair == ("earth", "star"):
-        # Planet evaporation plume into a hot stellar photosphere.
+        for k in range(-4, 5):
+            p0 = (left_c[0], left_c[1] + 2 * k)
+            p1 = (right_c[0], right_c[1] + 2 * k)
+            cv2.line(frame, p0, p1, (110, 210, 255), max(1, 3 - abs(k) // 2), cv2.LINE_AA)
+
+        _blend_filled_circle(frame, (cx, cy), int(r * (0.94 + 0.22 * s)), (110, 188, 255), 0.22 + 0.20 * s)
+        atom_renderer.draw(frame, (cx, cy), int(r * (0.50 + 0.20 * s)), phase_main * 2.4, phase_cloud * 2.3, p_atom)
+        pulse = 0.5 + 0.5 * math.sin(phase_main * 5.0)
+        cv2.circle(frame, (cx, cy), int(r * (1.00 + 0.16 * pulse)), (160, 232, 255), 2, cv2.LINE_AA)
+        cv2.circle(frame, (cx, cy), int(r * (1.34 + 0.24 * pulse)), (100, 190, 255), 1, cv2.LINE_AA)
+
+    elif pair == ("atom", "neutron"):
+        # Induced fission (fissile target): incoming neutron, split daughters, prompt neutrons.
+        atom_renderer.draw(frame, (cx, cy), int(r * 0.70), phase_main * 1.2, phase_cloud * 1.2, p_atom)
+        in_a = phase_flare * 2.0
+        hit_x = int(cx - r * 1.25 * math.cos(in_a))
+        hit_y = int(cy - r * 0.55 * math.sin(in_a))
+        cv2.line(frame, (hit_x, hit_y), (cx, cy), (130, 214, 255), 2, cv2.LINE_AA)
+        neutron_renderer.draw(frame, (hit_x, hit_y), int(r * 0.20), phase_flare * 3.2, p_neutron)
+
+        split = r * (0.34 + 0.24 * (0.5 + 0.5 * math.sin(phase_main * 4.2)))
+        frag_r = int(r * 0.38)
+        frag_l = (cx - int(split), cy - int(0.16 * split))
+        frag_rp = (cx + int(split), cy + int(0.16 * split))
+        atom_renderer.draw(frame, frag_l, frag_r, phase_main * 1.7, phase_cloud * 1.9, p_atom)
+        atom_renderer.draw(frame, frag_rp, frag_r, phase_main * 1.9 + 1.1, phase_cloud * 2.0, p_atom)
+
+        # Prompt neutron emission: usually 2-3 neutrons.
+        for i in range(3):
+            ang = phase_disk * 2.7 + i * (2.0 * math.pi / 3.0) + 0.5
+            rrn = r * (1.05 + 0.38 * ((i + 1) / 3.0))
+            nx = int(cx + rrn * math.cos(ang))
+            ny = int(cy + 0.72 * rrn * math.sin(ang))
+            neutron_renderer.draw(frame, (nx, ny), int(r * 0.16), phase_flare * 2.0 + i, p_neutron)
+        # Gamma flash from de-excitation.
+        for k in range(5):
+            a = phase_main * 5.0 + k * (2.0 * math.pi / 5.0)
+            p0 = (cx, cy)
+            p1 = (int(cx + 0.9 * r * math.cos(a)), int(cy + 0.9 * r * math.sin(a)))
+            cv2.line(frame, p0, p1, (155, 232, 255), 1, cv2.LINE_AA)
+        cv2.circle(frame, (cx, cy), int(r * 1.35), (122, 205, 255), 2, cv2.LINE_AA)
+
+    elif pair == ("atom", "star"):
+        # Atom ionization plume into a stellar photosphere.
         star_renderer.draw(frame, (cx, cy), int(r * 1.05), phase_main * 1.6, phase_flare * 2.0, p_star)
         plume_dir = phase_main * 0.35
         ux = math.cos(plume_dir)
@@ -1193,10 +1364,11 @@ def _draw_interaction_result(
             ex = int(cx - rr * ux + jitter * r * uy)
             ey = int(cy - rr * uy - jitter * r * ux)
             cv2.circle(frame, (ex, ey), max(1, int(1 + 2.2 * (1.0 - u))), (120, 205, 255), -1, cv2.LINE_AA)
+        neutron_renderer.draw(frame, (cx, cy), int(r * 0.20), phase_flare * 3.0, p_neutron)
         cv2.circle(frame, (cx, cy), int(r * 1.42), (140, 230, 255), 2, cv2.LINE_AA)
 
-    elif pair == ("earth", "blackhole"):
-        # Spaghettification stream: rocky fragments stretched into the event horizon.
+    elif pair == ("atom", "blackhole"):
+        # Tidal ionization stream into the event horizon.
         blackhole_renderer.draw(frame, (cx, cy), int(r * 1.02), phase_main * 1.8, phase_disk * 2.0, p_bh)
         for i in range(36):
             u = i / 35.0
@@ -1205,26 +1377,69 @@ def _draw_interaction_result(
             ex = int(cx + rr * math.cos(t))
             ey = int(cy + 0.62 * rr * math.sin(t))
             cv2.circle(frame, (ex, ey), max(1, int(1 + 3 * (1.0 - u))), (95, 185, 255), -1, cv2.LINE_AA)
+            if i % 6 == 0:
+                neutron_renderer.draw(frame, (ex, ey), int(r * 0.14), phase_flare * 1.8 + i, p_neutron)
         cv2.circle(frame, (cx, cy), int(r * 1.32), (95, 170, 255), 2, cv2.LINE_AA)
 
+    elif pair == ("neutron", "neutron"):
+        # Free neutron-neutron elastic scattering (no stable dineutron bound state).
+        off = int(r * (0.28 + 0.10 * math.sin(phase_main * 2.2)))
+        neutron_renderer.draw(frame, (cx - off, cy), int(r * 0.28), phase_main * 2.8, p_neutron)
+        neutron_renderer.draw(frame, (cx + off, cy), int(r * 0.28), phase_main * 2.8 + 1.3, p_neutron)
+        cv2.line(frame, (cx - off, cy), (cx + off, cy), (120, 190, 240), 1, cv2.LINE_AA)
+        cv2.circle(frame, (cx, cy), int(r * (0.96 + 0.22 * math.sin(phase_main * 3.6))), (125, 206, 255), 2, cv2.LINE_AA)
+
+    elif pair == ("neutron", "star"):
+        # Stellar neutron capture nucleosynthesis (s-process-like capture flashes).
+        star_renderer.draw(frame, (cx, cy), int(r * 1.02), phase_main * 2.0, phase_flare * 2.4, p_star)
+        for i in range(10):
+            a = phase_flare * 2.1 + i * (2.0 * math.pi / 10.0)
+            rrn = r * (0.55 + 0.65 * ((i % 3) / 2.0))
+            neutron_renderer.draw(
+                frame,
+                (int(cx + rrn * math.cos(a)), int(cy + rrn * math.sin(a))),
+                int(r * 0.14),
+                phase_main * 2.1 + i,
+                p_neutron,
+            )
+        cv2.circle(frame, (cx, cy), int(r * 1.30), (140, 224, 255), 2, cv2.LINE_AA)
+
+    elif pair == ("neutron", "blackhole"):
+        # Relativistic infall and redshifted capture by the event horizon.
+        blackhole_renderer.draw(frame, (cx, cy), int(r * 1.10), phase_main * 2.0, phase_disk * 2.5, p_bh)
+        for i in range(16):
+            u = i / 15.0
+            t = phase_disk * 2.9 + 7.5 * u
+            rrn = r * (1.8 - 1.3 * u)
+            neutron_renderer.draw(
+                frame,
+                (int(cx + rrn * math.cos(t)), int(cy + 0.58 * rrn * math.sin(t))),
+                int(r * (0.16 - 0.07 * u)),
+                phase_main * 2.0 + i,
+                p_neutron,
+            )
+        cv2.circle(frame, (cx, cy), int(r * 1.08), (80, 150, 210), 1, cv2.LINE_AA)
+        cv2.circle(frame, (cx, cy), int(r * 1.40), (110, 190, 255), 2, cv2.LINE_AA)
+
     elif pair == ("star", "star"):
-        # Supernova: compact remnant + bright blast + expanding shell.
-        blast_r = int(r * (1.25 + 1.15 * (0.5 + 0.5 * math.sin(phase_main * 4.8))))
-        star_renderer.draw(frame, (cx, cy), int(r * 0.46), phase_main * 3.0, phase_flare * 3.1, p_star)
-        cv2.circle(frame, (cx, cy), blast_r, (180, 245, 255), 3, cv2.LINE_AA)
-        cv2.circle(frame, (cx, cy), int(blast_r * 0.70), (130, 215, 255), 2, cv2.LINE_AA)
-        for i in range(30):
-            a = phase_flare * 2.3 + i * (2.0 * math.pi / 30.0)
-            rr = r * (1.2 + 1.1 * ((i % 7) / 6.0))
+        # Stellar merger (common-envelope phase) rather than guaranteed supernova.
+        sep = int(r * (0.42 - 0.15 * s))
+        rot = phase_main * 1.05
+        lcx = int(cx + sep * math.cos(rot))
+        lcy = int(cy + int(0.42 * sep) * math.sin(rot))
+        rcx = int(cx - sep * math.cos(rot))
+        rcy = int(cy - int(0.42 * sep) * math.sin(rot))
+        star_renderer.draw(frame, (lcx, lcy), int(r * 0.62), phase_main * 2.2, phase_flare * 2.6, p_star)
+        star_renderer.draw(frame, (rcx, rcy), int(r * 0.62), phase_main * 2.0 + 1.1, phase_flare * 2.5, p_star)
+        _blend_filled_circle(frame, (cx, cy), int(r * 1.38), (120, 195, 255), 0.16 + 0.16 * s)
+        for i in range(22):
+            u = i / 21.0
+            a = phase_disk * 1.6 + 6.2 * u
+            rr = r * (0.9 + 0.95 * u)
             ex = int(cx + rr * math.cos(a))
-            ey = int(cy + rr * math.sin(a))
-            cv2.circle(frame, (ex, ey), max(1, int(1 + 3 * s)), (145, 225, 255), -1, cv2.LINE_AA)
-        # Pulsar-like beams from the remnant.
-        beam_len = int(r * (2.1 + 0.6 * s))
-        ba = phase_main * 1.9
-        bx = int(beam_len * math.cos(ba))
-        by = int(beam_len * math.sin(ba))
-        cv2.line(frame, (cx - bx, cy - by), (cx + bx, cy + by), (150, 230, 255), 2, cv2.LINE_AA)
+            ey = int(cy + 0.56 * rr * math.sin(a))
+            cv2.circle(frame, (ex, ey), max(1, int(1 + 2.2 * (1.0 - u))), (130, 214, 255), -1, cv2.LINE_AA)
+        cv2.circle(frame, (cx, cy), int(r * (1.20 + 0.20 * math.sin(phase_main * 2.8))), (170, 236, 255), 2, cv2.LINE_AA)
 
     elif pair == ("star", "blackhole"):
         # Tidal disruption + accretion jets.
@@ -1254,7 +1469,7 @@ def _draw_interaction_result(
         sy = int(cy + 0.52 * r * math.sin(swirl_a))
         cv2.circle(frame, (sx, sy), max(2, int(4 + 3 * s)), (130, 210, 255), -1, cv2.LINE_AA)
     else:
-        star_renderer.draw(frame, (cx, cy), int(r * 1.1), phase_main, phase_flare, p_star)
+        atom_renderer.draw(frame, (cx, cy), int(r * 0.95), phase_main * 1.2, phase_cloud * 1.4, p_atom)
 
 
 def _interaction_overlay(
@@ -1421,19 +1636,21 @@ def main() -> int:
     left_cycle = HandCycleState(object_index=0)
     right_cycle = HandCycleState(object_index=0)
 
-    left_objects = ("earth", "star", "blackhole")
-    right_objects = ("earth", "star", "blackhole")
+    left_objects = ("atom", "neutron", "star", "blackhole")
+    right_objects = ("atom", "neutron", "star", "blackhole")
 
     params_map: Dict[str, BodyParams] = {
-        "earth": BodyParams(kind="earth", name="Earth", mass=1.0, radius_scale=1.00, spin=1.0, color_temp=5778.0, emissive=1.0, danger_radius=1.35),
-        "star": BodyParams(kind="star", name="Star", mass=3.8, radius_scale=1.02, spin=1.8, color_temp=10200.0, emissive=1.35, danger_radius=1.90),
-        "blackhole": BodyParams(kind="blackhole", name="Black Hole", mass=12.0, radius_scale=1.16, spin=2.8, color_temp=0.0, emissive=0.9, danger_radius=2.45),
+        "atom": BodyParams(kind="atom", name="Atom", mass=1.0, radius_scale=1.00, spin=1.25, color_temp=0.0, emissive=1.0, danger_radius=1.35),
+        "neutron": BodyParams(kind="neutron", name="Neutron", mass=1.0, radius_scale=0.46, spin=2.8, color_temp=0.0, emissive=1.2, danger_radius=0.95),
+        "star": BodyParams(kind="star", name="Star", mass=18.0, radius_scale=1.02, spin=1.8, color_temp=10200.0, emissive=1.35, danger_radius=2.15),
+        "blackhole": BodyParams(kind="blackhole", name="Black Hole", mass=45.0, radius_scale=1.16, spin=2.8, color_temp=0.0, emissive=0.9, danger_radius=2.70),
     }
 
     global_size_scale = 1.0
     global_lift_scale = 1.5
 
-    earth_renderer = EarthRenderer()
+    atom_renderer = AtomRenderer()
+    neutron_renderer = NeutronRenderer()
     star_renderer = StarRenderer()
     blackhole_renderer = BlackHoleRenderer()
 
@@ -1594,7 +1811,8 @@ def main() -> int:
             _draw_interaction_result(
                 frame,
                 interact_state,
-                earth_renderer,
+                atom_renderer,
+                neutron_renderer,
                 star_renderer,
                 blackhole_renderer,
                 phase_main,
@@ -1604,13 +1822,21 @@ def main() -> int:
             )
         else:
             if left_state.valid:
-                if left_params.kind == "earth":
-                    earth_renderer.draw(
+                if left_params.kind == "atom":
+                    atom_renderer.draw(
                         frame,
                         (int(left_state.x), int(left_state.y)),
                         int(left_state.radius),
                         phase_main * left_params.spin,
                         phase_cloud * left_params.spin,
+                        left_params,
+                    )
+                elif left_params.kind == "neutron":
+                    neutron_renderer.draw(
+                        frame,
+                        (int(left_state.x), int(left_state.y)),
+                        int(left_state.radius),
+                        phase_flare * left_params.spin,
                         left_params,
                     )
                 elif left_params.kind == "star":
@@ -1633,13 +1859,21 @@ def main() -> int:
                     )
 
             if right_state.valid:
-                if right_params.kind == "earth":
-                    earth_renderer.draw(
+                if right_params.kind == "atom":
+                    atom_renderer.draw(
                         frame,
                         (int(right_state.x), int(right_state.y)),
                         int(right_state.radius),
                         phase_main * right_params.spin,
                         phase_cloud * right_params.spin,
+                        right_params,
+                    )
+                elif right_params.kind == "neutron":
+                    neutron_renderer.draw(
+                        frame,
+                        (int(right_state.x), int(right_state.y)),
+                        int(right_state.radius),
+                        phase_flare * right_params.spin,
                         right_params,
                     )
                 elif right_params.kind == "star":
