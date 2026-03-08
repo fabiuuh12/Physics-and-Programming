@@ -15,6 +15,8 @@ class Speaker:
         self._openai_client = None
         self._backend = "none"
         self._fallback_backend = "none"
+        self._piper_bin = os.getenv("ALICE_PIPER_BIN", "piper")
+        self._piper_model = os.getenv("ALICE_PIPER_MODEL", "").strip()
         self._voice = os.getenv("ALICE_VOICE")
         self._openai_tts_model = os.getenv("ALICE_OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
         self._openai_tts_voice = os.getenv("ALICE_OPENAI_TTS_VOICE", "sage")
@@ -25,7 +27,13 @@ class Speaker:
             return
 
         requested_backend = os.getenv("ALICE_TTS_BACKEND", "auto").strip().lower()
-        if requested_backend not in {"auto", "say", "pyttsx3", "openai"}:
+        if requested_backend not in {"auto", "say", "pyttsx3", "openai", "piper"}:
+            requested_backend = "auto"
+
+        if requested_backend in {"auto", "piper"} and self._setup_piper_backend():
+            self._backend = "piper"
+            return
+        if requested_backend == "piper":
             requested_backend = "auto"
 
         if requested_backend == "openai":
@@ -91,6 +99,56 @@ class Speaker:
             self._openai_client = None
             return False
         return True
+
+    def _setup_piper_backend(self) -> bool:
+        if not self._piper_model:
+            return False
+        if not self._command_exists(self._piper_bin):
+            return False
+        return Path(self._piper_model).expanduser().exists()
+
+    def _play_audio_file(self, path: Path) -> None:
+        if sys.platform == "darwin" and self._command_exists("afplay"):
+            subprocess.run(["afplay", str(path)], check=False)
+            return
+        if self._command_exists("ffplay"):
+            subprocess.run(
+                ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", str(path)],
+                check=False,
+            )
+
+    def _speak_with_piper(self, text: str) -> bool:
+        if not self._piper_model:
+            return False
+        fd, tmp_name = tempfile.mkstemp(prefix="alice_piper_", suffix=".wav")
+        tmp_path = Path(tmp_name)
+        os.close(fd)
+        try:
+            command = [
+                self._piper_bin,
+                "--model",
+                str(Path(self._piper_model).expanduser()),
+                "--output_file",
+                str(tmp_path),
+            ]
+            subprocess.run(
+                command,
+                input=text.encode("utf-8"),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            if not tmp_path.exists() or tmp_path.stat().st_size == 0:
+                return False
+            self._play_audio_file(tmp_path)
+            return True
+        except Exception:
+            return False
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _chunk_text(self, text: str, max_chunk_len: int = 220) -> list[str]:
         cleaned = " ".join(text.split())
@@ -166,6 +224,8 @@ class Speaker:
 
     @property
     def backend_name(self) -> str:
+        if self._backend == "piper":
+            return f"piper ({Path(self._piper_model).name})"
         if self._backend == "openai":
             return f"openai ({self._openai_tts_voice})"
         if self._backend == "say" and self._voice:
@@ -188,6 +248,15 @@ class Speaker:
                     if self._speak_with_openai(chunk):
                         continue
                     if self._fallback_backend == "say":
+                        self._speak_with_say(chunk)
+                        continue
+                    if self._engine is not None:
+                        self._speak_with_pyttsx3(chunk)
+                        continue
+                if self._backend == "piper":
+                    if self._speak_with_piper(chunk):
+                        continue
+                    if sys.platform == "darwin" and self._command_exists("say"):
                         self._speak_with_say(chunk)
                         continue
                     if self._engine is not None:

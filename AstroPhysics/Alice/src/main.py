@@ -15,6 +15,7 @@ from env_utils import load_project_env
 from config import load_config
 from brain import AliceBrain
 from executor import AliceExecutor, ExecResult
+from face_tracker import FaceTracker
 from intent import Intent
 from listener import BaseListener, ListenerError, TextListener, VoiceListener
 from nlu import IntentRouter
@@ -92,6 +93,55 @@ def execute_intent(intent: Intent, executor: AliceExecutor) -> ExecResult:
     return ExecResult(False, "I did not understand that command. Say 'Alice help'.")
 
 
+def _chat_context(face_tracker: FaceTracker | None) -> dict[str, str]:
+    if face_tracker is None:
+        return {"camera_enabled": "false"}
+
+    obs = face_tracker.get_latest()
+    return {
+        "camera_enabled": "true",
+        "camera_found_face": "true" if obs.found else "false",
+        "camera_face_count": str(obs.face_count),
+        "camera_owner_locked": "true" if obs.owner_locked else "false",
+        "camera_owner_name": obs.owner_name or "unknown",
+    }
+
+
+def _looks_like_vision_question(text: str) -> bool:
+    lowered = text.lower()
+    vision_terms = ("see", "look", "watch", "camera", "track", "visible")
+    subject_terms = ("me", "my", "face", "hand", "us", "this", "that", "you see")
+    return any(term in lowered for term in vision_terms) and any(
+        term in lowered for term in subject_terms
+    )
+
+
+def _camera_chat_reply(text: str, face_tracker: FaceTracker | None) -> str | None:
+    lowered = text.strip().lower()
+    if not lowered:
+        return None
+
+    if not _looks_like_vision_question(lowered):
+        return None
+
+    if face_tracker is None:
+        return (
+            "Camera tracking is not enabled right now. Start me with --ui --camera "
+            "and I can look at you."
+        )
+
+    if "hand" in lowered or "object" in lowered:
+        return "I can currently track faces, but I do not have hand or object detection yet."
+
+    observation = face_tracker.get_latest()
+    if observation.found:
+        name = observation.owner_name or "you"
+        return f"Yes, I can see {name} and I am tracking your face."
+    return (
+        "I cannot see your face right now. Please face the camera and try better lighting."
+    )
+
+
 def _run_blocking_with_ui(
     ui: AliceFaceUI | None,
     fn: Callable[[], T],
@@ -160,6 +210,7 @@ def handle_utterance(
     brain: AliceBrain,
     router: IntentRouter,
     ui: AliceFaceUI | None,
+    face_tracker: FaceTracker | None,
 ) -> bool:
     if ui is not None:
         ui.set_state("thinking")
@@ -173,7 +224,16 @@ def handle_utterance(
         return True
 
     if intent.action == "chat":
-        _speak(speaker, brain.reply(intent.target or intent.raw), ui=ui)
+        chat_text = intent.target or intent.raw
+        context = _chat_context(face_tracker)
+
+        if not brain.using_openai:
+            camera_reply = _camera_chat_reply(chat_text, face_tracker)
+            if camera_reply is not None:
+                _speak(speaker, camera_reply, ui=ui)
+                return True
+
+        _speak(speaker, brain.reply(chat_text, context=context), ui=ui)
         return True
 
     if intent.requires_confirmation:
@@ -221,6 +281,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-wake", action="store_true", help="Accept commands without wake word")
     parser.add_argument("--no-tts", action="store_true", help="Disable text-to-speech replies")
     parser.add_argument("--ui", action="store_true", help="Show animated Alice face window")
+    parser.add_argument("--camera", action="store_true", help="Enable camera face tracking (requires --ui)")
+    parser.add_argument("--camera-index", type=int, default=0, help="Camera index for face tracking")
+    parser.add_argument("--camera-owner", default="Fabio", help="Owner name shown when face lock is active")
     parser.add_argument("--once", action="store_true", help="Process a single command and exit")
     parser.add_argument("--command", default=None, help="Single command text (works with --once)")
     return parser.parse_args()
@@ -234,12 +297,32 @@ def main() -> int:
 
     config = load_config(args.config)
     listener = build_listener(args.mode)
+    listener_backend = getattr(listener, "backend_name", None)
+    if isinstance(listener_backend, str):
+        print(f"[Alice] STT backend: {listener_backend}")
     speaker = Speaker(enable_tts=not args.no_tts)
     print(f"[Alice] TTS backend: {speaker.backend_name}")
     ui: AliceFaceUI | None = None
     if args.ui:
         ui = AliceFaceUI(title="Alice Interface")
         ui.set_status("Booting...")
+
+    face_tracker: FaceTracker | None = None
+    if args.camera and ui is None:
+        print("[Alice] Camera tracking requires --ui. Ignoring --camera.")
+    elif args.camera and ui is not None:
+        face_tracker = FaceTracker(
+            camera_index=args.camera_index,
+            owner_name=args.camera_owner,
+        )
+        if face_tracker.start():
+            ui.attach_face_tracker(face_tracker)
+            print(
+                f"[Alice] Camera tracking enabled (camera {args.camera_index}, owner {args.camera_owner})"
+            )
+        else:
+            print(f"[Alice] Camera tracking unavailable: {face_tracker.last_error}")
+            face_tracker = None
 
     brain = AliceBrain()
     router = IntentRouter()
@@ -249,12 +332,22 @@ def main() -> int:
         max_runtime_seconds=config.max_runtime_seconds,
     )
 
-    if brain.using_openai:
-        _speak(speaker, "Alice is online with conversational mode enabled.", ui=ui)
+    print(f"[Alice] LLM backend: {brain.llm_backend}")
+
+    if brain.llm_backend != "none":
+        _speak(
+            speaker,
+            f"Alice is online with conversational mode enabled using {brain.llm_backend}.",
+            ui=ui,
+        )
     else:
-        _speak(speaker, "Alice is online. Conversational mode is enabled.", ui=ui)
-    if router.using_openai:
-        print("[Alice] NLU mode: OpenAI intent parsing enabled")
+        _speak(
+            speaker,
+            "Alice is online. Advanced AI chat is unavailable, so I will use built-in responses.",
+            ui=ui,
+        )
+    if router.using_llm:
+        print(f"[Alice] NLU mode: {router.llm_backend} intent parsing enabled")
     else:
         print("[Alice] NLU mode: fallback parser only")
 
@@ -290,6 +383,7 @@ def main() -> int:
                         brain=brain,
                         router=router,
                         ui=ui,
+                        face_tracker=face_tracker,
                     )
 
                 if args.once:
@@ -299,6 +393,8 @@ def main() -> int:
         except (KeyboardInterrupt, EOFError):
             print("\n[Alice] Shutdown requested. Exiting cleanly.")
     finally:
+        if face_tracker is not None:
+            face_tracker.stop()
         if ui is not None:
             if ui.running:
                 ui.set_state("offline")

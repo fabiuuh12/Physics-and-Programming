@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from pathlib import Path
 
 from env_utils import load_project_env
+from llm_client import LLMClient
 
 
 class AliceBrain:
@@ -12,26 +12,43 @@ class AliceBrain:
         load_project_env(Path(__file__).resolve().parent.parent)
 
         self._history: list[tuple[str, str]] = []
-        self._client = None
-        self._model = os.getenv("ALICE_OPENAI_MODEL", "gpt-4o-mini")
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return
-
-        try:
-            from openai import OpenAI
-        except ImportError:
-            return
-
-        self._client = OpenAI(api_key=api_key)
+        self._llm = LLMClient()
 
     @property
     def using_openai(self) -> bool:
-        return self._client is not None
+        return self._llm.backend == "openai"
 
-    def _fallback_reply(self, text: str) -> str:
+    @property
+    def llm_backend(self) -> str:
+        return self._llm.backend
+
+    def _looks_like_visual_question(self, text: str) -> bool:
+        t = text.lower()
+        vision_terms = {"see", "look", "watch", "camera", "track", "visible"}
+        subject_terms = {"me", "my", "face", "hand", "us", "this", "that", "you see"}
+        return any(term in t for term in vision_terms) and any(term in t for term in subject_terms)
+
+    def _fallback_reply(self, text: str, context: dict[str, str] | None = None) -> str:
         t = text.strip().lower()
+        context = context or {}
+
+        if self._looks_like_visual_question(t):
+            camera_enabled = context.get("camera_enabled", "false") == "true"
+            camera_found_face = context.get("camera_found_face", "false") == "true"
+            owner_name = context.get("camera_owner_name", "you")
+            if "hand" in t or "object" in t:
+                if camera_enabled:
+                    return (
+                        "I can currently track faces, but I do not have hand or object detection yet."
+                    )
+                return (
+                    "Not yet. Camera tracking is off, and currently I only support face tracking."
+                )
+            if not camera_enabled:
+                return "Camera tracking is not enabled right now. Start me with --ui --camera."
+            if camera_found_face:
+                return f"Yes, I can see {owner_name} and I am tracking your face."
+            return "I cannot see your face clearly right now. Please face the camera with better lighting."
 
         if any(k in t for k in {"hello", "hi", "hey"}):
             return "Hello Fabio. I am here with you."
@@ -52,41 +69,43 @@ class AliceBrain:
             "when you ask with the wake word Alice."
         )
 
-    def _openai_reply(self, text: str) -> str:
-        if self._client is None:
-            return self._fallback_reply(text)
+    def _llm_reply(self, text: str, context: dict[str, str] | None = None) -> str:
+        context = context or {}
+        if not self._llm.available:
+            return self._fallback_reply(text, context)
 
         messages: list[dict[str, str]] = [
             {
                 "role": "system",
                 "content": (
                     "You are Alice, a concise voice assistant for Fabio. "
-                    "Be natural, useful, and brief. Do not claim actions you did not perform."
+                    "Be natural, useful, and brief. Do not claim actions you did not perform. "
+                    "Vision capability is limited to face tracking from a webcam; "
+                    "you do not have full scene understanding or hand/object detection."
                 ),
             }
         ]
+        if context:
+            context_parts = [f"{key}={value}" for key, value in sorted(context.items())]
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "Runtime context: " + ", ".join(context_parts),
+                }
+            )
 
         for user_msg, assistant_msg in self._history[-4:]:
             messages.append({"role": "user", "content": user_msg})
             messages.append({"role": "assistant", "content": assistant_msg})
         messages.append({"role": "user", "content": text})
 
-        try:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                messages=messages,
-                temperature=0.4,
-                max_tokens=140,
-            )
-            answer = (response.choices[0].message.content or "").strip()
-            if not answer:
-                return self._fallback_reply(text)
-            return answer
-        except Exception:
-            return self._fallback_reply(text)
+        answer = self._llm.chat(messages=messages, temperature=0.4).strip()
+        if not answer:
+            return self._fallback_reply(text, context)
+        return answer
 
-    def reply(self, text: str) -> str:
-        answer = self._openai_reply(text)
+    def reply(self, text: str, context: dict[str, str] | None = None) -> str:
+        answer = self._llm_reply(text, context)
         self._history.append((text, answer))
         if len(self._history) > 12:
             self._history = self._history[-12:]

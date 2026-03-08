@@ -1,31 +1,22 @@
 from __future__ import annotations
 
-import json
-import os
 import re
 
 from intent import Intent, parse_intent
+from llm_client import LLMClient
 
 
 class IntentRouter:
     def __init__(self) -> None:
-        self._client = None
-        self._model = os.getenv("ALICE_INTENT_MODEL", os.getenv("ALICE_OPENAI_MODEL", "gpt-4o-mini"))
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return
-
-        try:
-            from openai import OpenAI
-        except ImportError:
-            return
-
-        self._client = OpenAI(api_key=api_key)
+        self._llm = LLMClient()
 
     @property
-    def using_openai(self) -> bool:
-        return self._client is not None
+    def using_llm(self) -> bool:
+        return self._llm.available
+
+    @property
+    def llm_backend(self) -> str:
+        return self._llm.backend
 
     def parse(self, text: str, *, wake_word: str, require_wake: bool) -> Intent | None:
         base_intent = parse_intent(text, wake_word=wake_word, require_wake=require_wake)
@@ -40,7 +31,7 @@ class IntentRouter:
         if heuristic is not None and heuristic.action != "chat":
             return heuristic
 
-        llm_intent = self._parse_with_openai(command_text, raw=base_intent.raw)
+        llm_intent = self._parse_with_llm(command_text, raw=base_intent.raw)
         return llm_intent or base_intent
 
     def _clean_target(self, value: str) -> str:
@@ -110,8 +101,8 @@ class IntentRouter:
 
         return Intent(action="chat", target=command_text, raw=raw)
 
-    def _parse_with_openai(self, command_text: str, *, raw: str) -> Intent | None:
-        if self._client is None:
+    def _parse_with_llm(self, command_text: str, *, raw: str) -> Intent | None:
+        if not self._llm.available:
             return None
 
         system_prompt = (
@@ -129,26 +120,20 @@ class IntentRouter:
             "- Do not invent paths; if unknown keep target empty."
         )
 
-        try:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                temperature=0,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": "could you show me what files are inside AstroPhysics/Alice please",
-                    },
-                    {"role": "assistant", "content": '{"action":"list_files","target":"AstroPhysics/Alice","pid":null}'},
-                    {"role": "user", "content": "can you run examples/hello_alice.py for me"},
-                    {"role": "assistant", "content": '{"action":"run_file","target":"examples/hello_alice.py","pid":null}'},
-                    {"role": "user", "content": command_text},
-                ],
-            )
-            content = (response.choices[0].message.content or "").strip()
-            data = json.loads(content)
-        except Exception:
+        data = self._llm.chat_json(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": "could you show me what files are inside AstroPhysics/Alice please",
+                },
+                {"role": "assistant", "content": '{"action":"list_files","target":"AstroPhysics/Alice","pid":null}'},
+                {"role": "user", "content": "can you run examples/hello_alice.py for me"},
+                {"role": "assistant", "content": '{"action":"run_file","target":"examples/hello_alice.py","pid":null}'},
+                {"role": "user", "content": command_text},
+            ]
+        )
+        if data is None:
             return None
 
         allowed_actions = {
