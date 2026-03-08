@@ -1,90 +1,135 @@
 # Physics-and-Programming
 
-Mixed repository of interactive astrophysics/physics visualizations in C++ and practical cybersecurity utilities in Python.
+Mixed repository of interactive physics/astrophysics simulations and practical cybersecurity tooling.
+
+## Current Repo Snapshot
+
+- `AstroPhysics/`: C++ Raylib visualizers plus Python vision/interaction bridges.
+- `CyberTools/`: standalone Python security and analysis scripts.
+- C++ visualizers: 63 `.cpp` simulation programs in `AstroPhysics/` (plus vendored third-party sources).
+- CyberTools scripts: 24 Python utilities across auth/network/forensics/web/file/integrity/osint.
 
 ## Repository Layout
 
-- `AstroPhysics/`
-  - Raylib-based C++ visualizers (orbital mechanics, relativity, quantum concepts, fluid dynamics, EM, etc.).
-  - CMake build with one executable per `.cpp` file.
-  - Topic-based folders (`quantum/`, `gravity/`, `mechanics/`, `thermodynamics/`, ...).
-  - Includes `docs/QuantumStuff_Equations.tex` and `docs/QuantumStuff_Equations.pdf`.
-- `CyberTools/`
-  - Defensive/local Python scripts for analysis and hygiene tasks.
-  - Topic-based folders (`auth/`, `network/`, `web/`, `forensics/`, ...).
-- `external/`
-  - External or third-party assets.
+- `AstroPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `dimensions`
+- `AstroPhysics/vision`
+- `AstroPhysics/DefensiveSys`
+- `AstroPhysics/tests`
+- `AstroPhysics/docs`
+- `AstroPhysics/third_party` (vendored Raylib source/headers)
+- `CyberTools/auth`, `file_ops`, `forensics`, `integrity_hashing`, `network`, `osint`, `web`
+
+## AstroPhysics (C++ and Vision)
+
+- Build system: `AstroPhysics/CMakeLists.txt`
+- Model: one executable target per simulation `.cpp`
+- Example C++ targets:
+- `solar_system_spacetime_viz_cpp`
+- `quantum_search_cpp`
+- `gravitational_lensing_viz_cpp`
+- `defensive_sys_3d_cpp`
+- `vision_two_hands_scene_cpp`
+
+Vision and bridge scripts in `AstroPhysics/vision`:
+
+- `hand_planet_overlay.py` (hand-tracked atom/neutron/star/blackhole interaction scene)
+- `floating_hand_avatar.py`
+- `webcam_finger_tracker.py`
+- `two_hand_bridge.py` (UDP hand bridge)
+- `two_hands_scene.cpp` (C++ visual scene receiver)
+
+Defensive simulation bridge:
+
+- `AstroPhysics/DefensiveSys/hand_turret_sim.py`
+- `AstroPhysics/DefensiveSys/defensive_sys_3d.cpp`
+
+## CyberTools
+
+Python security utilities grouped by domain:
+
+- `auth`: password/JWT/logon helpers
+- `network`: DNS/subdomain/port/certificate checks
+- `web`: URL heuristics, headers audit, local HTTP server
+- `forensics`: IOC extraction, log/IP summaries, suspicious name checks
+- `file_ops`: bulk rename, duplicate finder, JSON->CSV, extension audit
+- `integrity_hashing`: inventory/check/decode helpers
+- `osint`: consolidated OSINT helper script
 
 ## Prerequisites
-
-### For `AstroPhysics` (C++)
 
 - CMake 3.20+
 - C++17 compiler (MSVC, clang, or gcc)
 - Raylib available to CMake (`find_package(raylib CONFIG REQUIRED)`)
-
-Windows note:
-This repo has previously been built with Visual Studio Build Tools + vcpkg-style package paths.
-
-### For `CyberTools` (Python)
-
 - Python 3.10+
-- Most scripts use only the standard library.
-- `CyberTools/osint/OSINT Tool.py` uses `requests`.
-- `AstroPhysics/tests/test_quantum_search.py` uses `pytest` + `numpy`.
 
-Install optional Python deps:
+Python packages used across repo:
 
-```powershell
-python -m pip install requests pytest numpy
+- `numpy`
+- `opencv-python`
+- `mediapipe`
+- `pytest`
+- `requests`
+
+Install Python deps:
+
+```bash
+python3 -m pip install numpy opencv-python mediapipe pytest requests
 ```
 
-## Build and Run AstroPhysics Visualizers
+## Build C++ Programs
 
 From repo root:
 
-```powershell
+```bash
 cd AstroPhysics
-cmake -S . -B build -DCMAKE_PREFIX_PATH="C:\vcpkg\installed\x64-windows"
-cmake --build build --config Release
+cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
+cmake --build build-native --config Release
 ```
 
-Run a target from the build output folder:
+Build one target:
 
-```powershell
-.\build\Release\solar_system_spacetime_viz_cpp.exe
+```bash
+cmake --build build-native --config Release --target solar_system_spacetime_viz_cpp
 ```
 
-Build a single target:
+Run (macOS/Linux example):
 
-```powershell
-cmake --build build --config Release --target solar_system_spacetime_viz_cpp
+```bash
+./AstroPhysics/build-native/solar_system_spacetime_viz_cpp
 ```
 
-## Run CyberTools Scripts
-
-From repo root:
+Run (Windows example):
 
 ```powershell
-cd CyberTools
-python "auth/Password Strength Checker.py" --password "example"
-python "web/URL Heuristic Scanner.py" --url "https://example.com/login"
-python "network/Certificate Expiry Checker.py" --host "example.com"
+.\AstroPhysics\build-native\Release\solar_system_spacetime_viz_cpp.exe
 ```
 
-## Run Tests
+## Run Python Programs
 
-Current tests are in `AstroPhysics/tests`.
+Examples from repo root:
 
-From repo root:
+```bash
+python3 AstroPhysics/vision/hand_planet_overlay.py
+python3 AstroPhysics/vision/floating_hand_avatar.py
+python3 AstroPhysics/vision/two_hand_bridge.py
+python3 AstroPhysics/DefensiveSys/hand_turret_sim.py
+python3 "CyberTools/network/Certificate Expiry Checker.py" --host example.com
+```
 
-```powershell
-$env:PYTHONPATH = "AstroPhysics"
-pytest AstroPhysics/tests -q
+## Tests
+
+Current automated tests:
+
+- `AstroPhysics/tests/test_quantum_search.py`
+
+Run:
+
+```bash
+PYTHONPATH=AstroPhysics pytest AstroPhysics/tests -q
 ```
 
 ## Notes
 
-- Many visualizers are interactive and open a windowed render loop.
-- Some filenames include spaces/apostrophes; quote paths in terminal commands.
-- Build outputs are generated in local build directories (for example, `AstroPhysics/build-native/` and `AstroPhysics/build-vcpkg/`).
+- Many C++ programs open real-time interactive windows.
+- Some script filenames include spaces/apostrophes; quote paths in shell commands.
+- `AstroPhysics/build*` and `__pycache__` directories are generated artifacts.
