@@ -54,6 +54,21 @@ def parse_intent(text: str, wake_word: str = "alice", require_wake: bool = True)
     if command_lower in {"help", "what can you do", "commands"}:
         return Intent(action="help", raw=spoken)
 
+    if command_lower in {
+        "hello",
+        "hi",
+        "hey",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "how are you",
+        "who are you",
+        "what is your name",
+        "thanks",
+        "thank you",
+    }:
+        return Intent(action="smalltalk", target=command_lower, raw=spoken)
+
     if command_lower in {"exit", "quit", "shutdown", "stop listening", "goodbye", "bye"}:
         return Intent(action="exit", raw=spoken)
 
@@ -104,4 +119,4 @@ def parse_intent(text: str, wake_word: str = "alice", require_wake: bool = True)
             raw=spoken,
         )
 
-    return Intent(action="unknown", raw=spoken)
+    return Intent(action="chat", target=command.strip(), raw=spoken)

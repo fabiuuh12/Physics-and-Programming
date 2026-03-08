@@ -17,9 +17,9 @@ class TextListener(BaseListener):
         try:
             return input(prompt or "You> ").strip()
         except EOFError:
-            return "quit"
+            raise
         except KeyboardInterrupt:
-            return "quit"
+            raise
 
 
 @dataclass(frozen=True)
@@ -67,3 +67,5 @@ class VoiceListener(BaseListener):
             raise ListenerError(
                 "Speech service is unavailable right now. Check your internet connection."
             ) from exc
+        except KeyboardInterrupt:
+            raise
