@@ -58,6 +58,16 @@ class AliceExecutor:
             return True
         return os.access(path, os.X_OK)
 
+    def _display_path(self, path: Path) -> str:
+        for root in self.allowed_roots:
+            try:
+                rel = path.relative_to(root)
+            except ValueError:
+                continue
+            rel_text = str(rel)
+            return rel_text if rel_text else "."
+        return path.name or str(path)
+
     def _refresh_file_index(self) -> None:
         skip_dirs = {".git", ".venv", "__pycache__", "node_modules", "third_party"}
         candidates: list[Path] = []
@@ -176,7 +186,7 @@ class AliceExecutor:
         if path is not None and path.exists() and path.is_file():
             if self._is_runnable_candidate(path):
                 return path, None
-            return None, f"File exists but is not directly runnable: {path}"
+            return None, f"File exists but is not directly runnable: {self._display_path(path)}"
 
         if not raw_target:
             return None, "Missing file target."
@@ -233,6 +243,39 @@ class AliceExecutor:
             return []
         return shlex.split(result.stdout.strip())
 
+    def _raylib_vendored_flags(self, source_path: Path) -> list[str]:
+        candidate_roots = [source_path.parent, *source_path.parents]
+        for root in candidate_roots:
+            include_dir = root / "third_party" / "raylib" / "include"
+            lib_dir = root / "third_party" / "raylib-src" / "src"
+            static_lib = lib_dir / "libraylib.a"
+            if not include_dir.exists() or not static_lib.exists():
+                continue
+
+            flags = [
+                f"-I{include_dir}",
+                f"-L{lib_dir}",
+                "-lraylib",
+            ]
+            if sys.platform == "darwin":
+                flags.extend(
+                    [
+                        "-framework",
+                        "OpenGL",
+                        "-framework",
+                        "Cocoa",
+                        "-framework",
+                        "IOKit",
+                        "-framework",
+                        "CoreVideo",
+                    ]
+                )
+            elif sys.platform.startswith("linux"):
+                flags.extend(["-lm", "-lpthread", "-ldl", "-lrt", "-lX11"])
+            return flags
+
+        return []
+
     def _compile_extra_flags(self, path: Path, *, is_cpp: bool) -> list[str]:
         flags: list[str] = []
         if is_cpp:
@@ -241,7 +284,11 @@ class AliceExecutor:
             flags.extend(shlex.split(os.getenv("ALICE_CCFLAGS", "").strip()))
         flags.extend(shlex.split(os.getenv("ALICE_LDFLAGS", "").strip()))
         if self._source_uses_raylib(path):
-            flags.extend(self._raylib_pkg_config_flags())
+            pkg_flags = self._raylib_pkg_config_flags()
+            if pkg_flags:
+                flags.extend(pkg_flags)
+            else:
+                flags.extend(self._raylib_vendored_flags(path))
         return flags
 
     def _resolve_target(
@@ -261,12 +308,12 @@ class AliceExecutor:
             target = target.resolve()
 
         if must_exist and not target.exists():
-            return None, f"Path does not exist: {target}"
+            return None, f"Path does not exist: {self._display_path(target)}"
 
         if expect_directory is True and target.exists() and not target.is_dir():
-            return None, f"Expected a folder but got: {target}"
+            return None, f"Expected a folder but got: {self._display_path(target)}"
         if expect_directory is False and target.exists() and not target.is_file():
-            return None, f"Expected a file but got: {target}"
+            return None, f"Expected a file but got: {self._display_path(target)}"
 
         if not self._is_allowed(target):
             roots = ", ".join(str(root) for root in self.allowed_roots)
@@ -278,21 +325,22 @@ class AliceExecutor:
         path, error = self._resolve_target(target, expect_directory=True)
         if error:
             return ExecResult(False, error)
+        shown_path = self._display_path(path)
 
         entries = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         if not entries:
-            return ExecResult(True, f"{path} is empty.")
+            return ExecResult(True, f"{shown_path} is empty.")
 
         preview = [f"{entry.name}/" if entry.is_dir() else entry.name for entry in entries[:25]]
         suffix = "" if len(entries) <= 25 else f" ... ({len(entries) - 25} more)"
-        message = f"{path}\n" + "\n".join(preview) + suffix
+        message = f"{shown_path}\n" + "\n".join(preview) + suffix
         return ExecResult(True, message)
 
     def open_folder(self, target: str | None) -> ExecResult:
         path, error = self._resolve_target(target, expect_directory=True)
         if error:
             return ExecResult(False, error)
-        return ExecResult(True, f"Folder ready: {path}")
+        return ExecResult(True, f"Folder ready: {self._display_path(path)}")
 
     def run_file(self, target: str | None) -> ExecResult:
         self._cleanup_finished()
@@ -346,7 +394,7 @@ class AliceExecutor:
                     log_handle.close()
                     return ExecResult(
                         False,
-                        f"Compilation failed for {path.name}. See {log_path}.",
+                        f"Compilation failed for {path.name}. Check {log_path.name} in Alice logs.",
                     )
             else:
                 command = [str(bin_path)]
@@ -387,7 +435,7 @@ class AliceExecutor:
                     log_handle.close()
                     return ExecResult(
                         False,
-                        f"Compilation failed for {path.name}. See {log_path}.",
+                        f"Compilation failed for {path.name}. Check {log_path.name} in Alice logs.",
                     )
             else:
                 command = [str(bin_path)]
@@ -416,7 +464,7 @@ class AliceExecutor:
         self._last_pid = process.pid
         return ExecResult(
             True,
-            f"Started {path.name} (pid {process.pid}). Output is being written to {log_path}.",
+            f"Started {path.name} (pid {process.pid}). Logging to {log_path.name}.",
         )
 
     def stop_process(self, pid: int | None = None) -> ExecResult:

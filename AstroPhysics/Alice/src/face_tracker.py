@@ -11,18 +11,31 @@ class FaceObservation:
     found: bool
     x: float = 0.0
     y: float = 0.0
+    eye_found: bool = False
+    eye_x: float = 0.0
+    eye_y: float = 0.0
     face_count: int = 0
     hand_found: bool = False
     hand_count: int = 0
     hand_x: float = 0.0
     hand_y: float = 0.0
+    scene_brightness: float = 0.0
+    scene_motion: float = 0.0
+    scene_note: str = "unknown"
     hand_backend: str = "none"
     owner_locked: bool = False
     owner_name: str | None = None
 
 
 class FaceTracker:
-    def __init__(self, *, camera_index: int = 0, owner_name: str = "You") -> None:
+    def __init__(
+        self,
+        *,
+        camera_index: int = 0,
+        owner_name: str = "You",
+        preview: bool = True,
+        preview_title: str = "Alice Camera",
+    ) -> None:
         self.camera_index = camera_index
         self.owner_name = owner_name
         self.last_error: str | None = None
@@ -39,10 +52,42 @@ class FaceTracker:
         self._hand_x = 0.0
         self._hand_y = 0.0
         self._hand_visible = False
+        self._hand_lost_frames = 0
+        self._eye_x = 0.0
+        self._eye_y = 0.0
+        self._eye_visible = False
+        self._eye_cascade = None
+        self._last_small_gray = None
+        self._scene_motion = 0.0
+        self._preview_enabled = preview
+        self._preview_title = preview_title
+        self._preview_png: bytes | None = None
+        self._preview_updated_at = 0.0
+
+    @staticmethod
+    def _scene_note(brightness: float, motion: float) -> str:
+        if brightness < 0.30:
+            light = "dim"
+        elif brightness > 0.70:
+            light = "bright"
+        else:
+            light = "balanced"
+
+        if motion < 0.040:
+            motion_desc = "still"
+        elif motion < 0.090:
+            motion_desc = "light movement"
+        else:
+            motion_desc = "active movement"
+        return f"{light} lighting, {motion_desc}"
 
     @property
     def running(self) -> bool:
         return self._running
+
+    @property
+    def preview_enabled(self) -> bool:
+        return self._preview_enabled
 
     def start(self) -> bool:
         try:
@@ -68,9 +113,18 @@ class FaceTracker:
         with self._lock:
             return self._latest
 
+    def get_preview_png(self) -> bytes | None:
+        with self._lock:
+            return self._preview_png
+
     def _set_latest(self, value: FaceObservation) -> None:
         with self._lock:
             self._latest = value
+
+    def _set_preview_png(self, data: bytes | None) -> None:
+        with self._lock:
+            self._preview_png = data
+            self._preview_updated_at = time.monotonic()
 
     def _setup_hand_detector(self) -> None:
         self._hand_backend = "skin"
@@ -256,6 +310,63 @@ class FaceTracker:
                 return count, hx, hy
         return self._detect_hands_skin(frame, frame_w, frame_h, face_box)
 
+    def _detect_eyes(
+        self,
+        gray: object,
+        face_box: tuple[int, int, int, int] | None,
+        frame_w: int,
+        frame_h: int,
+    ) -> tuple[bool, float, float]:
+        if self._eye_cascade is None or face_box is None or self._cv2 is None:
+            return False, 0.0, 0.0
+        cv2 = self._cv2
+        x, y, w, h = face_box
+        if w < 60 or h < 60:
+            return False, 0.0, 0.0
+
+        top = y + int(0.12 * h)
+        bottom = y + int(0.62 * h)
+        left = x + int(0.06 * w)
+        right = x + int(0.94 * w)
+        roi = gray[top:bottom, left:right]
+        if roi is None or roi.size == 0:
+            return False, 0.0, 0.0
+
+        try:
+            roi = cv2.equalizeHist(roi)
+        except Exception:
+            return False, 0.0, 0.0
+
+        min_side = int(max(14, min(w, h) * 0.12))
+        eyes = self._eye_cascade.detectMultiScale(
+            roi,
+            scaleFactor=1.08,
+            minNeighbors=4,
+            minSize=(min_side, min_side),
+            maxSize=(int(0.46 * w), int(0.42 * h)),
+        )
+        if len(eyes) == 0:
+            return False, 0.0, 0.0
+
+        eye_boxes = sorted(
+            [(int(ex), int(ey), int(ew), int(eh)) for ex, ey, ew, eh in eyes],
+            key=lambda item: item[2] * item[3],
+            reverse=True,
+        )[:2]
+
+        centers_x: list[float] = []
+        centers_y: list[float] = []
+        for ex, ey, ew, eh in eye_boxes:
+            centers_x.append(left + ex + ew * 0.5)
+            centers_y.append(top + ey + eh * 0.5)
+        if not centers_x:
+            return False, 0.0, 0.0
+
+        cx = sum(centers_x) / len(centers_x)
+        cy = sum(centers_y) / len(centers_y)
+        nx, ny = self._normalize_point(cx, cy, frame_w, frame_h)
+        return True, nx, ny
+
     def _run(self) -> None:
         assert self._cv2 is not None
         cv2 = self._cv2
@@ -277,6 +388,9 @@ class FaceTracker:
             cap.release()
             self._running = False
             return
+        self._eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+        if self._eye_cascade.empty():
+            self._eye_cascade = None
 
         try:
             while self._running:
@@ -301,6 +415,11 @@ class FaceTracker:
                 y_norm = 0.0
                 if selected is None:
                     self._lost_frames += 1
+                    # Keep face lock briefly through hand motion or short occlusions.
+                    if self._owner_signature is not None and self._lost_frames <= 14:
+                        face_found = True
+                        ox, oy, _, _ = self._owner_signature
+                        x_norm, y_norm = self._normalize_point(ox, oy, frame_w, frame_h)
                     if self._lost_frames > 80:
                         self._owner_signature = None
                 else:
@@ -322,6 +441,7 @@ class FaceTracker:
                             oh * alpha + float(h) * (1.0 - alpha),
                         )
                     x_norm, y_norm = self._normalize_point(cx, cy, frame_w, frame_h)
+                    self._eye_visible = False
 
                 hand_count, hand_x, hand_y = self._detect_hands(
                     frame,
@@ -330,6 +450,7 @@ class FaceTracker:
                     selected,
                 )
                 if hand_count > 0:
+                    self._hand_lost_frames = 0
                     if not self._hand_visible:
                         self._hand_x = hand_x
                         self._hand_y = hand_y
@@ -339,25 +460,111 @@ class FaceTracker:
                         self._hand_y = self._hand_y * alpha + hand_y * (1.0 - alpha)
                     self._hand_visible = True
                 else:
-                    self._hand_x *= 0.85
-                    self._hand_y *= 0.85
-                    self._hand_visible = False
+                    self._hand_lost_frames += 1
+                    if self._hand_lost_frames <= 9:
+                        self._hand_x *= 0.92
+                        self._hand_y *= 0.92
+                        self._hand_visible = True
+                    else:
+                        self._hand_x *= 0.85
+                        self._hand_y *= 0.85
+                        self._hand_visible = False
+
+                brightness = float(gray.mean()) / 255.0
+                small = cv2.resize(gray, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA)
+                small = cv2.GaussianBlur(small, (5, 5), 0)
+                if self._last_small_gray is None:
+                    instant_motion = 0.0
+                else:
+                    diff = cv2.absdiff(small, self._last_small_gray)
+                    instant_motion = float(diff.mean()) / 255.0
+                self._last_small_gray = small
+                self._scene_motion = self._scene_motion * 0.84 + instant_motion * 0.16
+                scene_note = self._scene_note(brightness, self._scene_motion)
 
                 self._set_latest(
                     FaceObservation(
                         found=face_found,
                         x=x_norm,
                         y=y_norm,
+                        eye_found=False,
+                        eye_x=0.0,
+                        eye_y=0.0,
                         face_count=len(faces),
-                        hand_found=hand_count > 0 and self._hand_visible,
-                        hand_count=hand_count,
-                        hand_x=self._hand_x if hand_count > 0 else 0.0,
-                        hand_y=self._hand_y if hand_count > 0 else 0.0,
+                        hand_found=self._hand_visible,
+                        hand_count=max(hand_count, 1) if self._hand_visible else 0,
+                        hand_x=self._hand_x if self._hand_visible else 0.0,
+                        hand_y=self._hand_y if self._hand_visible else 0.0,
+                        scene_brightness=brightness,
+                        scene_motion=self._scene_motion,
+                        scene_note=scene_note,
                         hand_backend=self._hand_backend,
                         owner_locked=self._owner_signature is not None,
                         owner_name=self.owner_name if self._owner_signature is not None else None,
                     )
                 )
+                if self._preview_enabled:
+                    try:
+                        preview = frame.copy()
+                        for idx, (fx, fy, fw, fh) in enumerate(faces):
+                            color = (110, 90, 230)
+                            thickness = 1
+                            if selected is not None and (fx, fy, fw, fh) == selected:
+                                color = (70, 220, 120)
+                                thickness = 2
+                            cv2.rectangle(preview, (fx, fy), (fx + fw, fy + fh), color, thickness)
+                            if idx < 3:
+                                cv2.putText(
+                                    preview,
+                                    f"face {idx + 1}",
+                                    (fx, max(16, fy - 8)),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.45,
+                                    color,
+                                    1,
+                                    cv2.LINE_AA,
+                                )
+
+                        if self._hand_visible:
+                            hx = int((self._hand_x * 0.5 + 0.5) * frame_w)
+                            hy = int((self._hand_y * 0.5 + 0.5) * frame_h)
+                            cv2.circle(preview, (hx, hy), 11, (90, 215, 255), 2)
+                            hand_text = f"hands: {max(1, hand_count)}"
+                            cv2.putText(
+                                preview,
+                                hand_text,
+                                (hx + 10, max(24, hy - 10)),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.46,
+                                (90, 215, 255),
+                                1,
+                                cv2.LINE_AA,
+                            )
+
+                        status_lines = [
+                            f"tracking: {self.owner_name if face_found else 'searching face'}",
+                            f"scene: {scene_note}",
+                            f"brightness: {brightness:.2f}  motion: {self._scene_motion:.2f}",
+                        ]
+                        y0 = 22
+                        for line in status_lines:
+                            cv2.putText(
+                                preview,
+                                line,
+                                (12, y0),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.52,
+                                (210, 230, 255),
+                                1,
+                                cv2.LINE_AA,
+                            )
+                            y0 += 20
+
+                        ok_png, encoded = cv2.imencode(".png", preview)
+                        if ok_png:
+                            self._set_preview_png(encoded.tobytes())
+                    except Exception:
+                        self._set_preview_png(None)
                 time.sleep(0.015)
         finally:
             if self._mp_hands is not None:

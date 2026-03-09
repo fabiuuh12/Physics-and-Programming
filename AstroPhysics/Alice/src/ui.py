@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import math
+import random
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -45,6 +47,14 @@ class AliceFaceUI:
         self._tracker = None
         self._face_found = False
         self._face_name = ""
+        self._wander_target_x = 0.0
+        self._wander_target_y = 0.0
+        self._next_wander_at = time.monotonic() + 0.8
+        self._camera_preview_window: tk.Toplevel | None = None
+        self._camera_preview_label: tk.Label | None = None
+        self._camera_preview_photo: tk.PhotoImage | None = None
+        self._last_preview_refresh = 0.0
+        self._preview_closed_by_user = False
 
         self._build_layout()
         self._draw_static_face()
@@ -53,9 +63,92 @@ class AliceFaceUI:
     def attach_face_tracker(self, tracker: object) -> None:
         self._tracker = tracker
         self.focus_label.configure(text="Camera: active")
+        preview_enabled = bool(getattr(tracker, "preview_enabled", False))
+        if preview_enabled:
+            self._ensure_camera_preview_window()
+
+    def _ensure_camera_preview_window(self) -> None:
+        if self._preview_closed_by_user or not self.running:
+            return
+        if self._camera_preview_window is not None:
+            return
+        try:
+            win = tk.Toplevel(self.root)
+            win.title("Alice Camera Preview")
+            win.geometry("760x540")
+            win.configure(bg="#090f17")
+            win.protocol("WM_DELETE_WINDOW", self._on_camera_preview_close)
+            holder = ttk.Frame(win, padding=8)
+            holder.pack(fill="both", expand=True)
+            label = tk.Label(
+                holder,
+                text="Waiting for camera frames...",
+                anchor="center",
+                bg="#090f17",
+                fg="#b7d8ff",
+                font=("Avenir Next", 12),
+            )
+            label.pack(fill="both", expand=True)
+            self._camera_preview_window = win
+            self._camera_preview_label = label
+        except tk.TclError:
+            self._camera_preview_window = None
+            self._camera_preview_label = None
+
+    def _on_camera_preview_close(self) -> None:
+        self._preview_closed_by_user = True
+        if self._camera_preview_window is not None:
+            try:
+                self._camera_preview_window.destroy()
+            except tk.TclError:
+                pass
+        self._camera_preview_window = None
+        self._camera_preview_label = None
+        self._camera_preview_photo = None
+
+    def _update_camera_preview(self, now: float) -> None:
+        if self._tracker is None:
+            return
+        if not bool(getattr(self._tracker, "preview_enabled", False)):
+            return
+        if self._camera_preview_window is None:
+            self._ensure_camera_preview_window()
+            if self._camera_preview_window is None:
+                return
+        if self._camera_preview_label is None:
+            return
+        if now - self._last_preview_refresh < 0.12:
+            return
+
+        try:
+            png_bytes = self._tracker.get_preview_png()
+        except Exception:
+            png_bytes = None
+
+        if not png_bytes:
+            return
+
+        try:
+            encoded = base64.b64encode(png_bytes).decode("ascii")
+            photo = tk.PhotoImage(data=encoded, format="png")
+            self._camera_preview_label.configure(image=photo, text="")
+            self._camera_preview_photo = photo
+            self._last_preview_refresh = now
+        except tk.TclError:
+            self._camera_preview_window = None
+            self._camera_preview_label = None
+            self._camera_preview_photo = None
 
     def _on_close(self) -> None:
         self.running = False
+        if self._camera_preview_window is not None:
+            try:
+                self._camera_preview_window.destroy()
+            except tk.TclError:
+                pass
+            self._camera_preview_window = None
+            self._camera_preview_label = None
+            self._camera_preview_photo = None
         try:
             self.root.destroy()
         except tk.TclError:
@@ -192,10 +285,20 @@ class AliceFaceUI:
             return "#66778f"
         return "#4f7fb8"
 
+    def _update_idle_wander(self, now: float) -> None:
+        if now >= self._next_wander_at:
+            self._wander_target_x = random.uniform(-0.92, 0.92)
+            self._wander_target_y = random.uniform(-0.68, 0.68)
+            self._next_wander_at = now + random.uniform(0.45, 1.2)
+        self._smoothed_track_x += (self._wander_target_x - self._smoothed_track_x) * 0.15
+        self._smoothed_track_y += (self._wander_target_y - self._smoothed_track_y) * 0.15
+        self._target_gaze_x = max(-1.25, min(1.25, self._smoothed_track_x))
+        self._target_gaze_y = max(-1.15, min(1.15, self._smoothed_track_y))
+
     def _update_face_tracking(self) -> None:
+        now = time.monotonic()
         if self._tracker is None:
-            self._target_gaze_x = 0.0
-            self._target_gaze_y = 0.0
+            self._update_idle_wander(now)
             self._face_found = False
             self._hand_found = False
             self._hand_count = 0
@@ -204,8 +307,7 @@ class AliceFaceUI:
         try:
             obs = self._tracker.get_latest()
         except Exception:
-            self._target_gaze_x = 0.0
-            self._target_gaze_y = 0.0
+            self._update_idle_wander(now)
             self._face_found = False
             self._hand_found = False
             self._hand_count = 0
@@ -215,47 +317,53 @@ class AliceFaceUI:
         self._hand_count = int(getattr(obs, "hand_count", 0) or 0)
 
         if obs.found:
-            tx = obs.x * 0.90
-            ty = obs.y * 0.78
+            # Face-centered gaze target; eye-lock is intentionally ignored.
+            base_x = float(getattr(obs, "x", 0.0))
+            base_y = float(getattr(obs, "y", 0.0))
+            tx = base_x * 1.36
+            ty = base_y * 1.22
+            if self._hand_found:
+                hand_x = float(getattr(obs, "hand_x", 0.0))
+                hand_y = float(getattr(obs, "hand_y", 0.0))
+                # Blend a little toward hand position so gaze can reflect both targets.
+                tx = tx * 0.82 + hand_x * 0.18
+                ty = ty * 0.84 + hand_y * 0.16
 
             dx = tx - self._smoothed_track_x
             dy = ty - self._smoothed_track_y
             motion = math.hypot(dx, dy)
-            alpha = 0.54 if motion > 0.35 else 0.30
+            alpha = 0.60 if motion > 0.28 else 0.36
             self._smoothed_track_x += dx * alpha
             self._smoothed_track_y += dy * alpha
 
             smooth_x = self._smoothed_track_x
             smooth_y = self._smoothed_track_y
             # Non-linear boost near edges keeps gaze expressive.
-            smooth_x += 0.14 * smooth_x * abs(smooth_x)
-            smooth_y += 0.10 * smooth_y * abs(smooth_y)
+            smooth_x += 0.28 * smooth_x * abs(smooth_x)
+            smooth_y += 0.22 * smooth_y * abs(smooth_y)
 
-            self._target_gaze_x = max(-1.0, min(1.0, smooth_x))
-            self._target_gaze_y = max(-1.0, min(1.0, smooth_y))
+            self._target_gaze_x = max(-1.35, min(1.35, smooth_x))
+            self._target_gaze_y = max(-1.28, min(1.28, smooth_y))
             self._face_found = True
-            self._track_blend = min(1.0, self._track_blend + 0.14)
+            self._track_blend = min(1.0, self._track_blend + 0.18)
             self._face_name = obs.owner_name or "You"
             suffix = f" | hands: {self._hand_count}" if self._hand_found else ""
             self.focus_label.configure(text=f"Camera: tracking {self._face_name}{suffix}")
         elif self._hand_found:
-            tx = getattr(obs, "hand_x", 0.0) * 0.65
-            ty = getattr(obs, "hand_y", 0.0) * 0.58
-            self._smoothed_track_x += (tx - self._smoothed_track_x) * 0.32
-            self._smoothed_track_y += (ty - self._smoothed_track_y) * 0.32
-            self._target_gaze_x = max(-1.0, min(1.0, self._smoothed_track_x))
-            self._target_gaze_y = max(-1.0, min(1.0, self._smoothed_track_y))
+            tx = getattr(obs, "hand_x", 0.0) * 0.96
+            ty = getattr(obs, "hand_y", 0.0) * 0.88
+            self._smoothed_track_x += (tx - self._smoothed_track_x) * 0.38
+            self._smoothed_track_y += (ty - self._smoothed_track_y) * 0.38
+            self._target_gaze_x = max(-1.30, min(1.30, self._smoothed_track_x))
+            self._target_gaze_y = max(-1.20, min(1.20, self._smoothed_track_y))
             self._face_found = False
-            self._track_blend = min(1.0, self._track_blend + 0.08)
+            self._track_blend = min(1.0, self._track_blend + 0.10)
             noun = "hand" if self._hand_count == 1 else "hands"
             self.focus_label.configure(text=f"Camera: tracking {self._hand_count} {noun}")
         else:
-            self._smoothed_track_x *= 0.90
-            self._smoothed_track_y *= 0.90
-            self._target_gaze_x = self._smoothed_track_x
-            self._target_gaze_y = self._smoothed_track_y
+            self._update_idle_wander(now)
             self._face_found = False
-            self._track_blend = max(0.0, self._track_blend - 0.08)
+            self._track_blend = max(0.0, self._track_blend - 0.10)
             self.focus_label.configure(text="Camera: searching...")
 
     def _animate_blink(self, now: float) -> None:
@@ -321,18 +429,18 @@ class AliceFaceUI:
         err_y = self._target_gaze_y - self._gaze_y
         err_mag = min(1.0, math.hypot(err_x, err_y))
 
-        spring = (11.5 if self._face_found else 7.2) + err_mag * (5.2 if self._face_found else 2.0)
-        damping = 6.2 if self._face_found else 4.9
+        spring = (13.2 if self._face_found else 8.1) + err_mag * (6.4 if self._face_found else 2.8)
+        damping = 6.5 if self._face_found else 5.2
         self._gaze_vx += (err_x * spring - self._gaze_vx * damping) * dt
         self._gaze_vy += (err_y * spring - self._gaze_vy * damping) * dt
         if self._face_found and err_mag > 0.34:
-            boost = min(0.18, err_mag * 0.22)
+            boost = min(0.24, err_mag * 0.28)
             self._gaze_vx += err_x * boost
             self._gaze_vy += err_y * boost
         self._gaze_x += self._gaze_vx * dt
         self._gaze_y += self._gaze_vy * dt
-        self._gaze_x = max(-1.2, min(1.2, self._gaze_x))
-        self._gaze_y = max(-1.2, min(1.2, self._gaze_y))
+        self._gaze_x = max(-1.55, min(1.55, self._gaze_x))
+        self._gaze_y = max(-1.45, min(1.45, self._gaze_y))
 
         blink_h = max(2.0, 52.0 * self._blink_value)
         left_mid_x, left_mid_y = self._pose_point(177.0, 149.0 + self._face_offset_y)
@@ -429,18 +537,20 @@ class AliceFaceUI:
         if self._face_found:
             micro_scale = 0.70 + 0.30 * (1.0 - self._track_blend)
             micro_x = micro_scale * (
-                0.24 * math.sin(self._idle_phase * 10.4) + 0.16 * math.cos(self._idle_phase * 5.6)
+                0.34 * math.sin(self._idle_phase * 10.4) + 0.24 * math.cos(self._idle_phase * 5.6)
             )
-            micro_y = micro_scale * (0.18 * math.cos(self._idle_phase * 8.7))
+            micro_y = micro_scale * (0.24 * math.cos(self._idle_phase * 8.7))
         elif self._hand_found:
-            micro_x = 0.34 * math.sin(self._idle_phase * 6.3)
-            micro_y = 0.26 * math.cos(self._idle_phase * 5.4)
+            micro_x = 0.46 * math.sin(self._idle_phase * 6.3)
+            micro_y = 0.34 * math.cos(self._idle_phase * 5.4)
         else:
-            micro_x = 0.8 * math.sin(self._idle_phase * 2.3)
-            micro_y = 0.5 * math.cos(self._idle_phase * 1.9)
-        px = self._gaze_x * 10.8 + micro_x
-        py = self._gaze_y * 8.8 + micro_y
-        convergence = 0.7 * self._track_blend
+            micro_x = 1.15 * math.sin(self._idle_phase * 2.3)
+            micro_y = 0.9 * math.cos(self._idle_phase * 1.9)
+        scan_x = (0.38 if self._face_found else 0.75) * math.sin(self._idle_phase * 1.8 + 1.2)
+        scan_y = (0.22 if self._face_found else 0.52) * math.cos(self._idle_phase * 1.3 + 0.6)
+        px = self._gaze_x * 16.7 + micro_x + scan_x
+        py = self._gaze_y * 14.2 + micro_y + scan_y
+        convergence = 0.8 * self._track_blend
         li_x = left_mid_x + px + convergence
         li_y = left_mid_y + py
         ri_x = right_mid_x + px - convergence
@@ -580,19 +690,19 @@ class AliceFaceUI:
         self._animate_blink(now)
         tracked = self._track_blend if (self._face_found or self._hand_found) else 0.0
         target_head_x = (
-            self._gaze_x * (7.2 if self._face_found else 4.6) * tracked
-            + 0.24 * math.sin(self._idle_phase * 0.9)
+            self._gaze_x * (8.4 if self._face_found else 5.4) * tracked
+            + 0.34 * math.sin(self._idle_phase * 0.9)
         )
         target_head_y = (
-            self._gaze_y * (2.8 if self._face_found else 1.7) * tracked
-            + 0.35 * math.sin(self._idle_phase * 1.1)
+            self._gaze_y * (3.6 if self._face_found else 2.3) * tracked
+            + 0.48 * math.sin(self._idle_phase * 1.1)
         )
         target_head_tilt = -0.058 * self._gaze_x * tracked + 0.010 * math.sin(self._idle_phase * 1.4)
         if self.state == "speaking":
-            target_head_y += 1.2 * math.sin(self._idle_phase * 3.5)
-            target_head_tilt += 0.010 * math.sin(self._idle_phase * 3.1)
+            target_head_y += 1.6 * math.sin(self._idle_phase * 3.5)
+            target_head_tilt += 0.013 * math.sin(self._idle_phase * 3.1)
         elif self.state == "thinking":
-            target_head_tilt += 0.013 * math.sin(self._idle_phase * 2.6)
+            target_head_tilt += 0.017 * math.sin(self._idle_phase * 2.6)
 
         blend = min(1.0, dt * 9.0)
         self._head_x += (target_head_x - self._head_x) * blend
@@ -614,6 +724,7 @@ class AliceFaceUI:
             ring_width = 3.0
         self.canvas.itemconfigure(self.state_ring, width=ring_width)
         self._sync_layer_order()
+        self._update_camera_preview(now)
 
     def pump(self) -> None:
         if not self.running:

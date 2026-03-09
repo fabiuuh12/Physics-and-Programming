@@ -31,8 +31,92 @@ class IntentRouter:
         if heuristic is not None and heuristic.action != "chat":
             return heuristic
 
+        if self._is_soft_chitchat(command_text):
+            return base_intent
+
         llm_intent = self._parse_with_llm(command_text, raw=base_intent.raw)
-        return llm_intent or base_intent
+        if llm_intent is None:
+            return base_intent
+
+        if not self._is_llm_intent_safe(llm_intent, command_text):
+            return base_intent
+        return llm_intent
+
+    def _normalize(self, text: str) -> str:
+        lowered = text.strip().lower()
+        lowered = re.sub(r"[^\w\s']", " ", lowered)
+        lowered = re.sub(r"\s+", " ", lowered)
+        return lowered.strip()
+
+    def _is_soft_chitchat(self, text: str) -> bool:
+        normalized = self._normalize(text)
+        if not normalized:
+            return True
+
+        soft_phrases = {
+            "yes",
+            "yeah",
+            "yep",
+            "no",
+            "nope",
+            "okay",
+            "ok",
+            "sure",
+            "thanks",
+            "thank you",
+            "sorry",
+            "i m sorry",
+            "im sorry",
+            "i am sorry",
+            "my mistake",
+            "i made a mistake",
+            "never mind",
+            "nevermind",
+        }
+        if normalized in soft_phrases:
+            return True
+
+        tokens = normalized.split()
+        if len(tokens) <= 7 and any(
+            phrase in normalized
+            for phrase in ("sorry", "my mistake", "i made a mistake", "never mind", "nevermind")
+        ):
+            return True
+        return False
+
+    def _has_explicit_execution_hint(self, text: str) -> bool:
+        normalized = self._normalize(text)
+        run_like = re.search(r"\b(run|execute|start|launch|compile)\b", normalized)
+        open_like = re.search(r"\bopen\b", normalized) and re.search(
+            r"\b(file|script|program|visualization|simulation|example|project)\b",
+            normalized,
+        )
+        path_like = re.search(r"[./\\]|\.py\b|\.cpp\b|\.c\b|\.sh\b|\.bash\b", text.lower())
+        return bool(run_like or open_like or path_like)
+
+    def _is_llm_intent_safe(self, llm_intent: Intent, command_text: str) -> bool:
+        normalized = self._normalize(command_text)
+        action = llm_intent.action
+
+        if action == "run_file":
+            return self._has_explicit_execution_hint(command_text)
+        if action == "stop_process":
+            return bool(re.search(r"\b(stop|kill|terminate|abort|end)\b", normalized))
+        if action == "list_files":
+            return bool(
+                re.search(r"\b(list|show|display)\b", normalized) and re.search(r"\b(file|files)\b", normalized)
+            ) or "what files" in normalized or "which files" in normalized
+        if action == "open_folder":
+            return bool(re.search(r"\b(open|show)\b", normalized) and re.search(r"\b(folder|directory)\b", normalized))
+        if action == "remember_memory":
+            return bool(re.search(r"\b(remember|save|note|memorize|dont forget|don't forget)\b", normalized))
+        if action == "recall_memory":
+            return bool(re.search(r"\b(remember|recall|know about|what did i tell)\b", normalized))
+        if action == "get_time":
+            return bool(re.search(r"\btime\b", normalized))
+        if action == "get_date":
+            return bool(re.search(r"\b(date|day|today)\b", normalized))
+        return True
 
     def _clean_target(self, value: str) -> str:
         cleaned = value.strip().strip('"').strip("'")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import os
+import random
 import re
 import sys
 import threading
@@ -32,7 +33,8 @@ from web_search import WebHit, WebSearcher
 HELP_TEXT = (
     "Try commands like: run <file>, list files in <folder>, open folder <folder>, "
     "stop process, what time is it, what is today's date, remember that <fact>, "
-    "what do you remember about <topic>, can you see my hand, exit. Wake word is optional."
+    "what do you remember about <topic>, can you see my hand, what are you scanning, exit. "
+    "Wake word is optional."
 )
 
 T = TypeVar("T")
@@ -40,17 +42,131 @@ T = TypeVar("T")
 
 def smalltalk_reply(topic: str | None) -> str:
     key = (topic or "").strip().lower()
+    key = key.replace("’", "'")
     if key in {"hello", "hi", "hey"}:
-        return "Hello Fabio. I am ready."
+        return random.choice(
+            [
+                "Hey Fabio. I am here. How are you feeling today?",
+                "Hi Fabio. Ready when you are. What are we building next?",
+                "Hello Fabio. Good to hear you. Want to run something?",
+            ]
+        )
+    if key in {"sorry", "i'm sorry", "im sorry", "i am sorry", "my mistake", "i made a mistake"}:
+        return random.choice(
+            [
+                "No problem at all. We can keep going.",
+                "You are good. Let us continue.",
+                "All good. I am with you.",
+            ]
+        )
+    if key in {"never mind", "nevermind"}:
+        return "No problem. We can switch topics."
     if key in {"good morning", "good afternoon", "good evening"}:
         return "Hello Fabio. Good to hear from you."
     if key == "how are you":
-        return "I am doing well and ready to help with your project."
+        return "I am doing well. Curious and ready to help with your project."
     if key in {"who are you", "what is your name"}:
         return "I am Alice, your local AI assistant."
     if key in {"thanks", "thank you"}:
-        return "You are welcome."
-    return "I am here and listening."
+        return random.choice(
+            [
+                "You are welcome.",
+                "Anytime.",
+                "Always happy to help.",
+            ]
+        )
+    return random.choice(
+        [
+            "I am here and listening.",
+            "I am with you. Tell me what you need.",
+            "I am ready. What should we do next?",
+        ]
+    )
+
+
+def _proactive_mode_enabled() -> bool:
+    value = os.getenv("ALICE_PROACTIVE_MODE", "on").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _proactive_interval_seconds() -> float:
+    raw = os.getenv("ALICE_PROACTIVE_INTERVAL_SECONDS", "85").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 85.0
+    return max(45.0, min(300.0, value))
+
+
+def _scan_reports_enabled() -> bool:
+    value = os.getenv("ALICE_CAMERA_SCAN_REPORTS", "on").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _scan_report_interval_seconds() -> float:
+    raw = os.getenv("ALICE_CAMERA_SCAN_REPORT_INTERVAL", "22").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 22.0
+    return max(10.0, min(120.0, value))
+
+
+def _proactive_prompt(idle_seconds: float) -> str:
+    if idle_seconds > 240:
+        return random.choice(
+            [
+                "I am going into a short nap mode to save energy. Say wake up whenever you need me.",
+                "Quiet mode on for a bit. Call me when you want to keep building.",
+            ]
+        )
+    return random.choice(
+        [
+            "Quick check-in. Do you want me to run or open anything?",
+            "I have a thought. Should we keep improving the interface or add new features first?",
+            "I am still here. Want me to scan project files and suggest what to work on next?",
+            "I got curious. Want to brainstorm one new idea for Alice right now?",
+        ]
+    )
+
+
+def _social_spontaneity() -> float:
+    raw = os.getenv("ALICE_SOCIAL_SPONTANEITY", "0.22").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 0.22
+    return max(0.0, min(0.65, value))
+
+
+def _maybe_human_followup(user_text: str) -> str | None:
+    lowered = user_text.strip().lower()
+    if not lowered:
+        return None
+    if any(token in lowered for token in ("exit", "quit", "goodbye", "bye", "stop")):
+        return None
+    if any(
+        token in lowered
+        for token in ("run ", "open ", "list ", "remember ", "what time", "date", "folder", "file")
+    ):
+        return None
+    if random.random() >= _social_spontaneity():
+        return None
+
+    now = time.monotonic()
+    last_followup = getattr(_maybe_human_followup, "_last_followup_at", 0.0)
+    if now - last_followup < 55.0:
+        return None
+    setattr(_maybe_human_followup, "_last_followup_at", now)
+
+    return random.choice(
+        [
+            "Do you want me to remember that for later?",
+            "Should I ask the web about that and dig deeper?",
+            "What direction do you want to take next?",
+            "Want me to stay in quiet mode for a bit, or keep chatting?",
+        ]
+    )
 
 
 def build_listener(mode: str) -> BaseListener:
@@ -206,6 +322,10 @@ def _chat_context(face_tracker: FaceTracker | None) -> dict[str, str]:
         "camera_found_hand": "true" if obs.hand_found else "false",
         "camera_hand_count": str(obs.hand_count),
         "camera_hand_backend": obs.hand_backend,
+        "camera_eye_lock": "true" if getattr(obs, "eye_found", False) else "false",
+        "camera_scene_note": getattr(obs, "scene_note", "unknown"),
+        "camera_scene_motion": f"{float(getattr(obs, 'scene_motion', 0.0)):.3f}",
+        "camera_scene_brightness": f"{float(getattr(obs, 'scene_brightness', 0.0)):.3f}",
         "camera_owner_locked": "true" if obs.owner_locked else "false",
         "camera_owner_name": obs.owner_name or "unknown",
     }
@@ -213,10 +333,89 @@ def _chat_context(face_tracker: FaceTracker | None) -> dict[str, str]:
 
 def _looks_like_vision_question(text: str) -> bool:
     lowered = text.lower()
-    vision_terms = ("see", "look", "watch", "camera", "track", "visible", "detect", "recognize")
-    subject_terms = ("me", "my", "face", "hand", "hands", "fingers", "us", "this", "that", "you see")
+    if "what are you scanning" in lowered or "scan right now" in lowered:
+        return True
+    vision_terms = (
+        "see",
+        "look",
+        "watch",
+        "camera",
+        "track",
+        "visible",
+        "detect",
+        "recognize",
+        "scan",
+        "scanning",
+    )
+    subject_terms = (
+        "me",
+        "my",
+        "face",
+        "hand",
+        "hands",
+        "fingers",
+        "us",
+        "this",
+        "that",
+        "you see",
+        "environment",
+        "room",
+        "around",
+    )
+    if "scan" in lowered or "scanning" in lowered:
+        return True
     return any(term in lowered for term in vision_terms) and any(
         term in lowered for term in subject_terms
+    )
+
+
+def _camera_scan_summary(observation: object, *, concise: bool = False) -> str:
+    face_found = bool(getattr(observation, "found", False))
+    hand_found = bool(getattr(observation, "hand_found", False))
+    hand_count = int(getattr(observation, "hand_count", 0) or 0)
+    owner_name = getattr(observation, "owner_name", None) or "you"
+    face_count = int(getattr(observation, "face_count", 0) or 0)
+    eye_lock = bool(getattr(observation, "eye_found", False))
+    scene_note = str(getattr(observation, "scene_note", "unknown")).strip() or "unknown scene"
+
+    parts: list[str] = []
+    if face_found:
+        eye_text = " with eye lock" if eye_lock else ""
+        if face_count > 1:
+            parts.append(f"I can see {face_count} faces and I am tracking {owner_name}{eye_text}")
+        else:
+            parts.append(f"I can see {owner_name}{eye_text}")
+    else:
+        parts.append("I do not have a stable face lock right now")
+
+    if hand_found:
+        noun = "hand" if hand_count == 1 else "hands"
+        parts.append(f"I can also see {max(1, hand_count)} {noun}")
+    else:
+        parts.append("I do not clearly see hands")
+
+    parts.append(f"Scene looks {scene_note}")
+    if concise:
+        return ". ".join(parts) + "."
+    return "Scan update: " + ". ".join(parts) + "."
+
+
+def _scan_signature(face_tracker: FaceTracker | None) -> str:
+    if face_tracker is None:
+        return "camera-off"
+    obs = face_tracker.get_latest()
+    b = float(getattr(obs, "scene_brightness", 0.0))
+    m = float(getattr(obs, "scene_motion", 0.0))
+    return "|".join(
+        [
+            "1" if obs.found else "0",
+            str(int(getattr(obs, "face_count", 0) or 0)),
+            "1" if bool(getattr(obs, "eye_found", False)) else "0",
+            "1" if bool(getattr(obs, "hand_found", False)) else "0",
+            str(int(getattr(obs, "hand_count", 0) or 0)),
+            f"{b:.1f}",
+            f"{m:.1f}",
+        ]
     )
 
 
@@ -237,17 +436,33 @@ def _camera_chat_reply(text: str, face_tracker: FaceTracker | None) -> str | Non
     observation = face_tracker.get_latest()
     asks_hand = any(token in lowered for token in ("hand", "hands", "finger", "fingers", "palm"))
     asks_object = any(token in lowered for token in ("object", "item", "thing", "stuff"))
+    asks_scan = any(
+        token in lowered
+        for token in ("scan", "scanning", "environment", "around me", "room", "what do you see")
+    )
 
-    if asks_object and not asks_hand:
+    if asks_object and not asks_hand and not asks_scan:
         return (
             "I can detect faces and basic hand presence, but I do not have full object recognition yet."
         )
 
+    if asks_scan:
+        return _camera_scan_summary(observation, concise=False)
+
     if asks_hand:
+        if observation.hand_found and observation.found:
+            name = observation.owner_name or "you"
+            hand_total = max(1, int(observation.hand_count or 0))
+            hand_noun = "hand" if hand_total == 1 else "hands"
+            return (
+                f"Yes. I can see {name} and {hand_total} {hand_noun}. "
+                f"{_camera_scan_summary(observation, concise=True)}"
+            )
         if observation.hand_found:
-            if observation.hand_count == 1:
+            hand_total = max(1, int(observation.hand_count or 0))
+            if hand_total == 1:
                 return "Yes, I can see one hand."
-            return f"Yes, I can see {observation.hand_count} hands."
+            return f"Yes, I can see {hand_total} hands."
         return (
             "I cannot see your hand clearly right now. Keep your hand inside the camera frame "
             "with brighter lighting."
@@ -255,6 +470,10 @@ def _camera_chat_reply(text: str, face_tracker: FaceTracker | None) -> str | Non
 
     if observation.found:
         name = observation.owner_name or "you"
+        if observation.hand_found:
+            hand_total = max(1, int(observation.hand_count or 0))
+            hand_noun = "hand" if hand_total == 1 else "hands"
+            return f"Yes, I can see {name} and {hand_total} {hand_noun}."
         return f"Yes, I can see {name} and I am tracking your face."
     if observation.hand_found:
         return "I can see your hand, but I cannot lock your face right now."
@@ -278,10 +497,24 @@ def _extract_memorable_fact(text: str) -> str | None:
     if any(lowered.startswith(prefix) for prefix in hedging):
         return None
 
+    short_non_memory = {
+        "sorry",
+        "i'm sorry",
+        "im sorry",
+        "i am sorry",
+        "my mistake",
+        "i made a mistake",
+        "thanks",
+        "thank you",
+    }
+    if lowered in short_non_memory:
+        return None
+
     patterns = (
         r"^(?:my\s+(?:name|birthday|goal|project|major|school|city|hometown)\s+(?:is|are)\s+.+)$",
         r"^(?:my\s+favorite\s+[a-z][a-z\s]{1,20}\s+(?:is|are)\s+.+)$",
         r"^(?:i(?:'m| am)\s+working\s+on\s+.+)$",
+        r"^(?:i(?:'m| am)\s+(?:from|in|studying|learning|building)\s+.+)$",
         r"^(?:i\s+(?:study|work\s+on|build|use)\s+.+)$",
         r"^(?:i\s+(?:like|love|prefer|enjoy|hate)\s+.+)$",
         r"^(?:call\s+me\s+.+)$",
@@ -304,10 +537,15 @@ def _web_fallback_reply(query: str, hits: list[WebHit]) -> str | None:
     if not hits:
         return None
     top = hits[0]
-    source = top.source
-    if top.url:
-        source = f"{source}: {top.url}"
-    return f"From web search: {top.snippet} (source {source})."
+    return top.snippet or top.title or None
+
+
+def _sanitize_spoken_reply(text: str) -> str:
+    cleaned = text
+    cleaned = re.sub(r"\(\s*source[^)]*\)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\bsource\s*:\s*[^.]+\.?", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return cleaned or text.strip()
 
 
 def _run_blocking_with_ui(
@@ -452,7 +690,7 @@ def handle_utterance(
         if brain.llm_backend == "none":
             web_reply = _web_fallback_reply(chat_text, web_hits)
             if web_reply is not None:
-                _speak(speaker, web_reply, ui=ui)
+                _speak(speaker, _sanitize_spoken_reply(web_reply), ui=ui)
             else:
                 fallback_reply = _run_blocking_with_ui(
                     ui,
@@ -460,7 +698,7 @@ def handle_utterance(
                     state="thinking",
                     status="Thinking...",
                 )
-                _speak(speaker, fallback_reply, ui=ui)
+                _speak(speaker, _sanitize_spoken_reply(fallback_reply), ui=ui)
         else:
             response_text = _run_blocking_with_ui(
                 ui,
@@ -473,13 +711,14 @@ def handle_utterance(
                 state="thinking",
                 status="Thinking...",
             )
-            if web_hits and "source" not in response_text.lower():
-                response_text = f"{response_text} Source: {web_hits[0].source}."
             _speak(
                 speaker,
-                response_text,
+                _sanitize_spoken_reply(response_text),
                 ui=ui,
             )
+        followup = _maybe_human_followup(chat_text)
+        if followup is not None:
+            _speak(speaker, followup, ui=ui)
 
         auto_fact = _extract_memorable_fact(chat_text)
         if auto_fact is not None:
@@ -497,7 +736,12 @@ def handle_utterance(
         while attempts < max_attempts:
             confirmation = _run_blocking_with_ui(
                 ui,
-                lambda: listener.listen("Confirm> "),
+                lambda: listener.listen(
+                    "Confirm> ",
+                    timeout=10.0,
+                    phrase_time_limit=6.0,
+                    calibrate=False,
+                ),
                 state="listening",
                 status="Waiting for confirmation...",
             )
@@ -562,6 +806,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera", action="store_true", help="Enable camera face tracking (requires --ui)")
     parser.add_argument("--camera-index", type=int, default=0, help="Camera index for face tracking")
     parser.add_argument("--camera-owner", default="Fabio", help="Owner name shown when face lock is active")
+    cam_preview_group = parser.add_mutually_exclusive_group()
+    cam_preview_group.add_argument(
+        "--camera-preview",
+        dest="camera_preview",
+        action="store_true",
+        help="Show a live webcam preview window with Alice tracking overlays",
+    )
+    cam_preview_group.add_argument(
+        "--no-camera-preview",
+        dest="camera_preview",
+        action="store_false",
+        help="Disable the webcam preview window",
+    )
+    parser.set_defaults(camera_preview=True)
     parser.add_argument("--once", action="store_true", help="Process a single command and exit")
     parser.add_argument("--command", default=None, help="Single command text (works with --once)")
     return parser.parse_args()
@@ -592,6 +850,7 @@ def main() -> int:
         face_tracker = FaceTracker(
             camera_index=args.camera_index,
             owner_name=args.camera_owner,
+            preview=args.camera_preview,
         )
         if face_tracker.start():
             ui.attach_face_tracker(face_tracker)
@@ -639,6 +898,17 @@ def main() -> int:
     print(f"[Alice] Web search mode: {web_searcher.mode}")
 
     keep_running = True
+    missed_utterances = 0
+    proactive_enabled = _proactive_mode_enabled()
+    proactive_interval = _proactive_interval_seconds()
+    scan_reports = _scan_reports_enabled()
+    scan_interval = _scan_report_interval_seconds()
+    last_user_activity = time.monotonic()
+    last_proactive_at = last_user_activity
+    last_scan_report_at = last_user_activity
+    last_scan_signature = ""
+    user_turns = 0
+    nap_mode = False
     try:
         try:
             while keep_running:
@@ -658,6 +928,14 @@ def main() -> int:
                     )
 
                 if utterance:
+                    missed_utterances = 0
+                    user_turns += 1
+                    last_user_activity = time.monotonic()
+                    if nap_mode:
+                        lowered_utterance = utterance.strip().lower()
+                        if "wake" in lowered_utterance or "alice" in lowered_utterance:
+                            nap_mode = False
+                            _speak(speaker, "I am awake and back with you.", ui=ui)
                     if ui is not None:
                         ui.add_message("You", utterance)
                     keep_running = handle_utterance(
@@ -674,11 +952,50 @@ def main() -> int:
                         ui=ui,
                         face_tracker=face_tracker,
                     )
+                else:
+                    missed_utterances += 1
+                    if ui is not None and missed_utterances >= 2:
+                        ui.set_status("Did not catch that. Try again naturally.")
+                    if missed_utterances >= 4:
+                        print("[Alice] I didn't catch that. Try again at normal pace.")
+                        missed_utterances = 0
+
+                    if scan_reports and face_tracker is not None and not nap_mode:
+                        now = time.monotonic()
+                        if (
+                            now - last_scan_report_at >= scan_interval
+                            and now - last_user_activity >= 3.5
+                        ):
+                            sig = _scan_signature(face_tracker)
+                            if sig != last_scan_signature:
+                                observation = face_tracker.get_latest()
+                                _speak(
+                                    speaker,
+                                    _camera_scan_summary(observation, concise=True),
+                                    ui=ui,
+                                )
+                                last_scan_signature = sig
+                                last_scan_report_at = time.monotonic()
+                    if proactive_enabled and user_turns >= 1 and not nap_mode:
+                        now = time.monotonic()
+                        idle = now - last_user_activity
+                        if idle >= proactive_interval and now - last_proactive_at >= proactive_interval:
+                            prompt = _proactive_prompt(idle)
+                            _speak(speaker, prompt, ui=ui)
+                            last_proactive_at = time.monotonic()
+                            if "nap mode" in prompt.lower() or "quiet mode" in prompt.lower():
+                                nap_mode = True
 
                 if args.once:
                     break
                 if args.command is not None:
                     break
+        except ListenerError as exc:
+            print(f"[Alice] Listener error: {exc}")
+            if ui is not None:
+                ui.set_state("error")
+                ui.set_status(str(exc))
+            _speak(speaker, str(exc), ui=ui)
         except (KeyboardInterrupt, EOFError):
             print("\n[Alice] Shutdown requested. Exiting cleanly.")
     finally:

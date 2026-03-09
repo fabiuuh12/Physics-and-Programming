@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,12 +12,26 @@ class ListenerError(RuntimeError):
 
 
 class BaseListener:
-    def listen(self, prompt: str | None = None) -> str | None:
+    def listen(
+        self,
+        prompt: str | None = None,
+        *,
+        timeout: float | None = None,
+        phrase_time_limit: float | None = None,
+        calibrate: bool | None = None,
+    ) -> str | None:
         raise NotImplementedError
 
 
 class TextListener(BaseListener):
-    def listen(self, prompt: str | None = None) -> str | None:
+    def listen(
+        self,
+        prompt: str | None = None,
+        *,
+        timeout: float | None = None,
+        phrase_time_limit: float | None = None,
+        calibrate: bool | None = None,
+    ) -> str | None:
         try:
             return input(prompt or "You> ").strip()
         except EOFError:
@@ -29,7 +44,7 @@ class TextListener(BaseListener):
 class VoiceSettings:
     timeout: int = 6
     phrase_time_limit: int = 8
-    calibrate_seconds: float = 0.3
+    calibrate_seconds: float = 0.15
 
 
 class VoiceListener(BaseListener):
@@ -37,6 +52,29 @@ class VoiceListener(BaseListener):
         self.settings = settings or VoiceSettings()
         self._stt_backend = "none"
         self._whisper_model = None
+        self._last_calibration_at = 0.0
+        calibration_interval = os.getenv("ALICE_STT_CALIBRATION_INTERVAL", "28").strip()
+        try:
+            self._calibration_interval_s = max(8.0, min(180.0, float(calibration_interval)))
+        except ValueError:
+            self._calibration_interval_s = 28.0
+        energy_raw = os.getenv("ALICE_STT_ENERGY_BASE", "110").strip()
+        try:
+            self._energy_base = max(50.0, min(380.0, float(energy_raw)))
+        except ValueError:
+            self._energy_base = 110.0
+        energy_min_raw = os.getenv("ALICE_STT_ENERGY_MIN", "68").strip()
+        energy_max_raw = os.getenv("ALICE_STT_ENERGY_MAX", "235").strip()
+        try:
+            self._energy_min = max(40.0, min(280.0, float(energy_min_raw)))
+        except ValueError:
+            self._energy_min = 68.0
+        try:
+            self._energy_max = max(120.0, min(420.0, float(energy_max_raw)))
+        except ValueError:
+            self._energy_max = 235.0
+        if self._energy_max < self._energy_min:
+            self._energy_min, self._energy_max = self._energy_max, self._energy_min
 
         try:
             import speech_recognition as sr
@@ -47,6 +85,13 @@ class VoiceListener(BaseListener):
 
         self.sr = sr
         self.recognizer = sr.Recognizer()
+        self.recognizer.dynamic_energy_threshold = True
+        self.recognizer.energy_threshold = self._energy_base
+        self.recognizer.dynamic_energy_adjustment_damping = 0.10
+        self.recognizer.dynamic_energy_ratio = 1.20
+        self.recognizer.pause_threshold = 0.58
+        self.recognizer.non_speaking_duration = 0.16
+        self.recognizer.phrase_threshold = 0.18
         self.microphone = sr.Microphone()
 
         requested_backend = os.getenv("ALICE_STT_BACKEND", "auto").strip().lower()
@@ -114,19 +159,48 @@ class VoiceListener(BaseListener):
             except OSError:
                 pass
 
-    def listen(self, prompt: str | None = None) -> str | None:
+    def listen(
+        self,
+        prompt: str | None = None,
+        *,
+        timeout: float | None = None,
+        phrase_time_limit: float | None = None,
+        calibrate: bool | None = None,
+    ) -> str | None:
         if prompt:
             print(prompt, end="", flush=True)
 
+        listen_timeout = float(timeout) if timeout is not None else float(self.settings.timeout)
+        listen_phrase_limit = (
+            float(phrase_time_limit)
+            if phrase_time_limit is not None
+            else float(self.settings.phrase_time_limit)
+        )
+
         try:
             with self.microphone as source:
-                self.recognizer.adjust_for_ambient_noise(
-                    source, duration=self.settings.calibrate_seconds
+                now = time.monotonic()
+                should_calibrate = now - self._last_calibration_at >= self._calibration_interval_s
+                if calibrate is True:
+                    should_calibrate = True
+                elif calibrate is False:
+                    should_calibrate = False
+                if should_calibrate:
+                    self.recognizer.adjust_for_ambient_noise(
+                        source, duration=self.settings.calibrate_seconds
+                    )
+                    self._last_calibration_at = now
+                else:
+                    # Drift threshold down a bit over time so normal speaking volume is enough.
+                    self.recognizer.energy_threshold *= 0.992
+                self.recognizer.energy_threshold = max(
+                    self._energy_min,
+                    min(self._energy_max, self.recognizer.energy_threshold),
                 )
                 audio = self.recognizer.listen(
                     source,
-                    timeout=self.settings.timeout,
-                    phrase_time_limit=self.settings.phrase_time_limit,
+                    timeout=listen_timeout,
+                    phrase_time_limit=listen_phrase_limit,
                 )
             if self._stt_backend == "faster_whisper":
                 local_text = self._transcribe_with_faster_whisper(audio)

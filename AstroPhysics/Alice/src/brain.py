@@ -24,8 +24,32 @@ class AliceBrain:
 
     def _looks_like_visual_question(self, text: str) -> bool:
         t = text.lower()
-        vision_terms = {"see", "look", "watch", "camera", "track", "visible", "detect", "recognize"}
-        subject_terms = {"me", "my", "face", "hand", "hands", "fingers", "us", "this", "that", "you see"}
+        vision_terms = {
+            "see",
+            "look",
+            "watch",
+            "camera",
+            "track",
+            "visible",
+            "detect",
+            "recognize",
+            "scan",
+            "environment",
+        }
+        subject_terms = {
+            "me",
+            "my",
+            "face",
+            "hand",
+            "hands",
+            "fingers",
+            "us",
+            "this",
+            "that",
+            "you see",
+            "room",
+            "around",
+        }
         return any(term in t for term in vision_terms) and any(term in t for term in subject_terms)
 
     def _fallback_reply(self, text: str, context: dict[str, str] | None = None) -> str:
@@ -64,7 +88,9 @@ class AliceBrain:
             return "I cannot see your face clearly right now. Please face the camera with better lighting."
 
         if any(k in t for k in {"hello", "hi", "hey"}):
-            return "Hello Fabio. I am here with you."
+            return "Hello Fabio. I am here with you. How is your day going?"
+        if any(phrase in t for phrase in {"sorry", "my mistake", "i made a mistake", "nevermind", "never mind"}):
+            return "No problem at all. We can keep going."
         if "how are you" in t:
             return "I am doing well and ready to help."
         if "what can you do" in t or "help" in t:
@@ -77,10 +103,7 @@ class AliceBrain:
         if "date" in t or "day" in t:
             return f"Today is {datetime.now().strftime('%A, %B %d, %Y')}."
 
-        return (
-            "I heard you. I can chat, and I can also run files or manage folders "
-            "when you ask with the wake word Alice."
-        )
+        return "I hear you. I can chat naturally, and I can also run files or manage folders when asked."
 
     def _llm_reply(
         self,
@@ -130,7 +153,7 @@ class AliceBrain:
                     "content": (
                         "Web research snippets (use only if relevant): "
                         + web_bullets
-                        + ". If you use them, mention the source briefly."
+                        + ". Use them quietly for accuracy. Do not cite source names unless asked."
                     ),
                 }
             )
