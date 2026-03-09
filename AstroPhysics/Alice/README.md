@@ -5,7 +5,7 @@ Alice is now implemented in Python in this folder.
 ## What is included
 
 - Rule-based intent parsing (`run`, `list files`, `open folder`, `stop process`, `time`, `date`, `search web`, `research`, `remember`, `recall`, `chat`)
-- Local memory store (TSV file, default: `data/alice_memory.tsv`)
+- Local memory store (TSV file, default: `data/alice_memory.tsv`) with auto-fact extraction, upsert updates, and duplicate suppression
 - Safe command execution with allowlisted roots (`config/allowed_paths.json`)
 - Python and shell file execution support (`.py`, `.sh`, `.bash`, or executable files)
 - Optional chat backend via Ollama or OpenAI using environment variables

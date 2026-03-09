@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from .string_utils import normalize_text, now_iso8601, split_words, trim
 from .types import MemoryItem
@@ -43,6 +44,36 @@ class MemoryStore:
                 out.append(nxt)
             i += 2
         return "".join(out)
+
+    @staticmethod
+    def _normalize_key(key: str) -> str:
+        raw = normalize_text(key)
+        raw = re.sub(r"[^a-z0-9._-]+", "_", raw)
+        raw = re.sub(r"_+", "_", raw).strip("_")
+        return raw[:64]
+
+    @staticmethod
+    def _structured_content(key: str, value: str) -> str:
+        return f"[{key}] {value}"
+
+    @staticmethod
+    def _parse_structured(content: str) -> tuple[str, str] | None:
+        m = re.match(r"^\[([a-z0-9._-]{1,64})\]\s+(.+)$", trim(content), flags=re.IGNORECASE)
+        if not m:
+            return None
+        return m.group(1).lower(), trim(m.group(2))
+
+    @staticmethod
+    def _token_similarity(a: str, b: str) -> float:
+        aa = set(split_words(normalize_text(a)))
+        bb = set(split_words(normalize_text(b)))
+        if not aa or not bb:
+            return 0.0
+        inter = len(aa.intersection(bb))
+        union = len(aa.union(bb))
+        if union <= 0:
+            return 0.0
+        return inter / union
 
     def _load(self) -> None:
         self._items.clear()
@@ -103,6 +134,73 @@ class MemoryStore:
         item = MemoryItem(
             id=self._next_id,
             content=cleaned,
+            category=category,
+            created_at=now_iso8601(),
+            use_count=0,
+        )
+        self._next_id += 1
+        self._items.append(item)
+        return self._save()
+
+    def add_unique(self, content: str, category: str = "general", similarity_threshold: float = 0.88) -> bool:
+        cleaned = trim(content)
+        if not cleaned:
+            return False
+        normalized_new = normalize_text(cleaned)
+        if not normalized_new:
+            return False
+
+        for item in self._items:
+            if item.category != category:
+                continue
+            normalized_existing = normalize_text(item.content)
+            if not normalized_existing:
+                continue
+            if normalized_existing == normalized_new:
+                return False
+            if normalized_new in normalized_existing or normalized_existing in normalized_new:
+                return False
+            if self._token_similarity(cleaned, item.content) >= similarity_threshold:
+                return False
+
+        item = MemoryItem(
+            id=self._next_id,
+            content=cleaned,
+            category=category,
+            created_at=now_iso8601(),
+            use_count=0,
+        )
+        self._next_id += 1
+        self._items.append(item)
+        return self._save()
+
+    def upsert(self, key: str, value: str, category: str = "profile") -> bool:
+        key_clean = self._normalize_key(key)
+        value_clean = trim(value)
+        if not key_clean or not value_clean:
+            return False
+        packed = self._structured_content(key_clean, value_clean)
+        normalized_new = normalize_text(value_clean)
+
+        for item in self._items:
+            if item.category != category:
+                continue
+            parsed = self._parse_structured(item.content)
+            if not parsed:
+                continue
+            existing_key, existing_value = parsed
+            if existing_key != key_clean:
+                continue
+            if normalize_text(existing_value) == normalized_new:
+                return False
+            item.content = packed
+            item.created_at = now_iso8601()
+            item.use_count = 0
+            return self._save()
+
+        item = MemoryItem(
+            id=self._next_id,
+            content=packed,
             category=category,
             created_at=now_iso8601(),
             use_count=0,

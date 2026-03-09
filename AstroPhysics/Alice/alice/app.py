@@ -402,6 +402,141 @@ def _extract_memorable_fact(text: str) -> Optional[str]:
     return cleaned
 
 
+def _clean_memory_value(value: str) -> str:
+    out = trim(value)
+    out = out.strip("\"'")
+    out = re.sub(r"\s+", " ", out)
+    while out and out[-1] in ".!,;":
+        out = out[:-1]
+    return trim(out)
+
+
+def _slug_fragment(text: str, max_words: int = 4) -> str:
+    words = re.findall(r"[a-z0-9]+", normalize_text(text))
+    if not words:
+        return "item"
+    return "_".join(words[:max_words])
+
+
+def _extract_structured_memories(text: str) -> list[tuple[str, str, str]]:
+    cleaned = trim(text)
+    lowered = normalize_text(cleaned)
+    if not cleaned or "?" in cleaned or len(cleaned) > 240:
+        return []
+
+    memories: list[tuple[str, str, str]] = []
+
+    def add(category: str, key: str, value: str) -> None:
+        value_clean = _clean_memory_value(value)
+        if value_clean:
+            memories.append((category, key, value_clean))
+
+    m = re.fullmatch(r"my\s+name\s+is\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "user_name", m.group(1))
+
+    m = re.fullmatch(r"call\s+me\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "user_name", m.group(1))
+
+    m = re.fullmatch(r"(?:i\s+am|i'm)\s+(\d{1,3})\s+years?\s+old", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "user_age", m.group(1))
+
+    m = re.fullmatch(r"my\s+age\s+is\s+(\d{1,3})", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "user_age", m.group(1))
+
+    m = re.fullmatch(r"(?:i\s+am|i'm)\s+from\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "hometown", m.group(1))
+
+    m = re.fullmatch(r"i\s+live\s+in\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "current_city", m.group(1))
+
+    m = re.fullmatch(r"(?:i\s+study|i\s+am\s+studying|i'm\s+studying)\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "study_field", m.group(1))
+
+    m = re.fullmatch(r"my\s+major\s+is\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "major", m.group(1))
+
+    m = re.fullmatch(r"(?:i\s+work\s+on|i\s+am\s+working\s+on|i'm\s+working\s+on)\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("projects", "current_project", m.group(1))
+
+    m = re.fullmatch(r"(?:i\s+build|i\s+am\s+building|i'm\s+building)\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("projects", "current_project", m.group(1))
+
+    m = re.fullmatch(r"my\s+goal\s+is\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "goal", m.group(1))
+
+    m = re.fullmatch(r"my\s+birthday\s+is\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "birthday", m.group(1))
+
+    m = re.fullmatch(r"my\s+favorite\s+([a-z][a-z0-9\\s_-]{1,24})\s+(?:is|are)\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        subject = _slug_fragment(m.group(1), 3)
+        add("preferences", f"favorite_{subject}", m.group(2))
+
+    m = re.fullmatch(r"i\s+(like|love|enjoy|prefer|hate)\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        verb = _slug_fragment(m.group(1), 1)
+        subject = _slug_fragment(m.group(2), 4)
+        add("preferences", f"{verb}_{subject}", m.group(2))
+
+    m = re.fullmatch(r"i\s+use\s+(.+)", cleaned, flags=re.IGNORECASE)
+    if m:
+        add("profile", "tools_stack", m.group(1))
+
+    # Lightweight backup rule for declarative first-person statements.
+    if not memories and lowered.startswith(("i am ", "i'm ", "my ", "i ")):
+        fact = _extract_memorable_fact(cleaned)
+        if fact:
+            add("profile_note", f"note_{_slug_fragment(fact, 5)}", fact)
+
+    # Preserve order, dedupe by (category, key).
+    dedup: dict[tuple[str, str], tuple[str, str, str]] = {}
+    for category, key, value in memories:
+        dedup[(category, key)] = (category, key, value)
+    return list(dedup.values())
+
+
+def _store_memory_candidates(memory_store: MemoryStore, text: str) -> bool:
+    changed = False
+    structured = _extract_structured_memories(text)
+    for category, key, value in structured:
+        if memory_store.upsert(key, value, category):
+            changed = True
+
+    # If we extracted structured facts, skip adding a free-form duplicate note.
+    if structured:
+        return changed
+
+    fact = _extract_memorable_fact(text)
+    if fact and memory_store.add_unique(fact, "profile_note"):
+        changed = True
+    return changed
+
+
+def _store_vision_memory(memory_store: MemoryStore, observation: FaceObservation) -> None:
+    memory_store.upsert("scene_label", observation.scene_label, "vision")
+    memory_store.upsert("scene_confidence", f"{observation.scene_confidence:.2f}", "vision")
+    memory_store.upsert("light_level", observation.light_level, "vision")
+    memory_store.upsert("motion_level", observation.motion_level, "vision")
+    memory_store.upsert("people_count", str(observation.people_count), "vision")
+    memory_store.upsert("face_count", str(observation.face_count), "vision")
+    memory_store.upsert("dominant_color", observation.dominant_color, "vision")
+    memory_store.upsert("objects", ", ".join(observation.objects[:8]) if observation.objects else "none", "vision")
+    if observation.summary:
+        memory_store.add_unique(observation.summary, "vision_note", 0.95)
+
+
 def _format_recalled_memories(query: str, memories: list[MemoryItem]) -> str:
     if not memories:
         return f"I do not have a saved memory about '{query}' yet."
@@ -572,11 +707,15 @@ def _handle_utterance(
 
     if intent.action == "vision_status":
         _speak(_vision_status_reply(vision_enabled, face_observation), ui)
+        if vision_enabled:
+            _store_vision_memory(memory_store, face_observation)
         emotion_engine.observe_result(True)
         return True
 
     if intent.action == "describe_scene":
         _speak(_scene_description_reply(vision_enabled, face_observation), ui)
+        if vision_enabled:
+            _store_vision_memory(memory_store, face_observation)
         emotion_engine.observe_result(True)
         return True
 
@@ -595,12 +734,17 @@ def _handle_utterance(
         if not fact:
             _speak("Tell me what to remember.", ui)
             emotion_engine.observe_result(False)
-        elif memory_store.add(fact, "profile"):
-            _speak("Saved. I will remember that.", ui)
-            emotion_engine.observe_result(True)
         else:
-            _speak("I already remember that.", ui)
-            emotion_engine.observe_result(False)
+            saved = _store_memory_candidates(memory_store, fact)
+            if not saved:
+                saved = memory_store.add_unique(fact, "profile_note")
+
+            if saved:
+                _speak("Saved. I'll remember that.", ui)
+                emotion_engine.observe_result(True)
+            else:
+                _speak("I already have that in memory.", ui)
+                emotion_engine.observe_result(False)
         return True
 
     if intent.action == "recall_memory":
@@ -614,10 +758,14 @@ def _handle_utterance(
         chat_text = intent.target or intent.raw
         if _is_vision_query(chat_text):
             _speak(_vision_status_reply(vision_enabled, face_observation), ui)
+            if vision_enabled:
+                _store_vision_memory(memory_store, face_observation)
             emotion_engine.observe_result(True)
             return True
         if _is_scene_query(chat_text):
             _speak(_scene_description_reply(vision_enabled, face_observation), ui)
+            if vision_enabled:
+                _store_vision_memory(memory_store, face_observation)
             emotion_engine.observe_result(True)
             return True
 
@@ -636,9 +784,7 @@ def _handle_utterance(
         )
         emotion_engine.observe_result(True)
 
-        auto_fact = _extract_memorable_fact(chat_text)
-        if auto_fact:
-            memory_store.add(auto_fact, "profile")
+        _store_memory_candidates(memory_store, chat_text)
         return True
 
     if intent.requires_confirmation:
