@@ -17,6 +17,7 @@ from typing import Optional
 
 from .brain import AliceBrain
 from .config import AliceConfig, load_config
+from .emotion_engine import EmotionEngine
 from .executor import AliceExecutor
 from .face_tracker import FaceObservation, FaceTracker
 from .intent import describe_for_confirmation, parse_confirmation, parse_intent
@@ -29,7 +30,9 @@ from .voice_listener import VoiceListener
 HELP_TEXT = (
     "Try commands like: run <file>, list files in <folder>, open folder <folder>, "
     "stop process, what time is it, what is today's date, search the web for <topic>, research <topic>, "
-    "remember that <fact>, what do you remember about <topic>, help, exit. Wake word is optional."
+    "remember that <fact>, what do you remember about <topic>, can you see me, look around, "
+    "how are you feeling, help, exit. "
+    "Wake word is optional."
 )
 
 
@@ -420,15 +423,78 @@ def _is_vision_query(text: str) -> bool:
     return any(trigger in query for trigger in triggers)
 
 
+def _is_scene_query(text: str) -> bool:
+    query = normalize_text(text)
+    if not query:
+        return False
+    triggers = [
+        "look around",
+        "describe the room",
+        "describe the space",
+        "what do you see",
+        "identify the room",
+        "what space is this",
+        "scan the room",
+    ]
+    return any(trigger in query for trigger in triggers)
+
+
 def _vision_status_reply(vision_enabled: bool, observation: FaceObservation) -> str:
     if not vision_enabled:
         return "Camera vision is not active right now. Start Alice with --ui and camera enabled."
     if observation.found:
         faces = "face" if observation.face_count == 1 else "faces"
-        return f"Yes, I can see you. I detect {observation.face_count} {faces} in frame."
+        return (
+            f"Yes, I can see you. I detect {observation.face_count} {faces} in frame. "
+            f"Scene looks like {observation.scene_label} with {observation.light_level} light."
+        )
     return (
         "Not yet. I cannot see your face right now. "
         "Move into frame and make sure Camera permission is enabled for Terminal or iTerm."
+    )
+
+
+def _scene_description_reply(vision_enabled: bool, observation: FaceObservation) -> str:
+    if not vision_enabled:
+        return "Camera vision is not active right now. Start Alice with --ui and camera enabled."
+
+    objects = ", ".join(observation.objects[:6]) if observation.objects else "no clear objects yet"
+    faces = "face" if observation.face_count == 1 else "faces"
+    people_text = "no people detected"
+    if observation.people_count == 1:
+        people_text = "about one person detected"
+    elif observation.people_count > 1:
+        people_text = f"about {observation.people_count} people detected"
+    return (
+        f"I currently read this as {observation.scene_label} "
+        f"(confidence {observation.scene_confidence:.2f}). "
+        f"Light is {observation.light_level}, motion is {observation.motion_level}, "
+        f"dominant color is {observation.dominant_color}. "
+        f"I detect {observation.face_count} {faces}, with {people_text}. "
+        f"Likely objects: {objects}."
+    )
+
+
+def _vision_context_line(vision_enabled: bool, observation: FaceObservation) -> str:
+    if not vision_enabled:
+        return "camera=off"
+    objects = ", ".join(observation.objects[:6]) if observation.objects else "none"
+    return (
+        f"camera=on face_found={observation.found} faces={observation.face_count} people={observation.people_count} "
+        f"scene={observation.scene_label} scene_conf={observation.scene_confidence:.2f} "
+        f"light={observation.light_level} motion={observation.motion_level} objects={objects}"
+    )
+
+
+def _emotion_status_reply(emotion_engine: EmotionEngine) -> str:
+    state = emotion_engine.current()
+    top = ", ".join([f"{name}:{score:.2f}" for name, score in state.top_emotions[:5]])
+    catalog = ", ".join(EmotionEngine.all_emotions())
+    return (
+        f"My current emotional blend is {state.name} "
+        f"(intensity {state.intensity:.2f}, valence {state.valence:.2f}, arousal {state.arousal:.2f}). "
+        f"Top blend: {top}. "
+        f"I currently model these emotions: {catalog}."
     )
 
 
@@ -472,6 +538,7 @@ def _handle_utterance(
     require_wake: bool,
     executor: AliceExecutor,
     brain: AliceBrain,
+    emotion_engine: EmotionEngine,
     memory_store: MemoryStore,
     voice_mode: bool,
     voice_listener: Optional[VoiceListener],
@@ -483,38 +550,75 @@ def _handle_utterance(
         ui.set_state("thinking")
         ui.set_status("Thinking...")
 
+    emotion_engine.observe_user_text(utterance)
     intent, _matched = parse_intent(utterance, wake_word, require_wake)
     if intent.action == "skip":
         if ui is not None:
             ui.set_state("idle")
             ui.set_status("Online")
         return True
+    emotion_engine.observe_intent(intent.action)
+
+    if intent.action == "vision_status":
+        _speak(_vision_status_reply(vision_enabled, face_observation), ui)
+        emotion_engine.observe_result(True)
+        return True
+
+    if intent.action == "describe_scene":
+        _speak(_scene_description_reply(vision_enabled, face_observation), ui)
+        emotion_engine.observe_result(True)
+        return True
+
+    if intent.action == "emotion_status":
+        _speak(_emotion_status_reply(emotion_engine), ui)
+        emotion_engine.observe_result(True)
+        return True
 
     if intent.action == "remember_memory":
         fact = trim(intent.target or "")
         if not fact:
             _speak("Tell me what to remember.", ui)
+            emotion_engine.observe_result(False)
         elif memory_store.add(fact, "profile"):
             _speak("Saved. I will remember that.", ui)
+            emotion_engine.observe_result(True)
         else:
             _speak("I already remember that.", ui)
+            emotion_engine.observe_result(False)
         return True
 
     if intent.action == "recall_memory":
         query = trim(intent.target or "me") or "me"
         recalled = memory_store.search(query, 5)
         _speak(_format_recalled_memories(query, recalled), ui)
+        emotion_engine.observe_result(True)
         return True
 
     if intent.action == "chat":
         chat_text = intent.target or intent.raw
         if _is_vision_query(chat_text):
             _speak(_vision_status_reply(vision_enabled, face_observation), ui)
+            emotion_engine.observe_result(True)
+            return True
+        if _is_scene_query(chat_text):
+            _speak(_scene_description_reply(vision_enabled, face_observation), ui)
+            emotion_engine.observe_result(True)
             return True
 
         related = memory_store.search(chat_text, 4)
         memory_lines = [item.content for item in related]
-        _speak(brain.reply(chat_text, memory_lines), ui)
+        emotion_context = emotion_engine.current().as_prompt()
+        vision_context = _vision_context_line(vision_enabled, face_observation)
+        _speak(
+            brain.reply(
+                chat_text,
+                memory_lines,
+                emotion_context=emotion_context,
+                vision_context=vision_context,
+            ),
+            ui,
+        )
+        emotion_engine.observe_result(True)
 
         auto_fact = _extract_memorable_fact(chat_text)
         if auto_fact:
@@ -559,10 +663,12 @@ def _handle_utterance(
 
         if not decision_known or not approved:
             _speak("Canceled.", ui)
+            emotion_engine.observe_result(False)
             return True
 
     result = _execute_intent(intent, executor)
     _speak(result.message, ui)
+    emotion_engine.observe_result(result.ok)
     return intent.action != "exit"
 
 
@@ -592,6 +698,7 @@ def run(argv: list[str] | None = None) -> int:
     memory_store = MemoryStore(memory_path)
     executor = AliceExecutor(config.allowed_roots, config.log_dir, config.max_runtime_seconds)
     brain = AliceBrain()
+    emotion_engine = EmotionEngine()
     # In UI mode, enable speech input as well so conversation can be hands-free.
     voice_listener = VoiceListener() if (voice_mode or ui_enabled) else None
 
@@ -646,6 +753,7 @@ def run(argv: list[str] | None = None) -> int:
         print("[Alice] TTS backend: none")
 
     print(f"[Alice] LLM backend: {brain.llm_backend()}")
+    print(f"[Alice] Emotion profiles: {len(EmotionEngine.all_emotions())}")
     if brain.using_llm():
         _speak(f"Alice is online with conversational mode enabled using {brain.llm_backend()}.", ui)
     else:
@@ -664,9 +772,22 @@ def run(argv: list[str] | None = None) -> int:
                     latest_face_observation.y,
                     latest_face_observation.found,
                     latest_face_observation.face_count,
+                    latest_face_observation.scene_label,
+                    latest_face_observation.scene_confidence,
                 )
 
+            emotion_engine.tick()
+            emotion_engine.observe_environment(
+                face_found=latest_face_observation.found,
+                face_count=latest_face_observation.face_count,
+                scene_label=latest_face_observation.scene_label,
+                motion_level=latest_face_observation.motion_level,
+                light_level=latest_face_observation.light_level,
+            )
+            current_emotion = emotion_engine.current()
+
             if ui is not None:
+                ui.set_emotion(current_emotion.name, current_emotion.intensity)
                 ui.pump()
                 if not ui.running():
                     print("[Alice] UI window closed. Exiting.")
@@ -714,6 +835,7 @@ def run(argv: list[str] | None = None) -> int:
                             args.require_wake,
                             executor,
                             brain,
+                            emotion_engine,
                             memory_store,
                             voice_mode,
                             voice_listener,
@@ -741,6 +863,7 @@ def run(argv: list[str] | None = None) -> int:
                     args.require_wake,
                     executor,
                     brain,
+                    emotion_engine,
                     memory_store,
                     voice_mode,
                     voice_listener,

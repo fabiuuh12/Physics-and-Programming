@@ -31,7 +31,13 @@ class AliceBrain:
             return f"Today is {format_long_date()}."
         return "I hear you. I can chat naturally, and I can also run files or manage folders when asked."
 
-    def reply(self, text: str, memories: list[str] | None = None) -> str:
+    def reply(
+        self,
+        text: str,
+        memories: list[str] | None = None,
+        emotion_context: str | None = None,
+        vision_context: str | None = None,
+    ) -> str:
         memories = memories or []
 
         if not self._llm.available():
@@ -53,6 +59,10 @@ class AliceBrain:
         if memories:
             limited = memories[:6]
             messages.append(ChatMessage(role="system", content=f"Relevant long-term memory: {join(limited, ' ; ')}"))
+        if emotion_context:
+            messages.append(ChatMessage(role="system", content=f"Emotional context: {emotion_context}"))
+        if vision_context:
+            messages.append(ChatMessage(role="system", content=f"Current visual perception: {vision_context}"))
 
         for user_text, assistant_text in self._history[-4:]:
             messages.append(ChatMessage(role="user", content=user_text))

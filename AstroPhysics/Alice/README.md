@@ -11,7 +11,9 @@ Alice is now implemented in Python in this folder.
 - Optional chat backend via Ollama or OpenAI using environment variables
 - macOS spoken replies via `say` (disable with `--no-tts`)
 - Built-in classic early-Python Alice face model (restored) with a blue themed background
-- Webcam face tracking (OpenCV): eyes follow your detected face and UI shows when Alice can see you
+- Emotion engine with a large emotion set (valence/arousal + blended top emotions) driving expressions
+- Webcam perception (OpenCV): face tracking + heuristic scene understanding (`office`, `outdoor`, `bedroom`, etc.)
+- Scene-aware replies: ask `can you see me` or `look around` / `describe the room`
 - Optional microphone voice input mode via `SpeechRecognition` (if installed)
 
 ## Run
@@ -101,3 +103,4 @@ python3 -m pip install opencv-python
 ```
 
 - For webcam tracking, allow camera access for Terminal/iTerm in System Settings > Privacy & Security > Camera.
+- Scene identification is currently heuristic (OpenCV features + motion/light cues), so treat room labels as estimates.

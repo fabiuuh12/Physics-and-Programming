@@ -135,6 +135,24 @@ def parse_intent(text: str, wake_word: str, require_wake: bool) -> tuple[Intent,
         if target:
             return Intent(action="web_research", target=target, raw=spoken), matched
 
+    if re.search(
+        r"\b(can\s+you\s+see\s+me|do\s+you\s+see\s+me|can\s+you\s+see\s+my\s+face|do\s+you\s+see\s+my\s+face|are\s+you\s+looking\s+at\s+me|can\s+you\s+see\s+us)\b",
+        lowered,
+    ):
+        return Intent(action="vision_status", raw=spoken), matched
+
+    if re.search(
+        r"\b(what\s+emotions\s+do\s+you\s+have|list\s+your\s+emotions|how\s+are\s+you\s+feeling|what\s+do\s+you\s+feel)\b",
+        lowered,
+    ):
+        return Intent(action="emotion_status", raw=spoken), matched
+
+    if re.search(
+        r"\b(look\s+around|scan\s+(the\s+)?(room|space|scene)|describe\s+(the\s+)?(room|space|scene)|what\s+do\s+you\s+see(\s+around)?|identify\s+(the\s+)?(room|space|scene)|what\s+space\s+is\s+this)\b",
+        lowered,
+    ):
+        return Intent(action="describe_scene", raw=spoken), matched
+
     if lowered in _SMALLTALK:
         return Intent(action="smalltalk", target=lowered, raw=spoken), matched
 

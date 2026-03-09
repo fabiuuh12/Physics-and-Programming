@@ -46,11 +46,16 @@ class AliceUI:
         self._raw_face_y = 0.0
         self._vision_found = False
         self._vision_face_count = 0
+        self._vision_scene_label = "unknown"
+        self._vision_scene_confidence = 0.0
 
         self._avatar_offset_y = 24.0
         self._head_x = 0.0
         self._head_y = 0.0
         self._head_tilt = 0.0
+
+        self._emotion_name = "neutral"
+        self._emotion_intensity = 0.0
 
         self._root: Optional[tk.Tk] = None
         self._canvas: Optional[tk.Canvas] = None
@@ -245,7 +250,31 @@ class AliceUI:
             return "#ff9393"
         if self._state == "offline":
             return "#66778f"
+        emotion = self._emotion_name
+        if emotion in {"joy", "gratitude", "content", "calm", "serenity", "affection"}:
+            return "#68dca8"
+        if emotion in {"curiosity", "focus", "anticipation", "determination", "alertness"}:
+            return "#7bb8ff"
+        if emotion in {"concern", "confusion", "uncertainty", "anxiety"}:
+            return "#f2b56f"
+        if emotion in {"sadness", "loneliness", "disappointment", "fatigue", "boredom"}:
+            return "#90a4c8"
+        if emotion in {"frustration", "anger", "overwhelm", "fear"}:
+            return "#ff8f8f"
         return "#4f7fb8"
+
+    def _emotion_profile(self) -> str:
+        if self._emotion_name in {"joy", "gratitude", "content", "calm", "serenity", "affection", "amusement"}:
+            return "positive"
+        if self._emotion_name in {"curiosity", "focus", "anticipation", "determination", "alertness", "confidence"}:
+            return "focused"
+        if self._emotion_name in {"concern", "confusion", "uncertainty", "anxiety", "fear"}:
+            return "concerned"
+        if self._emotion_name in {"sadness", "loneliness", "disappointment", "fatigue", "boredom", "nostalgia"}:
+            return "low"
+        if self._emotion_name in {"frustration", "anger", "overwhelm"}:
+            return "tense"
+        return "neutral"
 
     def _pose_point(self, x: float, y: float) -> tuple[float, float]:
         return (
@@ -457,9 +486,27 @@ class AliceUI:
         if self._canvas is None:
             return
 
-        if self._state == "thinking":
+        profile = self._emotion_profile()
+        intensity = max(0.0, min(1.0, self._emotion_intensity))
+
+        if self._state == "thinking" or profile == "focused":
             left = ((142.0, 110.0), (176.0, 104.0), (212.0, 114.0))
             right = ((248.0, 114.0), (284.0, 104.0), (318.0, 110.0))
+        elif profile == "positive":
+            lift = 3.0 + intensity * 2.5
+            left = ((142.0, 115.0), (176.0, 102.0 - lift), (212.0, 114.0))
+            right = ((248.0, 114.0), (284.0, 102.0 - lift), (318.0, 115.0))
+        elif profile == "concerned":
+            pinch = 3.0 + intensity * 3.0
+            left = ((142.0, 113.0), (176.0, 102.0 + pinch), (212.0, 111.0))
+            right = ((248.0, 111.0), (284.0, 102.0 + pinch), (318.0, 113.0))
+        elif profile == "low":
+            drop = 2.0 + intensity * 3.0
+            left = ((142.0, 116.0 + drop), (176.0, 110.0 + drop), (212.0, 116.0 + drop))
+            right = ((248.0, 116.0 + drop), (284.0, 110.0 + drop), (318.0, 116.0 + drop))
+        elif profile == "tense":
+            left = ((142.0, 118.0), (176.0, 121.0), (212.0, 110.0))
+            right = ((248.0, 110.0), (284.0, 121.0), (318.0, 118.0))
         elif self._state == "speaking":
             left = ((142.0, 114.0), (176.0, 99.0), (212.0, 112.0))
             right = ((248.0, 112.0), (284.0, 99.0), (318.0, 114.0))
@@ -484,6 +531,9 @@ class AliceUI:
         if self._canvas is None:
             return
 
+        profile = self._emotion_profile()
+        intensity = max(0.0, min(1.0, self._emotion_intensity))
+
         if self._state == "speaking":
             self._speak_phase += dt * 10.0
             target_open = 7.0 + 13.0 * (0.5 + 0.5 * math.sin(self._speak_phase))
@@ -498,8 +548,21 @@ class AliceUI:
             target_open = 2.2
             curve = -2.8
         else:
-            target_open = 2.8
-            curve = 1.8 if self._vision_found else 1.1
+            target_open = 2.8 + intensity * 0.8
+            if profile == "positive":
+                curve = 2.3 + intensity * 1.4
+            elif profile == "focused":
+                curve = 1.0 + intensity * 0.4
+            elif profile == "concerned":
+                curve = 0.2 - intensity * 1.2
+            elif profile == "low":
+                curve = -0.5 - intensity * 1.4
+                target_open = max(2.0, target_open - 0.5)
+            elif profile == "tense":
+                curve = -1.4 - intensity * 1.3
+                target_open = 2.2 + intensity * 0.4
+            else:
+                curve = 1.8 if self._vision_found else 1.1
 
         smoothing = min(1.0, dt * 12.0)
         self._mouth_open += (target_open - self._mouth_open) * smoothing
@@ -561,9 +624,13 @@ class AliceUI:
 
         if self._vision_found:
             faces = "face" if self._vision_face_count == 1 else "faces"
-            self._canvas.itemconfigure(self._focus_text, text=f"I CAN SEE YOU ({self._vision_face_count} {faces})", fill="#95d7ff")
+            scene = self._vision_scene_label.upper() if self._vision_scene_label else "UNKNOWN"
+            text = f"I CAN SEE YOU ({self._vision_face_count} {faces}) | {scene}"
+            self._canvas.itemconfigure(self._focus_text, text=text, fill="#95d7ff")
         else:
-            self._canvas.itemconfigure(self._focus_text, text="NO FACE DETECTED", fill="#6e87a5")
+            scene = self._vision_scene_label.upper() if self._vision_scene_label else "UNKNOWN"
+            text = f"NO FACE DETECTED | {scene}"
+            self._canvas.itemconfigure(self._focus_text, text=text, fill="#6e87a5")
 
     def _frame(self) -> None:
         if self._canvas is None:
@@ -658,9 +725,19 @@ class AliceUI:
         self._chat_text.see(tk.END)
         self._chat_text.configure(state="disabled")
 
-    def set_face_target(self, x: float, y: float, found: bool, face_count: int = 0) -> None:
+    def set_face_target(
+        self,
+        x: float,
+        y: float,
+        found: bool,
+        face_count: int = 0,
+        scene_label: str = "unknown",
+        scene_confidence: float = 0.0,
+    ) -> None:
         self._vision_found = found
         self._vision_face_count = max(0, face_count)
+        self._vision_scene_label = scene_label or "unknown"
+        self._vision_scene_confidence = max(0.0, min(1.0, scene_confidence))
 
         if found:
             self._raw_face_x = max(-1.0, min(1.0, x))
@@ -668,3 +745,7 @@ class AliceUI:
         else:
             self._raw_face_x *= 0.9
             self._raw_face_y *= 0.9
+
+    def set_emotion(self, name: str, intensity: float) -> None:
+        self._emotion_name = (name or "neutral").strip().lower() or "neutral"
+        self._emotion_intensity = max(0.0, min(1.0, intensity))
