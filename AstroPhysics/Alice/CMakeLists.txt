@@ -36,5 +36,12 @@ if(APPLE)
   set_source_files_properties(src/voice_listener_macos.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
   set_source_files_properties(src/face_tracker_macos.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
   target_link_options(alice PRIVATE "-Wl,-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_SOURCE_DIR}/resources/AliceInfo.plist")
-  target_link_libraries(alice "-framework AppKit" "-framework AVFoundation" "-framework Speech" "-framework Vision")
+  target_link_libraries(alice
+    "-framework AppKit"
+    "-framework AVFoundation"
+    "-framework Speech"
+    "-framework Vision"
+    "-framework CoreMedia"
+    "-framework CoreVideo"
+  )
 endif()

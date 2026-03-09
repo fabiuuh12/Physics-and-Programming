@@ -9,17 +9,10 @@
 #include <mutex>
 #include <thread>
 
-namespace alice {
-
-struct FaceTracker::Impl {
-    mutable std::mutex mutex;
-    bool is_running = false;
-    std::string error;
-    FaceObservation observation;
-
-    AVCaptureSession* session = nil;
-    dispatch_queue_t capture_queue = nil;
-    id delegate = nil;
+struct AliceFaceTrackerState {
+    std::mutex* mutex = nullptr;
+    alice::FaceObservation* observation = nullptr;
+    std::string* error = nullptr;
 };
 
 static bool wait_for_bool_async(const std::function<void(void (^)(bool))>& trigger, bool& out_value,
@@ -75,10 +68,11 @@ static VNFaceObservation* select_best_face(NSArray<VNFaceObservation*>* faces) {
            fromConnection:(AVCaptureConnection*)connection {
     (void)output;
     (void)connection;
-    if (self.owner == nullptr) {
+
+    AliceFaceTrackerState* state = static_cast<AliceFaceTrackerState*>(self.owner);
+    if (state == nullptr || state->mutex == nullptr || state->observation == nullptr) {
         return;
     }
-    alice::FaceTracker::Impl* owner = static_cast<alice::FaceTracker::Impl*>(self.owner);
 
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     if (imageBuffer == nullptr) {
@@ -94,7 +88,7 @@ static VNFaceObservation* select_best_face(NSArray<VNFaceObservation*>* faces) {
         NSError* error = nil;
         const BOOL ok = [handler performRequests:@[ request ] error:&error];
 
-        FaceObservation obs;
+        alice::FaceObservation obs;
         if (ok && request.results != nil && request.results.count > 0) {
             NSArray<VNFaceObservation*>* faces = (NSArray<VNFaceObservation*>*)request.results;
             VNFaceObservation* best = select_best_face(faces);
@@ -111,16 +105,30 @@ static VNFaceObservation* select_best_face(NSArray<VNFaceObservation*>* faces) {
         }
 
         {
-            std::scoped_lock lock(owner->mutex);
-            owner->observation = obs;
-            if (!ok && error != nil) {
-                owner->error = std::string([[error localizedDescription] UTF8String]);
+            std::scoped_lock lock(*state->mutex);
+            *state->observation = obs;
+            if (!ok && error != nil && state->error != nullptr) {
+                *state->error = std::string([[error localizedDescription] UTF8String]);
             }
         }
     }
 }
 
 @end
+
+namespace alice {
+
+struct FaceTracker::Impl {
+    mutable std::mutex mutex;
+    bool is_running = false;
+    std::string error;
+    FaceObservation observation;
+
+    AVCaptureSession* session = nil;
+    dispatch_queue_t capture_queue = nil;
+    id delegate = nil;
+    AliceFaceTrackerState delegate_state;
+};
 
 FaceTracker::FaceTracker() : impl_(new Impl()) {}
 
@@ -157,7 +165,7 @@ bool FaceTracker::start(int camera_index) {
         AVCaptureDeviceDiscoverySession* discovery =
             [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[
                 AVCaptureDeviceTypeBuiltInWideAngleCamera,
-                AVCaptureDeviceTypeExternalUnknown
+                AVCaptureDeviceTypeExternal
             ]
                                                                   mediaType:AVMediaTypeVideo
                                                                    position:AVCaptureDevicePositionUnspecified];
@@ -198,7 +206,12 @@ bool FaceTracker::start(int camera_index) {
 
         impl_->capture_queue = dispatch_queue_create("com.fabiofacin.alice.facecapture", DISPATCH_QUEUE_SERIAL);
         AliceFaceCaptureDelegate* delegate = [[AliceFaceCaptureDelegate alloc] init];
-        delegate.owner = impl_;
+
+        impl_->delegate_state.mutex = &impl_->mutex;
+        impl_->delegate_state.observation = &impl_->observation;
+        impl_->delegate_state.error = &impl_->error;
+
+        delegate.owner = &impl_->delegate_state;
         impl_->delegate = delegate;
         [output setSampleBufferDelegate:delegate queue:impl_->capture_queue];
 
@@ -240,9 +253,7 @@ void FaceTracker::stop() {
     impl_->is_running = false;
 }
 
-bool FaceTracker::running() const {
-    return impl_->is_running;
-}
+bool FaceTracker::running() const { return impl_->is_running; }
 
 std::string FaceTracker::last_error() const {
     std::scoped_lock lock(impl_->mutex);

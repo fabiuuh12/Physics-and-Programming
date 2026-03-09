@@ -81,7 +81,7 @@ VoiceListener::VoiceListener() : impl_(new Impl()) {
         }
 
         NSString* localeId = @"en-US";
-        if (const char* envLocale = std::getenv("ALICE_STT_LOCALE"); envLocale != nullptr && envLocale[0] != '\\0') {
+        if (const char* envLocale = std::getenv("ALICE_STT_LOCALE"); envLocale != nullptr && envLocale[0] != '\0') {
             localeId = [NSString stringWithUTF8String:envLocale];
         }
         NSLocale* locale = [NSLocale localeWithLocaleIdentifier:localeId];
@@ -127,7 +127,7 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
         request.shouldReportPartialResults = NO;
         request.taskHint = SFSpeechRecognitionTaskHintDictation;
         if ([request respondsToSelector:@selector(setRequiresOnDeviceRecognition:)]) {
-            if (const char* raw = std::getenv("ALICE_STT_ON_DEVICE"); raw != nullptr && raw[0] != '\\0') {
+            if (const char* raw = std::getenv("ALICE_STT_ON_DEVICE"); raw != nullptr && raw[0] != '\0') {
                 const std::string value = to_lower(trim(raw));
                 if (value == "1" || value == "true" || value == "yes" || value == "on") {
                     request.requiresOnDeviceRecognition = YES;
