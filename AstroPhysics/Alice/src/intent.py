@@ -55,7 +55,7 @@ def parse_intent(text: str, wake_word: str = "alice", require_wake: bool = True)
         return Intent(action="help", raw=spoken)
 
     remember_match = re.match(
-        r"^(?:please\s+)?(?:remember|save)\s+(?:that\s+)?(?P<target>.+)$",
+        r"^(?:please\s+)?(?:remember|save|note|memorize|don't\s+forget|dont\s+forget)\s+(?:that\s+)?(?P<target>.+)$",
         command,
         flags=re.IGNORECASE,
     )
@@ -65,7 +65,7 @@ def parse_intent(text: str, wake_word: str = "alice", require_wake: bool = True)
             return Intent(action="remember_memory", target=target, raw=spoken)
 
     recall_match = re.match(
-        r"^(?:what\s+do\s+you\s+remember(?:\s+about)?|recall|remember\s+about)\s*(?P<target>.*)$",
+        r"^(?:what\s+do\s+you\s+remember(?:\s+about)?|what\s+did\s+i\s+tell\s+you(?:\s+about)?|what\s+have\s+you\s+learned(?:\s+about)?|what\s+do\s+you\s+know(?:\s+about)?|recall|remember\s+about)\s*(?P<target>.*)$",
         command,
         flags=re.IGNORECASE,
     )

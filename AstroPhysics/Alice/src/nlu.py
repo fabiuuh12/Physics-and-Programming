@@ -57,9 +57,18 @@ class IntentRouter:
         if "what can you do" in lowered or lowered.strip() in {"help", "commands"}:
             return Intent(action="help", raw=raw)
 
-        if lowered.startswith("remember ") or lowered.startswith("save "):
+        if re.match(
+            r"^(remember|save|note|memorize|don't forget|dont forget)\b",
+            lowered,
+            flags=re.IGNORECASE,
+        ):
             target = self._clean_target(
-                re.sub(r"^(remember|save)\s+(that\s+)?", "", command_text, flags=re.IGNORECASE)
+                re.sub(
+                    r"^(remember|save|note|memorize|don't forget|dont forget)\s+(that\s+)?",
+                    "",
+                    command_text,
+                    flags=re.IGNORECASE,
+                )
             )
             if target:
                 return Intent(action="remember_memory", target=target, raw=raw)
@@ -67,13 +76,15 @@ class IntentRouter:
         if (
             "what do you remember" in lowered
             or "what do you know about me" in lowered
+            or "what did i tell you" in lowered
+            or "what have you learned" in lowered
             or lowered.startswith("recall")
             or lowered.startswith("remember about")
         ):
             target = self._extract_target_after_preposition(command_text)
             if target is None:
                 target = re.sub(
-                    r"^(what do you remember( about)?|what do you know about me|recall|remember about)\s*",
+                    r"^(what do you remember( about)?|what do you know about me|what did i tell you( about)?|what have you learned( about)?|recall|remember about)\s*",
                     "",
                     command_text,
                     flags=re.IGNORECASE,

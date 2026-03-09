@@ -31,7 +31,7 @@ from web_search import WebHit, WebSearcher
 HELP_TEXT = (
     "Try commands like: run <file>, list files in <folder>, open folder <folder>, "
     "stop process, what time is it, what is today's date, remember that <fact>, "
-    "what do you remember about <topic>, exit. Wake word is optional."
+    "what do you remember about <topic>, can you see my hand, exit. Wake word is optional."
 )
 
 T = TypeVar("T")
@@ -171,6 +171,9 @@ def _chat_context(face_tracker: FaceTracker | None) -> dict[str, str]:
         "camera_enabled": "true",
         "camera_found_face": "true" if obs.found else "false",
         "camera_face_count": str(obs.face_count),
+        "camera_found_hand": "true" if obs.hand_found else "false",
+        "camera_hand_count": str(obs.hand_count),
+        "camera_hand_backend": obs.hand_backend,
         "camera_owner_locked": "true" if obs.owner_locked else "false",
         "camera_owner_name": obs.owner_name or "unknown",
     }
@@ -178,8 +181,8 @@ def _chat_context(face_tracker: FaceTracker | None) -> dict[str, str]:
 
 def _looks_like_vision_question(text: str) -> bool:
     lowered = text.lower()
-    vision_terms = ("see", "look", "watch", "camera", "track", "visible")
-    subject_terms = ("me", "my", "face", "hand", "us", "this", "that", "you see")
+    vision_terms = ("see", "look", "watch", "camera", "track", "visible", "detect", "recognize")
+    subject_terms = ("me", "my", "face", "hand", "hands", "fingers", "us", "this", "that", "you see")
     return any(term in lowered for term in vision_terms) and any(
         term in lowered for term in subject_terms
     )
@@ -199,13 +202,30 @@ def _camera_chat_reply(text: str, face_tracker: FaceTracker | None) -> str | Non
             "and I can look at you."
         )
 
-    if "hand" in lowered or "object" in lowered:
-        return "I can currently track faces, but I do not have hand or object detection yet."
-
     observation = face_tracker.get_latest()
+    asks_hand = any(token in lowered for token in ("hand", "hands", "finger", "fingers", "palm"))
+    asks_object = any(token in lowered for token in ("object", "item", "thing", "stuff"))
+
+    if asks_object and not asks_hand:
+        return (
+            "I can detect faces and basic hand presence, but I do not have full object recognition yet."
+        )
+
+    if asks_hand:
+        if observation.hand_found:
+            if observation.hand_count == 1:
+                return "Yes, I can see one hand."
+            return f"Yes, I can see {observation.hand_count} hands."
+        return (
+            "I cannot see your hand clearly right now. Keep your hand inside the camera frame "
+            "with brighter lighting."
+        )
+
     if observation.found:
         name = observation.owner_name or "you"
         return f"Yes, I can see {name} and I am tracking your face."
+    if observation.hand_found:
+        return "I can see your hand, but I cannot lock your face right now."
     return (
         "I cannot see your face right now. Please face the camera and try better lighting."
     )
@@ -219,23 +239,24 @@ def _extract_memorable_fact(text: str) -> str | None:
         return None
 
     lowered = cleaned.lower()
-    starters = (
-        "my name is ",
-        "i am ",
-        "i'm ",
-        "i like ",
-        "i love ",
-        "i prefer ",
-        "my favorite ",
-        "my project is ",
-        "i am working on ",
-        "i'm working on ",
-    )
-    if not any(lowered.startswith(prefix) for prefix in starters):
-        return None
-
     if len(cleaned) < 8 or len(cleaned) > 180:
         return None
+
+    hedging = ("i think ", "i guess ", "probably ", "maybe ", "perhaps ")
+    if any(lowered.startswith(prefix) for prefix in hedging):
+        return None
+
+    patterns = (
+        r"^(?:my\s+(?:name|birthday|goal|project|major|school|city|hometown)\s+(?:is|are)\s+.+)$",
+        r"^(?:my\s+favorite\s+[a-z][a-z\s]{1,20}\s+(?:is|are)\s+.+)$",
+        r"^(?:i(?:'m| am)\s+working\s+on\s+.+)$",
+        r"^(?:i\s+(?:study|work\s+on|build|use)\s+.+)$",
+        r"^(?:i\s+(?:like|love|prefer|enjoy|hate)\s+.+)$",
+        r"^(?:call\s+me\s+.+)$",
+    )
+    if not any(re.match(pattern, lowered) for pattern in patterns):
+        return None
+
     cleaned = re.sub(r"[.!\s]+$", "", cleaned)
     return cleaned
 

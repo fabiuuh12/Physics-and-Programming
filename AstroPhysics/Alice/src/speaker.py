@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 
@@ -22,6 +23,8 @@ class Speaker:
         self._openai_tts_voice = os.getenv("ALICE_OPENAI_TTS_VOICE", "sage")
         self._openai_tts_speed = self._read_openai_speed()
         self._openai_tts_style = os.getenv("ALICE_OPENAI_TTS_STYLE", "").strip()
+        self._say_rate = self._read_say_rate()
+        self._chunk_pause_seconds = self._read_chunk_pause_seconds()
         self._speak_lock = threading.Lock()
         if not enable_tts:
             return
@@ -73,6 +76,27 @@ class Speaker:
         if speed > 4.0:
             return 4.0
         return speed
+
+    def _read_say_rate(self) -> int:
+        raw = os.getenv("ALICE_SAY_RATE", "178").strip()
+        try:
+            value = int(raw)
+        except ValueError:
+            return 178
+        if value < 120:
+            return 120
+        if value > 260:
+            return 260
+        return value
+
+    def _read_chunk_pause_seconds(self) -> float:
+        raw = os.getenv("ALICE_TTS_CHUNK_PAUSE_MS", "35").strip()
+        try:
+            value_ms = float(raw)
+        except ValueError:
+            value_ms = 35.0
+        value_ms = max(0.0, min(250.0, value_ms))
+        return value_ms / 1000.0
 
     def _command_exists(self, command: str) -> bool:
         return subprocess.run(
@@ -180,8 +204,22 @@ class Speaker:
             chunks.append(current)
         return chunks
 
+    def _prepare_tts_text(self, text: str) -> str:
+        cleaned = text.strip()
+        if not cleaned:
+            return ""
+
+        # Keep spoken output natural by removing symbols/formatting artifacts.
+        cleaned = re.sub(r"https?://\S+", " link ", cleaned)
+        cleaned = cleaned.replace("|", ". ")
+        cleaned = cleaned.replace("->", " to ")
+        cleaned = cleaned.replace("_", " ")
+        cleaned = re.sub(r"\s*[:;]\s*", ". ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
+
     def _speak_with_say(self, text: str) -> None:
-        command = ["say"]
+        command = ["say", "-r", str(self._say_rate)]
         if self._voice:
             command.extend(["-v", self._voice])
         command.append(text)
@@ -238,7 +276,8 @@ class Speaker:
 
     def say(self, text: str) -> None:
         print(f"Alice> {text}")
-        chunks = self._chunk_text(text)
+        speech_text = self._prepare_tts_text(text)
+        chunks = self._chunk_text(speech_text, max_chunk_len=180)
         if not chunks:
             return
 
@@ -264,6 +303,10 @@ class Speaker:
                         continue
                 if self._backend == "say":
                     self._speak_with_say(chunk)
+                    if self._chunk_pause_seconds > 0:
+                        time.sleep(self._chunk_pause_seconds)
                     continue
                 if self._backend == "pyttsx3":
                     self._speak_with_pyttsx3(chunk)
+                    if self._chunk_pause_seconds > 0:
+                        time.sleep(self._chunk_pause_seconds)

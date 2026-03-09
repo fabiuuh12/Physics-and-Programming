@@ -24,8 +24,8 @@ class AliceBrain:
 
     def _looks_like_visual_question(self, text: str) -> bool:
         t = text.lower()
-        vision_terms = {"see", "look", "watch", "camera", "track", "visible"}
-        subject_terms = {"me", "my", "face", "hand", "us", "this", "that", "you see"}
+        vision_terms = {"see", "look", "watch", "camera", "track", "visible", "detect", "recognize"}
+        subject_terms = {"me", "my", "face", "hand", "hands", "fingers", "us", "this", "that", "you see"}
         return any(term in t for term in vision_terms) and any(term in t for term in subject_terms)
 
     def _fallback_reply(self, text: str, context: dict[str, str] | None = None) -> str:
@@ -35,19 +35,32 @@ class AliceBrain:
         if self._looks_like_visual_question(t):
             camera_enabled = context.get("camera_enabled", "false") == "true"
             camera_found_face = context.get("camera_found_face", "false") == "true"
+            camera_found_hand = context.get("camera_found_hand", "false") == "true"
+            camera_hand_count = int(context.get("camera_hand_count", "0") or 0)
             owner_name = context.get("camera_owner_name", "you")
             if "hand" in t or "object" in t:
+                if "object" in t and "hand" not in t:
+                    if camera_enabled:
+                        return (
+                            "I can currently detect faces and basic hand presence, "
+                            "but I do not have full object recognition yet."
+                        )
+                    return "Camera tracking is off, so I cannot detect objects right now."
+                if camera_enabled and camera_found_hand:
+                    if camera_hand_count <= 1:
+                        return "Yes, I can see one hand."
+                    return f"Yes, I can see {camera_hand_count} hands."
                 if camera_enabled:
                     return (
-                        "I can currently track faces, but I do not have hand or object detection yet."
+                        "I cannot see your hand clearly right now. Keep your hand in frame with better lighting."
                     )
-                return (
-                    "Not yet. Camera tracking is off, and currently I only support face tracking."
-                )
+                return "Camera tracking is not enabled right now. Start me with --ui --camera."
             if not camera_enabled:
                 return "Camera tracking is not enabled right now. Start me with --ui --camera."
             if camera_found_face:
                 return f"Yes, I can see {owner_name} and I am tracking your face."
+            if camera_found_hand:
+                return "I can see your hand, but I cannot lock your face right now."
             return "I cannot see your face clearly right now. Please face the camera with better lighting."
 
         if any(k in t for k in {"hello", "hi", "hey"}):
@@ -88,8 +101,8 @@ class AliceBrain:
                 "content": (
                     "You are Alice, a concise voice assistant for Fabio. "
                     "Be natural, useful, and brief. Do not claim actions you did not perform. "
-                    "Vision capability is limited to face tracking from a webcam; "
-                    "you do not have full scene understanding or hand/object detection."
+                    "Vision capability includes webcam face tracking and basic hand detection only; "
+                    "you do not have full scene or object recognition."
                 ),
             }
         ]
