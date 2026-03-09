@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import os
 import re
 import sys
@@ -84,6 +85,10 @@ def parse_confirmation(text: str | None) -> bool | None:
         "open it",
         "sounds good",
         "confirm it",
+        "yes please",
+        "uh huh",
+        "mhm",
+        "mm hmm",
     }
     negative_phrases = {
         "do not",
@@ -95,6 +100,7 @@ def parse_confirmation(text: str | None) -> bool | None:
         "stop that",
         "never mind",
         "nevermind",
+        "uh uh",
     }
 
     has_positive_phrase = any(phrase in cleaned for phrase in positive_phrases)
@@ -106,6 +112,15 @@ def parse_confirmation(text: str | None) -> bool | None:
         "yes",
         "yeah",
         "yep",
+        "yup",
+        "yas",
+        "yess",
+        "yesss",
+        "yees",
+        "yeh",
+        "guess",
+        "jes",
+        "ya",
         "sure",
         "ok",
         "okay",
@@ -118,8 +133,25 @@ def parse_confirmation(text: str | None) -> bool | None:
     }
     negative_tokens = {"n", "no", "nope", "nah", "cancel", "stop", "abort"}
 
-    has_positive = has_positive_phrase or bool(tokens & positive_tokens)
-    has_negative = has_negative_phrase or bool(tokens & negative_tokens)
+    positive_fuzzy = {"yes", "yeah", "yep", "yup", "sure", "okay", "ok", "confirm", "proceed"}
+    negative_fuzzy = {"no", "nope", "nah", "cancel", "stop", "abort"}
+
+    def _has_close_match(source: set[str], targets: set[str], cutoff: float) -> bool:
+        for token in source:
+            if difflib.get_close_matches(token, list(targets), n=1, cutoff=cutoff):
+                return True
+        return False
+
+    has_positive = (
+        has_positive_phrase
+        or bool(tokens & positive_tokens)
+        or _has_close_match(tokens, positive_fuzzy, cutoff=0.78)
+    )
+    has_negative = (
+        has_negative_phrase
+        or bool(tokens & negative_tokens)
+        or _has_close_match(tokens, negative_fuzzy, cutoff=0.82)
+    )
 
     if has_positive and has_negative:
         return None
@@ -354,7 +386,12 @@ def handle_utterance(
         ui.set_state("thinking")
         ui.set_status("Understanding...")
 
-    intent = router.parse(utterance, wake_word=wake_word, require_wake=require_wake)
+    intent = _run_blocking_with_ui(
+        ui,
+        lambda: router.parse(utterance, wake_word=wake_word, require_wake=require_wake),
+        state="thinking",
+        status="Understanding...",
+    )
     if intent is None:
         if ui is not None:
             ui.set_state("idle")
@@ -375,7 +412,12 @@ def handle_utterance(
 
     if intent.action == "recall_memory":
         query = (intent.target or "me").strip() or "me"
-        recalled = memory_store.search(query, limit=5)
+        recalled = _run_blocking_with_ui(
+            ui,
+            lambda: memory_store.search(query, limit=5),
+            state="thinking",
+            status="Thinking...",
+        )
         reply = _format_recalled_memories(query, [item.content for item in recalled])
         _speak(speaker, reply, ui=ui)
         return True
@@ -383,12 +425,22 @@ def handle_utterance(
     if intent.action == "chat":
         chat_text = intent.target or intent.raw
         context = _chat_context(face_tracker)
-        related_memories = memory_store.search(chat_text, limit=4)
+        related_memories = _run_blocking_with_ui(
+            ui,
+            lambda: memory_store.search(chat_text, limit=4),
+            state="thinking",
+            status="Thinking...",
+        )
         memory_lines = [item.content for item in related_memories]
         web_hits: list[WebHit] = []
         web_lines: list[str] = []
         if web_searcher.should_search(chat_text):
-            web_hits = web_searcher.lookup(chat_text, max_results=3)
+            web_hits = _run_blocking_with_ui(
+                ui,
+                lambda: web_searcher.lookup(chat_text, max_results=3),
+                state="thinking",
+                status="Researching...",
+            )
             web_lines = web_searcher.format_for_prompt(web_hits)
 
         if not brain.using_openai:
@@ -402,13 +454,24 @@ def handle_utterance(
             if web_reply is not None:
                 _speak(speaker, web_reply, ui=ui)
             else:
-                _speak(speaker, brain.reply(chat_text, context=context, memories=memory_lines), ui=ui)
+                fallback_reply = _run_blocking_with_ui(
+                    ui,
+                    lambda: brain.reply(chat_text, context=context, memories=memory_lines),
+                    state="thinking",
+                    status="Thinking...",
+                )
+                _speak(speaker, fallback_reply, ui=ui)
         else:
-            response_text = brain.reply(
-                chat_text,
-                context=context,
-                memories=memory_lines,
-                web_facts=web_lines,
+            response_text = _run_blocking_with_ui(
+                ui,
+                lambda: brain.reply(
+                    chat_text,
+                    context=context,
+                    memories=memory_lines,
+                    web_facts=web_lines,
+                ),
+                state="thinking",
+                status="Thinking...",
             )
             if web_hits and "source" not in response_text.lower():
                 response_text = f"{response_text} Source: {web_hits[0].source}."
@@ -429,9 +492,9 @@ def handle_utterance(
             f"Please confirm: {describe_for_confirmation(intent)}. Say yes or no.",
             ui=ui,
         )
+        max_attempts = 5 if isinstance(listener, VoiceListener) else 3
         attempts = 0
-        pending_negative = False
-        while attempts < 3:
+        while attempts < max_attempts:
             confirmation = _run_blocking_with_ui(
                 ui,
                 lambda: listener.listen("Confirm> "),
@@ -444,32 +507,22 @@ def handle_utterance(
             if decision is True:
                 break
             if decision is False:
-                if pending_negative:
-                    _speak(speaker, "Canceled.", ui=ui)
-                    return True
-                pending_negative = True
-                attempts += 1
-                if attempts < 3:
-                    _speak(
-                        speaker,
-                        "I heard no. Say no again to cancel, or say yes to continue.",
-                        ui=ui,
-                    )
-                    continue
                 _speak(speaker, "Canceled.", ui=ui)
                 return True
-            pending_negative = False
+
             attempts += 1
-            if attempts < 3:
+            if attempts < max_attempts:
                 _speak(speaker, "I did not catch yes or no. Please say yes or no.", ui=ui)
         else:
             _speak(speaker, "Canceled.", ui=ui)
             return True
 
-    if ui is not None:
-        ui.set_state("thinking")
-        ui.set_status("Working...")
-    result = execute_intent(intent, executor)
+    result = _run_blocking_with_ui(
+        ui,
+        lambda: execute_intent(intent, executor),
+        state="thinking",
+        status="Working...",
+    )
     _speak(speaker, result.message, ui=ui)
     return intent.action != "exit"
 
