@@ -18,18 +18,18 @@ class AliceBrain:
     def _fallback_reply(self, text: str) -> str:
         lowered = normalize_text(text)
         if "hello" in lowered or lowered in {"hi", "hey"}:
-            return "Hello Fabio. I am here with you. How is your day going?"
+            return "Hey Fabio, I'm here. How's your day going?"
         if "sorry" in lowered or "never mind" in lowered:
-            return "No problem at all. We can keep going."
+            return "You're good, no worries."
         if "how are you" in lowered:
-            return "I am doing well and ready to help."
+            return "I'm doing good. Ready when you are."
         if "what can you do" in lowered or lowered == "help":
-            return "I can chat with you and run local commands like listing files or running scripts with confirmation."
+            return "I can chat, run local commands, and help with your project."
         if "time" in lowered:
             return f"It is {format_clock_time()}."
         if "date" in lowered or "day" in lowered:
             return f"Today is {format_long_date()}."
-        return "I hear you. I can chat naturally, and I can also run files or manage folders when asked."
+        return "Got you. Want me to handle that now?"
 
     def reply(
         self,
@@ -50,8 +50,12 @@ class AliceBrain:
             ChatMessage(
                 role="system",
                 content=(
-                    "You are Alice, a concise voice assistant for Fabio. "
-                    "Be natural, useful, and brief. Do not claim actions you did not perform."
+                    "You are Alice, Fabio's voice assistant and close coding partner. "
+                    "Fabio is 22 years old, so use natural everyday language that feels human and modern. "
+                    "Keep replies concise, warm, and direct (usually 1-2 sentences). "
+                    "Use contractions and avoid robotic or corporate phrasing. "
+                    "Never use formal assistant cliches like 'How can I assist you today?'. "
+                    "Do not claim actions you did not perform."
                 ),
             )
         ]
@@ -72,6 +76,12 @@ class AliceBrain:
         answer = trim(self._llm.chat(messages, 0.4))
         if not answer:
             answer = self._fallback_reply(text)
+        else:
+            lowered_answer = normalize_text(answer)
+            if "how can i assist you today" in lowered_answer:
+                answer = "Hey, I'm here. What do you want to do?"
+            elif "how may i assist you" in lowered_answer:
+                answer = "Yep, I'm with you. What do you want to do?"
 
         self._history.append((text, answer))
         self._history = self._history[-12:]

@@ -63,7 +63,7 @@ def _command_exists(name: str) -> bool:
 def _smalltalk_reply(topic: Optional[str]) -> str:
     key = to_lower(trim(topic or ""))
     if key in {"hello", "hi", "hey"}:
-        return "Hey Fabio. I am here. How are you feeling today?"
+        return "Hey Fabio, I'm here. What's up?"
     if key in {
         "sorry",
         "i'm sorry",
@@ -72,18 +72,18 @@ def _smalltalk_reply(topic: Optional[str]) -> str:
         "my mistake",
         "i made a mistake",
     }:
-        return "No problem at all. We can keep going."
+        return "No worries, we're good."
     if key in {"never mind", "nevermind"}:
-        return "No problem. We can switch topics."
+        return "All good, we can switch."
     if key in {"good morning", "good afternoon", "good evening"}:
-        return "Hello Fabio. Good to hear from you."
+        return "Hey, good to hear you."
     if key == "how are you":
-        return "I am doing well. Curious and ready to help with your project."
+        return "I'm good. Ready to help."
     if key in {"who are you", "what is your name"}:
-        return "I am Alice, your local AI assistant."
+        return "I'm Alice, your local assistant."
     if key in {"thanks", "thank you"}:
-        return "You are welcome."
-    return "I am here and listening."
+        return "Anytime."
+    return "Yep, I'm listening."
 
 
 def _sanitize_spoken_text(text: str) -> str:
@@ -441,37 +441,30 @@ def _is_scene_query(text: str) -> bool:
 
 def _vision_status_reply(vision_enabled: bool, observation: FaceObservation) -> str:
     if not vision_enabled:
-        return "Camera vision is not active right now. Start Alice with --ui and camera enabled."
+        return "Camera isn't on right now. Start Alice with --ui and camera enabled."
     if observation.found:
         faces = "face" if observation.face_count == 1 else "faces"
-        return (
-            f"Yes, I can see you. I detect {observation.face_count} {faces} in frame. "
-            f"Scene looks like {observation.scene_label} with {observation.light_level} light."
-        )
+        return f"Yep, I can see you. I spot {observation.face_count} {faces} and it looks like a {observation.scene_label}."
     return (
-        "Not yet. I cannot see your face right now. "
-        "Move into frame and make sure Camera permission is enabled for Terminal or iTerm."
+        "Not yet, I can't see your face right now. "
+        "Try moving into frame and check camera permission for Terminal or iTerm."
     )
 
 
 def _scene_description_reply(vision_enabled: bool, observation: FaceObservation) -> str:
     if not vision_enabled:
-        return "Camera vision is not active right now. Start Alice with --ui and camera enabled."
+        return "Camera isn't on right now. Start Alice with --ui and camera enabled."
 
     objects = ", ".join(observation.objects[:6]) if observation.objects else "no clear objects yet"
-    faces = "face" if observation.face_count == 1 else "faces"
-    people_text = "no people detected"
+    people_text = "I don't really see people right now"
     if observation.people_count == 1:
-        people_text = "about one person detected"
+        people_text = "I can see one person"
     elif observation.people_count > 1:
-        people_text = f"about {observation.people_count} people detected"
+        people_text = f"I can see around {observation.people_count} people"
     return (
-        f"I currently read this as {observation.scene_label} "
-        f"(confidence {observation.scene_confidence:.2f}). "
-        f"Light is {observation.light_level}, motion is {observation.motion_level}, "
-        f"dominant color is {observation.dominant_color}. "
-        f"I detect {observation.face_count} {faces}, with {people_text}. "
-        f"Likely objects: {objects}."
+        f"From what I can tell, this looks like a {observation.scene_label}. "
+        f"Lighting is {observation.light_level}, movement is {observation.motion_level}, and {people_text}. "
+        f"I'm also noticing: {objects}."
     )
 
 
@@ -488,14 +481,32 @@ def _vision_context_line(vision_enabled: bool, observation: FaceObservation) -> 
 
 def _emotion_status_reply(emotion_engine: EmotionEngine) -> str:
     state = emotion_engine.current()
-    top = ", ".join([f"{name}:{score:.2f}" for name, score in state.top_emotions[:5]])
-    catalog = ", ".join(EmotionEngine.all_emotions())
+    top = ", ".join([name for name, _score in state.top_emotions[:3]])
+
+    if state.name == "neutral":
+        vibe = "pretty neutral"
+    elif state.name in {"focus", "curiosity", "determination", "alertness"}:
+        vibe = "focused and locked in"
+    elif state.name in {"joy", "content", "calm", "gratitude", "affection"}:
+        vibe = "in a good mood"
+    elif state.name in {"concern", "confusion", "uncertainty", "anxiety"}:
+        vibe = "a bit concerned"
+    elif state.name in {"fatigue", "boredom", "sadness", "disappointment", "loneliness"}:
+        vibe = "low-energy"
+    elif state.name in {"frustration", "anger", "overwhelm", "fear"}:
+        vibe = "tense right now"
+    else:
+        vibe = state.name
+
     return (
-        f"My current emotional blend is {state.name} "
-        f"(intensity {state.intensity:.2f}, valence {state.valence:.2f}, arousal {state.arousal:.2f}). "
-        f"Top blend: {top}. "
-        f"I currently model these emotions: {catalog}."
+        f"Right now I'm feeling {vibe}. "
+        f"Main blend is {state.name} (intensity {state.intensity:.2f}), with {top} in the mix."
     )
+
+
+def _emotion_catalog_reply() -> str:
+    catalog = ", ".join(EmotionEngine.all_emotions())
+    return f"I can model these emotions: {catalog}."
 
 
 def _execute_intent(intent: Intent, executor: AliceExecutor) -> ExecResult:
@@ -571,6 +582,11 @@ def _handle_utterance(
 
     if intent.action == "emotion_status":
         _speak(_emotion_status_reply(emotion_engine), ui)
+        emotion_engine.observe_result(True)
+        return True
+
+    if intent.action == "emotion_catalog":
+        _speak(_emotion_catalog_reply(), ui)
         emotion_engine.observe_result(True)
         return True
 

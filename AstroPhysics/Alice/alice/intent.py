@@ -142,7 +142,13 @@ def parse_intent(text: str, wake_word: str, require_wake: bool) -> tuple[Intent,
         return Intent(action="vision_status", raw=spoken), matched
 
     if re.search(
-        r"\b(what\s+emotions\s+do\s+you\s+have|list\s+your\s+emotions|how\s+are\s+you\s+feeling|what\s+do\s+you\s+feel)\b",
+        r"\b(what\s+emotions\s+do\s+you\s+have|list\s+your\s+emotions)\b",
+        lowered,
+    ):
+        return Intent(action="emotion_catalog", raw=spoken), matched
+
+    if re.search(
+        r"\b(how\s+are\s+you\s+feeling|what\s+do\s+you\s+feel)\b",
         lowered,
     ):
         return Intent(action="emotion_status", raw=spoken), matched
