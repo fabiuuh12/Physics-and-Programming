@@ -1,10 +1,11 @@
 #import <AppKit/AppKit.h>
+#import <SceneKit/SceneKit.h>
 
 #include "alice/ui.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
+#include <memory>
 
 @interface AliceFaceView : NSView
 @property(nonatomic, copy) NSString* stateName;
@@ -15,6 +16,24 @@
 @property(nonatomic) NSInteger faceCount;
 @property(nonatomic) CGFloat smoothX;
 @property(nonatomic) CGFloat smoothY;
+
+@property(nonatomic, strong) SCNView* sceneView;
+@property(nonatomic, strong) SCNNode* rigNode;
+@property(nonatomic, strong) SCNNode* headNode;
+@property(nonatomic, strong) SCNNode* dataShellNode;
+@property(nonatomic, strong) SCNNode* haloNode;
+@property(nonatomic, strong) SCNNode* leftEyeNode;
+@property(nonatomic, strong) SCNNode* rightEyeNode;
+@property(nonatomic, strong) SCNNode* leftIrisNode;
+@property(nonatomic, strong) SCNNode* rightIrisNode;
+@property(nonatomic, strong) SCNNode* leftPupilNode;
+@property(nonatomic, strong) SCNNode* rightPupilNode;
+@property(nonatomic, strong) SCNNode* leftBrowNode;
+@property(nonatomic, strong) SCNNode* rightBrowNode;
+@property(nonatomic, strong) SCNNode* noseNode;
+@property(nonatomic, strong) SCNNode* mouthNode;
+@property(nonatomic, strong) NSArray<SCNParticleSystem*>* dissolveParticleSystems;
+
 - (void)tick;
 @end
 
@@ -32,195 +51,347 @@
         _smoothX = 0.0;
         _smoothY = 0.0;
         self.wantsLayer = YES;
+        [self buildScene];
     }
     return self;
 }
 
-- (NSColor*)ringColor {
+- (void)layout {
+    [super layout];
+    if (self.sceneView != nil) {
+        self.sceneView.frame = self.bounds;
+    }
+}
+
+- (SCNMaterial*)materialWithDiffuse:(NSColor*)diffuse
+                            specular:(NSColor*)specular
+                            emission:(NSColor*)emission
+                           roughness:(CGFloat)roughness
+                           metalness:(CGFloat)metalness {
+    SCNMaterial* material = [[SCNMaterial alloc] init];
+    material.lightingModelName = SCNLightingModelPhysicallyBased;
+    material.diffuse.contents = diffuse;
+    material.specular.contents = specular;
+    material.emission.contents = emission;
+    material.roughness.contents = @(roughness);
+    material.metalness.contents = @(metalness);
+    material.fresnelExponent = 1.2;
+    return material;
+}
+
+- (NSImage*)binaryDigitsTextureWithSize:(NSSize)size {
+    NSImage* image = [[NSImage alloc] initWithSize:size];
+    [image lockFocus];
+
+    [[NSColor colorWithCalibratedWhite:0.0 alpha:1.0] setFill];
+    NSRectFill(NSMakeRect(0.0, 0.0, size.width, size.height));
+
+    NSDictionary* attrs = @{
+        NSFontAttributeName : [NSFont fontWithName:@"Menlo-Bold" size:13.0] ?: [NSFont monospacedDigitSystemFontOfSize:13.0 weight:NSFontWeightMedium],
+        NSForegroundColorAttributeName : [NSColor colorWithRed:0.28 green:0.94 blue:1.0 alpha:0.9],
+    };
+
+    const CGFloat stepX = 11.0;
+    const CGFloat stepY = 15.0;
+    const NSInteger cols = static_cast<NSInteger>(size.width / stepX) + 1;
+    const NSInteger rows = static_cast<NSInteger>(size.height / stepY) + 1;
+
+    for (NSInteger row = 0; row < rows; ++row) {
+        for (NSInteger col = 0; col < cols; ++col) {
+            const NSInteger pattern = (row * 7 + col * 11 + ((row + col) % 3)) % 2;
+            NSString* digit = pattern == 0 ? @"0" : @"1";
+            const CGFloat jitter = (row % 3 == 0 ? 1.2 : -0.8);
+            const NSPoint point = NSMakePoint(col * stepX + jitter, row * stepY);
+            [digit drawAtPoint:point withAttributes:attrs];
+        }
+    }
+
+    [image unlockFocus];
+    return image;
+}
+
+- (NSImage*)particleDigitImage {
+    NSImage* image = [[NSImage alloc] initWithSize:NSMakeSize(28.0, 28.0)];
+    [image lockFocus];
+    [[NSColor clearColor] setFill];
+    NSRectFill(NSMakeRect(0.0, 0.0, 28.0, 28.0));
+    NSDictionary* attrs = @{
+        NSFontAttributeName : [NSFont fontWithName:@"Menlo-Bold" size:20.0] ?: [NSFont monospacedDigitSystemFontOfSize:20.0 weight:NSFontWeightBold],
+        NSForegroundColorAttributeName : [NSColor colorWithRed:0.30 green:0.96 blue:1.0 alpha:1.0],
+    };
+    [@"0" drawAtPoint:NSMakePoint(5.0, 3.0) withAttributes:attrs];
+    [image unlockFocus];
+    return image;
+}
+
+- (SCNParticleSystem*)buildDissolveSystemWithBirthRate:(CGFloat)birthRate velocity:(CGFloat)velocity {
+    SCNParticleSystem* system = [SCNParticleSystem particleSystem];
+    system.birthRate = birthRate;
+    system.loops = YES;
+    system.birthLocation = SCNParticleBirthLocationSurface;
+    system.emitterShape = [SCNSphere sphereWithRadius:0.19];
+    system.particleLifeSpan = 1.55;
+    system.particleLifeSpanVariation = 0.55;
+    system.particleVelocity = velocity;
+    system.particleVelocityVariation = velocity * 0.55;
+    system.spreadingAngle = 18.0;
+    system.acceleration = SCNVector3Make(0.58, 0.04, 0.0);
+    system.particleSize = 0.055;
+    system.particleSizeVariation = 0.03;
+    system.blendMode = SCNParticleBlendModeAdditive;
+    system.particleColor = [NSColor colorWithRed:0.22 green:0.90 blue:1.0 alpha:0.92];
+    system.particleColorVariation = SCNVector4Make(0.05, 0.08, 0.10, 0.25);
+    system.particleIntensity = 1.0;
+    system.particleImage = [self particleDigitImage];
+    system.isAffectedByGravity = NO;
+    system.isLightingEnabled = NO;
+    return system;
+}
+
+- (NSColor*)stateColor {
     NSString* state = self.stateName ?: @"idle";
     if ([state isEqualToString:@"listening"]) {
-        return [NSColor colorWithRed:0.43 green:0.72 blue:1.0 alpha:1.0];
+        return [NSColor colorWithRed:0.20 green:0.90 blue:1.0 alpha:1.0];
     }
     if ([state isEqualToString:@"thinking"]) {
-        return [NSColor colorWithRed:0.95 green:0.80 blue:0.45 alpha:1.0];
+        return [NSColor colorWithRed:0.16 green:0.82 blue:0.97 alpha:1.0];
     }
     if ([state isEqualToString:@"speaking"]) {
-        return [NSColor colorWithRed:0.48 green:0.90 blue:0.72 alpha:1.0];
+        return [NSColor colorWithRed:0.34 green:0.96 blue:1.0 alpha:1.0];
     }
     if ([state isEqualToString:@"error"]) {
-        return [NSColor colorWithRed:1.0 green:0.58 blue:0.58 alpha:1.0];
+        return [NSColor colorWithRed:1.0 green:0.45 blue:0.45 alpha:1.0];
     }
-    return [NSColor colorWithRed:0.32 green:0.50 blue:0.72 alpha:1.0];
+    return [NSColor colorWithRed:0.18 green:0.80 blue:0.95 alpha:1.0];
+}
+
+- (void)buildScene {
+    self.sceneView = [[SCNView alloc] initWithFrame:self.bounds];
+    self.sceneView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    self.sceneView.backgroundColor = [NSColor colorWithRed:0.02 green:0.05 blue:0.09 alpha:1.0];
+    self.sceneView.allowsCameraControl = NO;
+    self.sceneView.playing = YES;
+    self.sceneView.rendersContinuously = YES;
+
+    SCNScene* scene = [SCNScene scene];
+    self.sceneView.scene = scene;
+
+    SCNNode* cameraNode = [SCNNode node];
+    cameraNode.camera = [SCNCamera camera];
+    cameraNode.camera.fieldOfView = 38.0;
+    cameraNode.position = SCNVector3Make(0.0, 0.06, 8.2);
+    [scene.rootNode addChildNode:cameraNode];
+
+    SCNNode* ambient = [SCNNode node];
+    ambient.light = [SCNLight light];
+    ambient.light.type = SCNLightTypeAmbient;
+    ambient.light.color = [NSColor colorWithRed:0.40 green:0.52 blue:0.70 alpha:1.0];
+    [scene.rootNode addChildNode:ambient];
+
+    SCNNode* key = [SCNNode node];
+    key.light = [SCNLight light];
+    key.light.type = SCNLightTypeOmni;
+    key.light.intensity = 1200;
+    key.position = SCNVector3Make(3.0, 4.2, 7.0);
+    [scene.rootNode addChildNode:key];
+
+    SCNNode* fill = [SCNNode node];
+    fill.light = [SCNLight light];
+    fill.light.type = SCNLightTypeOmni;
+    fill.light.intensity = 560;
+    fill.position = SCNVector3Make(-4.4, -1.2, 4.8);
+    [scene.rootNode addChildNode:fill];
+
+    SCNNode* rim = [SCNNode node];
+    rim.light = [SCNLight light];
+    rim.light.type = SCNLightTypeOmni;
+    rim.light.intensity = 780;
+    rim.position = SCNVector3Make(0.0, 0.6, -5.4);
+    [scene.rootNode addChildNode:rim];
+
+    self.rigNode = [SCNNode node];
+    [scene.rootNode addChildNode:self.rigNode];
+
+    SCNTorus* haloGeom = [SCNTorus torusWithRingRadius:2.42 pipeRadius:0.055];
+    haloGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.18 green:0.42 blue:0.63 alpha:0.26]
+                                              specular:[NSColor colorWithWhite:1.0 alpha:0.4]
+                                              emission:[[self stateColor] colorWithAlphaComponent:0.72]
+                                             roughness:0.25
+                                             metalness:0.35];
+    self.haloNode = [SCNNode nodeWithGeometry:haloGeom];
+    self.haloNode.eulerAngles = SCNVector3Make(static_cast<float>(M_PI_2), 0.0, 0.0);
+    self.haloNode.position = SCNVector3Make(0.0, 0.02, -0.18);
+    [self.rigNode addChildNode:self.haloNode];
+
+    SCNSphere* headGeom = [SCNSphere sphereWithRadius:1.90];
+    headGeom.segmentCount = 88;
+    headGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.06 green:0.26 blue:0.43 alpha:1.0]
+                                              specular:[NSColor colorWithRed:0.62 green:0.84 blue:1.0 alpha:1.0]
+                                              emission:[[self stateColor] colorWithAlphaComponent:0.18]
+                                             roughness:0.33
+                                             metalness:0.09];
+    self.headNode = [SCNNode nodeWithGeometry:headGeom];
+    self.headNode.position = SCNVector3Make(0.0, 0.06, 0.0);
+    self.headNode.scale = SCNVector3Make(0.92, 1.15, 0.82);
+    [self.rigNode addChildNode:self.headNode];
+
+    SCNSphere* jawGeom = [SCNSphere sphereWithRadius:1.20];
+    jawGeom.segmentCount = 72;
+    jawGeom.firstMaterial = headGeom.firstMaterial.copy;
+    SCNNode* jawNode = [SCNNode nodeWithGeometry:jawGeom];
+    jawNode.position = SCNVector3Make(0.0, -1.08, 0.22);
+    jawNode.scale = SCNVector3Make(0.82, 0.62, 0.70);
+    [self.headNode addChildNode:jawNode];
+
+    SCNSphere* eyeGeom = [SCNSphere sphereWithRadius:0.34];
+    eyeGeom.segmentCount = 48;
+    eyeGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.92 green:0.97 blue:1.0 alpha:1.0]
+                                             specular:[NSColor colorWithRed:0.90 green:0.96 blue:1.0 alpha:1.0]
+                                             emission:[NSColor colorWithRed:0.08 green:0.13 blue:0.20 alpha:0.0]
+                                            roughness:0.26
+                                            metalness:0.02];
+
+    self.leftEyeNode = [SCNNode nodeWithGeometry:eyeGeom.copy];
+    self.rightEyeNode = [SCNNode nodeWithGeometry:eyeGeom.copy];
+    self.leftEyeNode.position = SCNVector3Make(-0.58, 0.42, 1.43);
+    self.rightEyeNode.position = SCNVector3Make(0.58, 0.42, 1.43);
+    [self.headNode addChildNode:self.leftEyeNode];
+    [self.headNode addChildNode:self.rightEyeNode];
+
+    SCNSphere* irisGeom = [SCNSphere sphereWithRadius:0.125];
+    irisGeom.segmentCount = 36;
+    irisGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.18 green:0.80 blue:0.98 alpha:1.0]
+                                              specular:[NSColor colorWithRed:0.86 green:0.97 blue:1.0 alpha:1.0]
+                                              emission:[NSColor colorWithRed:0.10 green:0.52 blue:0.68 alpha:0.45]
+                                             roughness:0.22
+                                             metalness:0.18];
+
+    self.leftIrisNode = [SCNNode nodeWithGeometry:irisGeom.copy];
+    self.rightIrisNode = [SCNNode nodeWithGeometry:irisGeom.copy];
+    self.leftIrisNode.position = SCNVector3Make(0.0, 0.0, 0.23);
+    self.rightIrisNode.position = SCNVector3Make(0.0, 0.0, 0.23);
+    [self.leftEyeNode addChildNode:self.leftIrisNode];
+    [self.rightEyeNode addChildNode:self.rightIrisNode];
+
+    SCNSphere* pupilGeom = [SCNSphere sphereWithRadius:0.054];
+    pupilGeom.segmentCount = 28;
+    pupilGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.02 green:0.07 blue:0.11 alpha:1.0]
+                                               specular:[NSColor colorWithRed:0.34 green:0.48 blue:0.62 alpha:1.0]
+                                               emission:[NSColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.0]
+                                              roughness:0.25
+                                              metalness:0.02];
+
+    self.leftPupilNode = [SCNNode nodeWithGeometry:pupilGeom.copy];
+    self.rightPupilNode = [SCNNode nodeWithGeometry:pupilGeom.copy];
+    self.leftPupilNode.position = SCNVector3Make(0.0, 0.0, 0.14);
+    self.rightPupilNode.position = SCNVector3Make(0.0, 0.0, 0.14);
+    [self.leftIrisNode addChildNode:self.leftPupilNode];
+    [self.rightIrisNode addChildNode:self.rightPupilNode];
+
+    SCNCapsule* browGeom = [SCNCapsule capsuleWithCapRadius:0.026 height:0.52];
+    browGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.28 green:0.82 blue:0.97 alpha:1.0]
+                                              specular:[NSColor colorWithRed:0.70 green:0.94 blue:1.0 alpha:1.0]
+                                              emission:[NSColor colorWithRed:0.16 green:0.54 blue:0.75 alpha:0.45]
+                                             roughness:0.40
+                                             metalness:0.30];
+
+    self.leftBrowNode = [SCNNode nodeWithGeometry:browGeom.copy];
+    self.rightBrowNode = [SCNNode nodeWithGeometry:browGeom.copy];
+    self.leftBrowNode.position = SCNVector3Make(-0.58, 0.83, 1.57);
+    self.rightBrowNode.position = SCNVector3Make(0.58, 0.83, 1.57);
+    self.leftBrowNode.eulerAngles = SCNVector3Make(0.0, 0.0, 0.18);
+    self.rightBrowNode.eulerAngles = SCNVector3Make(0.0, 0.0, -0.18);
+    [self.headNode addChildNode:self.leftBrowNode];
+    [self.headNode addChildNode:self.rightBrowNode];
+
+    SCNCapsule* noseGeom = [SCNCapsule capsuleWithCapRadius:0.09 height:0.54];
+    noseGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.14 green:0.42 blue:0.60 alpha:1.0]
+                                              specular:[NSColor colorWithRed:0.64 green:0.86 blue:1.0 alpha:1.0]
+                                              emission:[NSColor colorWithRed:0.10 green:0.30 blue:0.44 alpha:0.16]
+                                             roughness:0.36
+                                             metalness:0.10];
+    self.noseNode = [SCNNode nodeWithGeometry:noseGeom];
+    self.noseNode.position = SCNVector3Make(0.0, -0.06, 1.62);
+    self.noseNode.eulerAngles = SCNVector3Make(0.0, 0.0, 0.0);
+    [self.headNode addChildNode:self.noseNode];
+
+    SCNBox* mouthGeom = [SCNBox boxWithWidth:0.68 height:0.10 length:0.08 chamferRadius:0.05];
+    mouthGeom.firstMaterial = [self materialWithDiffuse:[NSColor colorWithRed:0.24 green:0.76 blue:0.93 alpha:1.0]
+                                               specular:[NSColor colorWithRed:0.88 green:0.98 blue:1.0 alpha:1.0]
+                                               emission:[NSColor colorWithRed:0.08 green:0.36 blue:0.50 alpha:0.36]
+                                              roughness:0.28
+                                              metalness:0.12];
+    self.mouthNode = [SCNNode nodeWithGeometry:mouthGeom];
+    self.mouthNode.position = SCNVector3Make(0.0, -0.86, 1.53);
+    [self.headNode addChildNode:self.mouthNode];
+
+    [self addSubview:self.sceneView];
 }
 
 - (void)tick {
-    self.phase += 0.055;
+    self.phase += 0.052;
     NSString* state = self.stateName ?: @"idle";
 
     CGFloat tx = self.targetX;
     CGFloat ty = self.targetY;
     if (!self.faceLocked) {
-        const CGFloat sway = [state isEqualToString:@"thinking"] ? 0.16 : 0.22;
-        tx = std::sin(self.phase * 0.8) * sway;
-        ty = std::cos(self.phase * 0.55) * 0.14 + std::sin(self.phase * 0.31) * 0.04;
+        const CGFloat sway = [state isEqualToString:@"thinking"] ? 0.13 : 0.22;
+        tx = std::sin(self.phase * 0.82) * sway;
+        ty = std::cos(self.phase * 0.57) * 0.14 + std::sin(self.phase * 0.33) * 0.05;
     }
     if ([state isEqualToString:@"speaking"]) {
-        ty += std::sin(self.phase * 2.6) * 0.05;
+        ty += std::sin(self.phase * 2.5) * 0.06;
     }
 
-    self.smoothX += (tx - self.smoothX) * 0.18;
-    self.smoothY += (ty - self.smoothY) * 0.18;
-    [self setNeedsDisplay:YES];
-}
+    self.smoothX += (tx - self.smoothX) * 0.20;
+    self.smoothY += (ty - self.smoothY) * 0.20;
 
-- (void)drawRect:(NSRect)dirtyRect {
-    (void)dirtyRect;
-    NSRect bounds = self.bounds;
+    const CGFloat breath = std::sin(self.phase * 0.44) * 0.045;
+    self.rigNode.position = SCNVector3Make(0.0, breath, 0.0);
 
-    NSGradient* bg = [[NSGradient alloc] initWithStartingColor:[NSColor colorWithRed:0.03 green:0.06 blue:0.10 alpha:1.0]
-                                                   endingColor:[NSColor colorWithRed:0.08 green:0.12 blue:0.18 alpha:1.0]];
-    [bg drawInRect:bounds angle:90.0];
+    const CGFloat headYaw = std::clamp(self.smoothX * 0.24, -0.34, 0.34);
+    const CGFloat headPitch = std::clamp(-self.smoothY * 0.16, -0.16, 0.16);
+    self.headNode.eulerAngles = SCNVector3Make(headPitch, headYaw, 0.0);
 
-    NSBezierPath* aura1 = [NSBezierPath bezierPathWithOvalInRect:NSInsetRect(bounds, 28, 20)];
-    [[NSColor colorWithRed:0.12 green:0.26 blue:0.40 alpha:0.8] setStroke];
-    [aura1 setLineWidth:2.0];
-    [aura1 stroke];
-
-    NSBezierPath* aura2 = [NSBezierPath bezierPathWithOvalInRect:NSInsetRect(bounds, 48, 40)];
-    [[NSColor colorWithRed:0.10 green:0.22 blue:0.34 alpha:0.7] setStroke];
-    [aura2 setLineWidth:1.4];
-    [aura2 stroke];
-
-    const CGFloat breath = std::sin(self.phase * 0.42) * 4.0;
-    const CGFloat cx = NSMidX(bounds) + self.smoothX * 14.0;
-    const CGFloat cy = NSMidY(bounds) + 18.0 + self.smoothY * 10.0 + breath;
-
-    NSRect headRect = NSMakeRect(cx - 140, cy - 138, 280, 286);
-    NSBezierPath* head = [NSBezierPath bezierPathWithOvalInRect:headRect];
-
-    NSGradient* headGrad = [[NSGradient alloc] initWithColors:@[
-        [NSColor colorWithRed:0.05 green:0.18 blue:0.29 alpha:1.0],
-        [NSColor colorWithRed:0.07 green:0.30 blue:0.44 alpha:1.0],
-        [NSColor colorWithRed:0.03 green:0.13 blue:0.20 alpha:1.0],
-    ]];
-    [headGrad drawInBezierPath:head angle:120.0];
-    [[self ringColor] setStroke];
-    [head setLineWidth:3.0];
-    [head stroke];
-
-    NSBezierPath* cheekGlow = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(cx - 112, cy - 46, 224, 188)];
-    NSGradient* cheekGrad = [[NSGradient alloc] initWithStartingColor:[NSColor colorWithRed:0.53 green:0.84 blue:1.0 alpha:0.16]
-                                                          endingColor:[NSColor colorWithRed:0.08 green:0.20 blue:0.29 alpha:0.00]];
-    [cheekGrad drawInBezierPath:cheekGlow angle:90.0];
-
-    const CGFloat eyeYOffset = 46;
-    const CGFloat eyeDX = 58;
-    const CGFloat blinkCycle = std::fmod(self.phase, 18.0);
+    const CGFloat blinkCycle = std::fmod(self.phase, 17.0);
     CGFloat blink = 0.0;
-    if (blinkCycle > 16.9) {
-        const CGFloat t = std::clamp((blinkCycle - 16.9) / 1.1, 0.0, 1.0);
-        blink = std::sin(t * 3.14159265358979323846);
+    if (blinkCycle > 15.8) {
+        const CGFloat t = std::clamp((blinkCycle - 15.8) / 1.2, 0.0, 1.0);
+        blink = std::sin(t * static_cast<CGFloat>(M_PI));
     }
-    if ([self.stateName isEqualToString:@"speaking"]) {
-        blink = std::max(blink, static_cast<CGFloat>(std::max(0.0, std::sin(self.phase * 1.9)) * 0.08));
+    if ([state isEqualToString:@"speaking"]) {
+        blink = std::max(blink, static_cast<CGFloat>(std::max(0.0, std::sin(self.phase * 1.9)) * 0.07));
     }
-    const CGFloat eyeOpen = std::clamp(1.0 - blink * 0.94, 0.08, 1.0);
-    const CGFloat eyeWidth = 68.0;
-    const CGFloat eyeHeight = std::max(6.0, 46.0 * eyeOpen);
-    NSRect leftEye = NSMakeRect(cx - eyeDX - eyeWidth / 2.0, cy + eyeYOffset - eyeHeight / 2.0, eyeWidth, eyeHeight);
-    NSRect rightEye = NSMakeRect(cx + eyeDX - eyeWidth / 2.0, cy + eyeYOffset - eyeHeight / 2.0, eyeWidth, eyeHeight);
+    const CGFloat eyeOpen = std::clamp(0.74 - blink * 0.62, 0.14, 0.82);
+    self.leftEyeNode.scale = SCNVector3Make(1.0, eyeOpen, 0.92);
+    self.rightEyeNode.scale = SCNVector3Make(1.0, eyeOpen, 0.92);
 
-    NSGradient* scleraGrad = [[NSGradient alloc] initWithStartingColor:[NSColor colorWithRed:0.88 green:0.96 blue:1.0 alpha:0.95]
-                                                           endingColor:[NSColor colorWithRed:0.52 green:0.68 blue:0.80 alpha:0.95]];
-    [scleraGrad drawInBezierPath:[NSBezierPath bezierPathWithOvalInRect:leftEye] angle:90.0];
-    [scleraGrad drawInBezierPath:[NSBezierPath bezierPathWithOvalInRect:rightEye] angle:90.0];
+    const CGFloat pupilX = std::clamp(self.smoothX * 0.06, -0.06, 0.06);
+    const CGFloat pupilY = std::clamp(-self.smoothY * 0.045, -0.045, 0.045);
+    self.leftIrisNode.position = SCNVector3Make(pupilX, pupilY, 0.23);
+    self.rightIrisNode.position = SCNVector3Make(pupilX, pupilY, 0.23);
 
-    const CGFloat pupilOffsetX = std::clamp(self.smoothX * 10.0, -9.0, 9.0);
-    const CGFloat pupilOffsetY = std::clamp(self.smoothY * 7.0, -7.0, 7.0);
-
-    const CGFloat irisSize = std::clamp(20.0 + eyeOpen * 6.0, 18.0, 26.0);
-    NSRect leftIris =
-        NSMakeRect(NSMidX(leftEye) - irisSize / 2.0 + pupilOffsetX, NSMidY(leftEye) - irisSize / 2.0 + pupilOffsetY, irisSize, irisSize);
-    NSRect rightIris =
-        NSMakeRect(NSMidX(rightEye) - irisSize / 2.0 + pupilOffsetX, NSMidY(rightEye) - irisSize / 2.0 + pupilOffsetY, irisSize, irisSize);
-    [[NSColor colorWithRed:0.22 green:0.84 blue:0.99 alpha:1.0] setFill];
-    [[NSBezierPath bezierPathWithOvalInRect:leftIris] fill];
-    [[NSBezierPath bezierPathWithOvalInRect:rightIris] fill];
-
-    NSRect leftPupil = NSInsetRect(leftIris, irisSize * 0.30, irisSize * 0.30);
-    NSRect rightPupil = NSInsetRect(rightIris, irisSize * 0.30, irisSize * 0.30);
-    [[NSColor colorWithRed:0.02 green:0.07 blue:0.12 alpha:1.0] setFill];
-    [[NSBezierPath bezierPathWithOvalInRect:leftPupil] fill];
-    [[NSBezierPath bezierPathWithOvalInRect:rightPupil] fill];
-
-    [[NSColor colorWithRed:0.85 green:0.98 blue:1.0 alpha:0.85] setFill];
-    [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(NSMinX(leftIris) + 5, NSMinY(leftIris) + 15, 5, 5)] fill];
-    [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(NSMinX(rightIris) + 5, NSMinY(rightIris) + 15, 5, 5)] fill];
-
-    const CGFloat browLift = [self.stateName isEqualToString:@"thinking"] ? 15.0
-                              : [self.stateName isEqualToString:@"listening"] ? 11.0
-                                                                               : 8.0;
-    const CGFloat browSway = std::sin(self.phase * 0.7) * 2.0;
-    NSBezierPath* leftBrow = [NSBezierPath bezierPath];
-    [leftBrow moveToPoint:NSMakePoint(cx - eyeDX - 32, cy + eyeYOffset + browLift + browSway)];
-    [leftBrow curveToPoint:NSMakePoint(cx - eyeDX + 32, cy + eyeYOffset + browLift + 2.0 + browSway)
-             controlPoint1:NSMakePoint(cx - eyeDX - 16, cy + eyeYOffset + browLift + 7.0 + browSway)
-             controlPoint2:NSMakePoint(cx - eyeDX + 14, cy + eyeYOffset + browLift + 6.0 + browSway)];
-    NSBezierPath* rightBrow = [NSBezierPath bezierPath];
-    [rightBrow moveToPoint:NSMakePoint(cx + eyeDX - 32, cy + eyeYOffset + browLift + 2.0 - browSway)];
-    [rightBrow curveToPoint:NSMakePoint(cx + eyeDX + 32, cy + eyeYOffset + browLift - browSway)
-              controlPoint1:NSMakePoint(cx + eyeDX - 14, cy + eyeYOffset + browLift + 7.0 - browSway)
-              controlPoint2:NSMakePoint(cx + eyeDX + 16, cy + eyeYOffset + browLift + 6.0 - browSway)];
-    [[NSColor colorWithRed:0.32 green:0.82 blue:0.97 alpha:0.92] setStroke];
-    [leftBrow setLineWidth:2.6];
-    [rightBrow setLineWidth:2.6];
-    [leftBrow stroke];
-    [rightBrow stroke];
-
-    NSBezierPath* nose = [NSBezierPath bezierPath];
-    [nose moveToPoint:NSMakePoint(cx, cy + 28)];
-    [nose lineToPoint:NSMakePoint(cx - 11, cy - 22)];
-    [nose lineToPoint:NSMakePoint(cx + 11, cy - 22)];
-    [nose closePath];
-    [[NSColor colorWithRed:0.12 green:0.38 blue:0.56 alpha:0.86] setFill];
-    [nose fill];
-
-    CGFloat mouthOpen = 7.0;
-    CGFloat smileLift = 3.0;
-    if ([self.stateName isEqualToString:@"speaking"]) {
-        mouthOpen = 10.0 + std::fabs(std::sin(self.phase * 3.1)) * 22.0;
-        smileLift = 2.0 + std::sin(self.phase * 1.2) * 2.0;
-    } else if ([self.stateName isEqualToString:@"listening"]) {
-        mouthOpen = 6.0;
-        smileLift = 4.0;
-    } else if ([self.stateName isEqualToString:@"thinking"]) {
-        mouthOpen = 5.0;
-        smileLift = 1.0;
+    CGFloat mouthOpen = 0.48;
+    if ([state isEqualToString:@"speaking"]) {
+        mouthOpen = 0.62 + std::fabs(std::sin(self.phase * 3.2)) * 0.62;
+    } else if ([state isEqualToString:@"thinking"]) {
+        mouthOpen = 0.42;
+    } else if ([state isEqualToString:@"listening"]) {
+        mouthOpen = 0.46;
     }
+    self.mouthNode.scale = SCNVector3Make(1.0, mouthOpen, 1.0);
 
-    NSRect mouthOuter = NSMakeRect(cx - 52, cy - 70, 104, 24);
-    NSBezierPath* upperLip = [NSBezierPath bezierPath];
-    [upperLip moveToPoint:NSMakePoint(NSMinX(mouthOuter), NSMidY(mouthOuter))];
-    [upperLip curveToPoint:NSMakePoint(NSMaxX(mouthOuter), NSMidY(mouthOuter))
-             controlPoint1:NSMakePoint(cx - 24, NSMaxY(mouthOuter) + smileLift)
-             controlPoint2:NSMakePoint(cx + 24, NSMaxY(mouthOuter) + smileLift)];
-    [[NSColor colorWithRed:0.32 green:0.78 blue:0.95 alpha:1.0] setStroke];
-    [upperLip setLineWidth:3.0];
-    [upperLip stroke];
+    const CGFloat browLift = [state isEqualToString:@"thinking"] ? 0.08 : ([state isEqualToString:@"listening"] ? 0.05 : 0.03);
+    const CGFloat browSway = std::sin(self.phase * 0.72) * 0.026;
+    self.leftBrowNode.position = SCNVector3Make(-0.58, 0.83 + browLift + browSway, 1.57);
+    self.rightBrowNode.position = SCNVector3Make(0.58, 0.83 + browLift - browSway, 1.57);
 
-    NSBezierPath* mouthInner = [NSBezierPath bezierPathWithRoundedRect:NSMakeRect(cx - 38, cy - 68, 76, mouthOpen)
-                                                               xRadius:10
-                                                               yRadius:10];
-    [[NSColor colorWithRed:0.06 green:0.20 blue:0.33 alpha:0.95] setFill];
-    [mouthInner fill];
+    NSColor* accent = [self stateColor];
+    self.haloNode.geometry.firstMaterial.emission.contents = [accent colorWithAlphaComponent:0.72];
+    self.headNode.geometry.firstMaterial.emission.contents = [accent colorWithAlphaComponent:0.16];
+    self.mouthNode.geometry.firstMaterial.emission.contents = [accent colorWithAlphaComponent:0.30];
 
-    if (self.faceLocked) {
-        NSString* tag = self.faceCount > 1 ? [NSString stringWithFormat:@"Tracking %ld faces", (long)self.faceCount]
-                                           : @"Tracking face";
-        NSDictionary* attrs = @{ NSForegroundColorAttributeName : [NSColor colorWithRed:0.70 green:0.92 blue:1.0 alpha:0.95],
-                                 NSFontAttributeName : [NSFont fontWithName:@"Avenir Next" size:12.0] };
-        [tag drawAtPoint:NSMakePoint(12, bounds.size.height - 24) withAttributes:attrs];
-    }
+    [self.sceneView setNeedsDisplay:YES];
 }
 
 @end
@@ -237,7 +408,7 @@
 
 - (void)build {
     self.alive = YES;
-    NSRect frame = NSMakeRect(220, 120, 640, 720);
+    NSRect frame = NSMakeRect(220, 120, 760, 860);
     self.window = [[NSWindow alloc] initWithContentRect:frame
                                               styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable)
                                                 backing:NSBackingStoreBuffered
@@ -247,10 +418,10 @@
 
     NSView* root = [self.window contentView];
 
-    self.faceView = [[AliceFaceView alloc] initWithFrame:NSMakeRect(20, 64, 600, 636)];
+    self.faceView = [[AliceFaceView alloc] initWithFrame:NSMakeRect(24, 68, 712, 764)];
     [root addSubview:self.faceView];
 
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 22, 600, 24)];
+    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(24, 24, 712, 26)];
     [self.statusLabel setBezeled:NO];
     [self.statusLabel setEditable:NO];
     [self.statusLabel setDrawsBackground:NO];
@@ -264,6 +435,7 @@
 }
 
 - (BOOL)windowShouldClose:(id)sender {
+    (void)sender;
     self.alive = NO;
     return YES;
 }

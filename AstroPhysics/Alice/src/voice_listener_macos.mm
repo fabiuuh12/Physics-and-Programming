@@ -6,6 +6,8 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <memory>
+#include <mutex>
 #include <thread>
 
 namespace alice {
@@ -142,11 +144,16 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
             }
         }
 
-        __block NSString* best_text = nil;
-        __block bool done = false;
-        __block NSError* task_error = nil;
-        __block bool has_speech = false;
-        __block auto speech_started_at = std::chrono::steady_clock::time_point{};
+        struct RecognitionState {
+            std::mutex mutex;
+            std::string best_text;
+            std::string task_error;
+            bool done = false;
+            bool has_speech = false;
+            std::chrono::steady_clock::time_point speech_started_at{};
+        };
+        const auto state = std::make_shared<RecognitionState>();
+        const auto partial_callback = std::make_shared<std::function<void(const std::string&)>>(on_partial_text);
 
         SFSpeechRecognitionTask* task =
             [impl_->recognizer recognitionTaskWithRequest:request
@@ -154,22 +161,29 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
                                               if (result != nil) {
                                                   NSString* text = result.bestTranscription.formattedString;
                                                   if (text != nil && text.length > 0) {
-                                                      best_text = text;
-                                                      if (on_partial_text) {
-                                                          on_partial_text(std::string([text UTF8String]));
+                                                      const std::string text_utf8([text UTF8String]);
+                                                      {
+                                                          std::lock_guard<std::mutex> lock(state->mutex);
+                                                          state->best_text = text_utf8;
+                                                          if (!state->has_speech) {
+                                                              state->has_speech = true;
+                                                              state->speech_started_at = std::chrono::steady_clock::now();
+                                                          }
                                                       }
-                                                      if (!has_speech) {
-                                                          has_speech = true;
-                                                          speech_started_at = std::chrono::steady_clock::now();
+                                                      if (*partial_callback) {
+                                                          (*partial_callback)(text_utf8);
                                                       }
                                                   }
                                                   if (result.isFinal) {
-                                                      done = true;
+                                                      std::lock_guard<std::mutex> lock(state->mutex);
+                                                      state->done = true;
                                                   }
                                               }
                                               if (error != nil) {
-                                                  task_error = error;
-                                                  done = true;
+                                                  const std::string err = [[error localizedDescription] UTF8String];
+                                                  std::lock_guard<std::mutex> lock(state->mutex);
+                                                  state->task_error = err;
+                                                  state->done = true;
                                               }
                                             }];
 
@@ -203,7 +217,20 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
         bool timed_out = false;
         bool phrase_timed_out = false;
 
-        while (!done) {
+        while (true) {
+            bool done = false;
+            bool has_speech = false;
+            std::chrono::steady_clock::time_point speech_started_at{};
+            {
+                std::lock_guard<std::mutex> lock(state->mutex);
+                done = state->done;
+                has_speech = state->has_speech;
+                speech_started_at = state->speech_started_at;
+            }
+            if (done) {
+                break;
+            }
+
             if (tick) {
                 tick();
             }
@@ -230,12 +257,20 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
         [request endAudio];
         [task cancel];
 
-        if (task_error != nil && (best_text == nil || best_text.length == 0)) {
-            impl_->error = std::string([[task_error localizedDescription] UTF8String]);
+        std::string best_text;
+        std::string task_error;
+        {
+            std::lock_guard<std::mutex> lock(state->mutex);
+            best_text = state->best_text;
+            task_error = state->task_error;
+        }
+
+        if (!task_error.empty() && best_text.empty()) {
+            impl_->error = task_error;
             return std::nullopt;
         }
 
-        if (best_text == nil || best_text.length == 0) {
+        if (best_text.empty()) {
             if (timed_out) {
                 impl_->error = "No speech recognized before listen timeout.";
             } else if (phrase_timed_out) {
@@ -246,8 +281,7 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
             return std::nullopt;
         }
 
-        std::string text([best_text UTF8String]);
-        text = trim(text);
+        std::string text = trim(best_text);
         if (text.empty()) {
             return std::nullopt;
         }

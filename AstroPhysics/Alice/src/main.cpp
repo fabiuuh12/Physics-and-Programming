@@ -9,8 +9,11 @@
 #include "alice/face_tracker.hpp"
 
 #include <chrono>
+#include <array>
 #include <cerrno>
+#include <cctype>
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -35,7 +38,7 @@ namespace alice {
 
 static const std::string kHelpText =
     "Try commands like: run <file>, list files in <folder>, open folder <folder>, "
-    "stop process, what time is it, what is today's date, remember that <fact>, "
+    "stop process, what time is it, what is today's date, search the web for <topic>, research <topic>, remember that <fact>, "
     "what do you remember about <topic>, help, exit. Wake word is optional.";
 
 struct Args {
@@ -57,6 +60,10 @@ static std::mutex g_tts_mutex;
 static pid_t g_tts_pid = -1;
 static std::string g_tts_active_normalized;
 static bool g_tts_barge_engaged = false;
+static std::string g_recent_tts_normalized;
+static std::chrono::steady_clock::time_point g_recent_tts_finished_at{};
+static std::optional<std::string> g_tts_voice_name;
+static int g_tts_rate_wpm = 185;
 
 static bool command_exists(const std::string& name) {
     const char* path_env = std::getenv("PATH");
@@ -118,6 +125,252 @@ static std::string sanitize_spoken_text(const std::string& text) {
     return trim(out);
 }
 
+static std::string url_encode_query(const std::string& value) {
+    static const char* hex = "0123456789ABCDEF";
+    std::string out;
+    out.reserve(value.size() * 3);
+    for (unsigned char c : value) {
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            out.push_back(static_cast<char>(c));
+        } else if (c == ' ') {
+            out.push_back('+');
+        } else {
+            out.push_back('%');
+            out.push_back(hex[(c >> 4) & 0x0F]);
+            out.push_back(hex[c & 0x0F]);
+        }
+    }
+    return out;
+}
+
+static std::string run_capture(const std::string& command) {
+    std::array<char, 4096> buffer{};
+    std::string output;
+
+    FILE* pipe = ::popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        return "";
+    }
+    while (std::fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+        output.append(buffer.data());
+    }
+    const int rc = ::pclose(pipe);
+    if (rc != 0) {
+        return "";
+    }
+    return output;
+}
+
+static std::string json_unescape(const std::string& value) {
+    std::string out;
+    out.reserve(value.size());
+    for (std::size_t i = 0; i < value.size(); ++i) {
+        if (value[i] != '\\' || i + 1 >= value.size()) {
+            out.push_back(value[i]);
+            continue;
+        }
+        const char next = value[i + 1];
+        switch (next) {
+            case 'n':
+                out.push_back('\n');
+                break;
+            case 'r':
+                out.push_back('\r');
+                break;
+            case 't':
+                out.push_back('\t');
+                break;
+            case '\\':
+                out.push_back('\\');
+                break;
+            case '"':
+                out.push_back('"');
+                break;
+            default:
+                out.push_back(next);
+                break;
+        }
+        ++i;
+    }
+    return out;
+}
+
+static std::string extract_json_string_field(const std::string& json, const std::string& field) {
+    const std::regex rx("\\\"" + field + "\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"");
+    std::smatch match;
+    if (!std::regex_search(json, match, rx)) {
+        return "";
+    }
+    return trim(json_unescape(match[1].str()));
+}
+
+static std::vector<std::string> extract_json_text_entries(const std::string& json, std::size_t limit) {
+    std::vector<std::string> out;
+    const std::regex rx(R"("Text"\s*:\s*"((?:\\.|[^"\\])*)")");
+    for (auto it = std::sregex_iterator(json.begin(), json.end(), rx); it != std::sregex_iterator(); ++it) {
+        std::string text = trim(json_unescape((*it)[1].str()));
+        if (text.empty()) {
+            continue;
+        }
+        if (std::find(out.begin(), out.end(), text) != out.end()) {
+            continue;
+        }
+        out.push_back(text);
+        if (out.size() >= limit) {
+            break;
+        }
+    }
+    return out;
+}
+
+static std::string clamp_spoken_summary(const std::string& text, std::size_t max_chars = 380) {
+    std::string cleaned = trim(text);
+    if (cleaned.size() <= max_chars) {
+        return cleaned;
+    }
+    cleaned = trim(cleaned.substr(0, max_chars));
+    const std::size_t last_space = cleaned.find_last_of(" ");
+    if (last_space != std::string::npos && last_space > max_chars / 2) {
+        cleaned = cleaned.substr(0, last_space);
+    }
+    return trim(cleaned) + "...";
+}
+
+static ExecResult research_web(const std::string& query) {
+    const std::string cleaned_query = trim(query);
+    if (cleaned_query.empty()) {
+        return ExecResult{false, "Tell me what topic to research."};
+    }
+
+    const std::string search_url = "https://duckduckgo.com/?q=" + url_encode_query(cleaned_query);
+    const auto open_search = [&]() {
+        if (!command_exists("open")) {
+            return;
+        }
+        const std::string cmd = "open " + shell_quote(search_url) + " >/dev/null 2>&1 &";
+        (void)std::system(cmd.c_str());
+    };
+
+    if (!command_exists("curl")) {
+        open_search();
+        return ExecResult{false, "I cannot fetch research directly right now, so I opened web results for " + cleaned_query + "."};
+    }
+
+    const std::string api_url =
+        "https://api.duckduckgo.com/?format=json&no_html=1&skip_disambig=1&q=" + url_encode_query(cleaned_query);
+    const std::string command = "curl -sS --fail -L -m 18 " + shell_quote(api_url);
+    const std::string response = run_capture(command);
+    if (response.empty()) {
+        open_search();
+        return ExecResult{false, "I could not fetch research results right now, so I opened web results for " + cleaned_query + "."};
+    }
+
+    const std::string heading = extract_json_string_field(response, "Heading");
+    const std::string abstract = extract_json_string_field(response, "AbstractText");
+    const std::string answer = extract_json_string_field(response, "Answer");
+    const std::string source_url = extract_json_string_field(response, "AbstractURL");
+    const auto related = extract_json_text_entries(response, 4);
+
+    std::vector<std::string> snippets;
+    if (!answer.empty()) {
+        snippets.push_back(answer);
+    }
+    if (!abstract.empty()) {
+        snippets.push_back(abstract);
+    }
+    for (const auto& item : related) {
+        if (snippets.size() >= 2) {
+            break;
+        }
+        snippets.push_back(item);
+    }
+
+    if (snippets.empty()) {
+        open_search();
+        return ExecResult{false, "I found limited direct data, so I opened web results for " + cleaned_query + "."};
+    }
+
+    std::string message = "Here is what I found";
+    const std::string title = heading.empty() ? cleaned_query : heading;
+    message += " about " + title + ": " + clamp_spoken_summary(join(snippets, " "));
+    if (!source_url.empty()) {
+        message += " Source: " + source_url + ".";
+    }
+    return ExecResult{true, message};
+}
+
+static int tts_rate_from_env() {
+    if (const char* raw = std::getenv("ALICE_TTS_RATE"); raw != nullptr && raw[0] != '\0') {
+        try {
+            const int value = std::stoi(raw);
+            if (value >= 120 && value <= 280) {
+                return value;
+            }
+        } catch (...) {
+        }
+    }
+    return 185;
+}
+
+static std::vector<std::string> installed_say_voices() {
+    std::vector<std::string> out;
+    FILE* pipe = ::popen("say -v ?", "r");
+    if (pipe == nullptr) {
+        return out;
+    }
+
+    char buffer[512];
+    while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line = trim(buffer);
+        if (line.empty()) {
+            continue;
+        }
+        const std::size_t split = line.find_first_of(" \t");
+        const std::string voice = split == std::string::npos ? line : line.substr(0, split);
+        if (!voice.empty()) {
+            out.push_back(voice);
+        }
+    }
+    (void)::pclose(pipe);
+    return out;
+}
+
+static std::optional<std::string> natural_voice_from_system() {
+    if (const char* explicit_voice = std::getenv("ALICE_VOICE"); explicit_voice != nullptr && explicit_voice[0] != '\0') {
+        return std::string(explicit_voice);
+    }
+
+    if (const char* raw = std::getenv("ALICE_TTS_AUTO_VOICE"); raw != nullptr && raw[0] != '\0') {
+        const std::string value = to_lower(trim(raw));
+        if (value == "0" || value == "false" || value == "no" || value == "off") {
+            return std::nullopt;
+        }
+    }
+
+    const auto installed = installed_say_voices();
+    if (installed.empty()) {
+        return std::nullopt;
+    }
+
+    static const std::vector<std::string> preferred = {
+        "Samantha", "Alex", "Ava", "Victoria", "Karen", "Moira", "Daniel", "Nora", "Zoe",
+    };
+
+    for (const auto& name : preferred) {
+        for (const auto& installed_name : installed) {
+            if (installed_name == name) {
+                return name;
+            }
+        }
+    }
+    return installed.front();
+}
+
+static void configure_tts() {
+    g_tts_rate_wpm = tts_rate_from_env();
+    g_tts_voice_name = natural_voice_from_system();
+}
+
 static void reap_tts_process_locked() {
     if (g_tts_pid <= 0) {
         return;
@@ -125,6 +378,10 @@ static void reap_tts_process_locked() {
     int status = 0;
     const pid_t rc = ::waitpid(g_tts_pid, &status, WNOHANG);
     if (rc == g_tts_pid || (rc < 0 && errno == ECHILD)) {
+        if (!g_tts_active_normalized.empty()) {
+            g_recent_tts_normalized = g_tts_active_normalized;
+            g_recent_tts_finished_at = std::chrono::steady_clock::now();
+        }
         g_tts_pid = -1;
         g_tts_active_normalized.clear();
         g_tts_barge_engaged = false;
@@ -146,6 +403,10 @@ static void stop_tts_locked() {
         int status = 0;
         const pid_t rc = ::waitpid(pid, &status, WNOHANG);
         if (rc == pid || (rc < 0 && errno == ECHILD)) {
+            if (!g_tts_active_normalized.empty()) {
+                g_recent_tts_normalized = g_tts_active_normalized;
+                g_recent_tts_finished_at = std::chrono::steady_clock::now();
+            }
             g_tts_pid = -1;
             g_tts_active_normalized.clear();
             g_tts_barge_engaged = false;
@@ -157,6 +418,10 @@ static void stop_tts_locked() {
     (void)::kill(pid, SIGKILL);
     int status = 0;
     (void)::waitpid(pid, &status, 0);
+    if (!g_tts_active_normalized.empty()) {
+        g_recent_tts_normalized = g_tts_active_normalized;
+        g_recent_tts_finished_at = std::chrono::steady_clock::now();
+    }
     g_tts_pid = -1;
     g_tts_active_normalized.clear();
     g_tts_barge_engaged = false;
@@ -176,10 +441,12 @@ static bool start_tts(const std::string& spoken) {
 
     std::vector<std::string> args_storage;
     args_storage.push_back("say");
-    if (const char* voice = std::getenv("ALICE_VOICE"); voice != nullptr && voice[0] != '\0') {
+    if (g_tts_voice_name.has_value() && !g_tts_voice_name->empty()) {
         args_storage.push_back("-v");
-        args_storage.push_back(voice);
+        args_storage.push_back(*g_tts_voice_name);
     }
+    args_storage.push_back("-r");
+    args_storage.push_back(std::to_string(g_tts_rate_wpm));
     args_storage.push_back(spoken);
 
     std::vector<char*> argv;
@@ -257,12 +524,97 @@ static bool should_interrupt_tts_from_partial(const std::string& partial_raw) {
     return true;
 }
 
+static bool tts_echo_reference_snapshot(std::string* echo_reference) {
+    std::lock_guard<std::mutex> lock(g_tts_mutex);
+    reap_tts_process_locked();
+
+    if (g_tts_pid > 0 && !g_tts_active_normalized.empty()) {
+        *echo_reference = g_tts_active_normalized;
+        return true;
+    }
+
+    if (!g_recent_tts_normalized.empty()) {
+        const auto since_finish = std::chrono::steady_clock::now() - g_recent_tts_finished_at;
+        if (since_finish < std::chrono::seconds(24)) {
+            *echo_reference = g_recent_tts_normalized;
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool is_probable_tts_echo(const std::string& text_raw) {
+    std::string active;
+    if (!tts_echo_reference_snapshot(&active) || active.empty()) {
+        return false;
+    }
+
+    const std::string text = normalize_text(text_raw);
+    if (text.size() < 6) {
+        return false;
+    }
+    if (active.find(text) != std::string::npos) {
+        return true;
+    }
+
+    const auto text_tokens = split_words(text);
+    const auto active_tokens = split_words(active);
+    if (text_tokens.empty() || active_tokens.empty()) {
+        return false;
+    }
+
+    std::set<std::string> active_set(active_tokens.begin(), active_tokens.end());
+    std::size_t overlap = 0;
+    for (const auto& token : text_tokens) {
+        if (active_set.find(token) != active_set.end()) {
+            ++overlap;
+        }
+    }
+
+    const double overlap_ratio = static_cast<double>(overlap) / static_cast<double>(text_tokens.size());
+    return overlap >= 3 && overlap_ratio >= 0.65;
+}
+
+static bool is_probable_noise_utterance(const std::string& text_raw) {
+    const std::string normalized = normalize_text(text_raw);
+    if (normalized.empty()) {
+        return true;
+    }
+    const auto tokens = split_words(normalized);
+    if (tokens.empty()) {
+        return true;
+    }
+    if (tokens.size() == 1) {
+        const std::string t = tokens[0];
+        if (t.size() <= 2) {
+            return true;
+        }
+        if (t == "um" || t == "uh" || t == "hmm" || t == "huh" || t == "mm") {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool barge_in_enabled() {
     if (const char* raw = std::getenv("ALICE_BARGE_IN"); raw != nullptr && raw[0] != '\0') {
         const std::string value = to_lower(trim(raw));
         return !(value == "0" || value == "false" || value == "no" || value == "off");
     }
     return true;
+}
+
+static double stt_chunk_timeout_seconds() {
+    if (const char* raw = std::getenv("ALICE_STT_CHUNK_TIMEOUT"); raw != nullptr && raw[0] != '\0') {
+        try {
+            const double value = std::stod(raw);
+            if (value >= 1.5 && value <= 20.0) {
+                return value;
+            }
+        } catch (...) {
+        }
+    }
+    return 8.0;
 }
 
 static void speak(const std::string& text) {
@@ -319,29 +671,50 @@ static bool read_line_with_ui(std::string& out) {
 
 static bool read_voice_with_ui(VoiceListener& listener, std::string& out, double timeout_seconds = 6.0,
                                double phrase_time_limit_seconds = 8.0) {
-    const auto maybe_text = listener.listen(
-        timeout_seconds,
-        phrase_time_limit_seconds,
-        []() {
-            if (g_ui != nullptr) {
-                g_ui->pump();
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(8));
-        },
-        [](const std::string& partial_text) {
-            if (!barge_in_enabled()) {
-                return;
-            }
-            if (should_interrupt_tts_from_partial(partial_text)) {
-                stop_tts();
-            }
-        });
-    if (!maybe_text.has_value()) {
-        out.clear();
-        return false;
+    const auto start = std::chrono::steady_clock::now();
+    const auto deadline = start + std::chrono::milliseconds(static_cast<int>(timeout_seconds * 1000.0));
+
+    while (std::chrono::steady_clock::now() < deadline) {
+        const auto now = std::chrono::steady_clock::now();
+        const double remaining_seconds =
+            std::chrono::duration<double>(deadline - now).count();
+        if (remaining_seconds <= 0.0) {
+            break;
+        }
+
+        const double chunk_timeout = std::min(stt_chunk_timeout_seconds(), remaining_seconds);
+        const auto maybe_text = listener.listen(
+            chunk_timeout,
+            phrase_time_limit_seconds,
+            []() {
+                if (g_ui != nullptr) {
+                    g_ui->pump();
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(8));
+            },
+            [](const std::string& partial_text) {
+                if (!barge_in_enabled()) {
+                    return;
+                }
+                if (should_interrupt_tts_from_partial(partial_text)) {
+                    stop_tts();
+                }
+            });
+        if (!maybe_text.has_value()) {
+            continue;
+        }
+        if (is_probable_tts_echo(*maybe_text)) {
+            continue;
+        }
+        if (is_probable_noise_utterance(*maybe_text)) {
+            continue;
+        }
+        out = *maybe_text;
+        return true;
     }
-    out = *maybe_text;
-    return true;
+
+    out.clear();
+    return false;
 }
 
 static void load_env_file(const std::filesystem::path& file_path) {
@@ -520,6 +893,26 @@ static ExecResult execute_intent(const Intent& intent, AliceExecutor& executor) 
     if (intent.action == "get_date") {
         return ExecResult{true, "Today is " + format_long_date() + "."};
     }
+    if (intent.action == "web_search") {
+        const std::string query = trim(intent.target.value_or(""));
+        if (query.empty()) {
+            return ExecResult{false, "Tell me what to search for."};
+        }
+        if (!command_exists("open")) {
+            return ExecResult{false, "I cannot open a browser on this system."};
+        }
+
+        const std::string url = "https://duckduckgo.com/?q=" + url_encode_query(query);
+        const std::string cmd = "open " + shell_quote(url) + " >/dev/null 2>&1 &";
+        const int rc = std::system(cmd.c_str());
+        if (rc != 0) {
+            return ExecResult{false, "I could not open web search right now."};
+        }
+        return ExecResult{true, "Opened web search results for " + query + "."};
+    }
+    if (intent.action == "web_research") {
+        return research_web(intent.target.value_or(""));
+    }
     if (intent.action == "exit") {
         return ExecResult{true, "Shutting down."};
     }
@@ -593,7 +986,7 @@ static bool handle_utterance(const std::string& utterance, const std::string& wa
             std::string confirmation;
             if (voice_mode && voice_listener != nullptr && voice_listener->available()) {
                 std::cout << "Confirm (voice)> " << std::flush;
-                const bool captured = read_voice_with_ui(*voice_listener, confirmation, 8.0, 8.0);
+                const bool captured = read_voice_with_ui(*voice_listener, confirmation, 10.0, 12.0);
                 if (!captured) {
                     const std::string reason = trim(voice_listener->last_error());
                     if (!reason.empty()) {
@@ -680,12 +1073,27 @@ int run(int argc, char** argv) {
         if (face_tracker->start(args.camera_index)) {
             std::cout << "[Alice] Camera tracking: enabled (camera " << args.camera_index << ")" << std::endl;
         } else {
-            std::cout << "[Alice] Camera tracking: unavailable (" << face_tracker->last_error() << ")" << std::endl;
+            const std::string camera_error = face_tracker->last_error();
+            std::cout << "[Alice] Camera tracking: unavailable (" << camera_error << ")" << std::endl;
+            const std::string lowered = to_lower(camera_error);
+            if (lowered.find("permission denied") != std::string::npos) {
+                std::cout << "[Alice] Tip: enable Camera for Terminal/iTerm in System Settings > Privacy & Security > Camera." << std::endl;
+            }
+            if (g_ui != nullptr) {
+                g_ui->set_state("error");
+                g_ui->set_status("Camera unavailable: " + camera_error);
+                g_ui->pump();
+            }
             face_tracker.reset();
         }
+    } else if (ui_enabled && !args.camera && g_ui != nullptr) {
+        g_ui->set_status("Camera disabled");
     }
 
     g_tts_enabled = !args.no_tts && command_exists("say");
+    if (g_tts_enabled) {
+        configure_tts();
+    }
 
     std::cout << "[Alice] STT backend: ";
     if (voice_mode) {
@@ -700,7 +1108,17 @@ int run(int argc, char** argv) {
         std::cout << "disabled" << std::endl;
     }
 
-    std::cout << "[Alice] TTS backend: " << (g_tts_enabled ? "say" : "none") << std::endl;
+    if (g_tts_enabled) {
+        std::cout << "[Alice] TTS backend: say";
+        if (g_tts_voice_name.has_value() && !g_tts_voice_name->empty()) {
+            std::cout << " (" << *g_tts_voice_name << ", " << g_tts_rate_wpm << " wpm)";
+        } else {
+            std::cout << " (" << g_tts_rate_wpm << " wpm)";
+        }
+        std::cout << std::endl;
+    } else {
+        std::cout << "[Alice] TTS backend: none" << std::endl;
+    }
     std::cout << "[Alice] LLM backend: " << brain.llm_backend() << std::endl;
     if (brain.using_llm()) {
         speak("Alice is online with conversational mode enabled using " + brain.llm_backend() + ".");
@@ -736,7 +1154,7 @@ int run(int argc, char** argv) {
 
             if (voice_mode && voice_listener != nullptr && voice_listener->available()) {
                 std::cout << "You (voice)> " << std::flush;
-                const bool captured = read_voice_with_ui(*voice_listener, utterance, 10.0, 14.0);
+                const bool captured = read_voice_with_ui(*voice_listener, utterance, 16.0, 24.0);
                 if (!captured) {
                     const std::string reason = trim(voice_listener->last_error());
                     if (!reason.empty()) {

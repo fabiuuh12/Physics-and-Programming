@@ -94,11 +94,31 @@ Intent parse_intent(const std::string& text, const std::string& wake_word, bool 
         return Intent{"recall_memory", target, std::nullopt, false, spoken};
     }
 
-    if (std::regex_search(lowered, std::regex(R"((what('?s| is)?\s+the\s+time|current\s+time|time\s+is\s+it))"))) {
+    if (std::regex_search(
+            lowered, std::regex(R"(\b(what\s+time\s+is\s+it|what('?s| is)?\s+the\s+time|tell\s+me\s+the\s+time|current\s+time|time\s+now|time\s+is\s+it|clock)\b)"))) {
         return Intent{"get_time", std::nullopt, std::nullopt, false, spoken};
     }
-    if (std::regex_search(lowered, std::regex(R"((what('?s| is)?\s+the\s+date|what\s+day\s+is\s+it|today('?s| is)\s+date|today('?s| is)\s+day))"))) {
+    if (std::regex_search(
+            lowered, std::regex(R"(\b(what('?s| is)?\s+the\s+date|what\s+day\s+is\s+it|what\s+is\s+today('?s)?\s+date|today('?s| is)\s+date|today('?s| is)\s+day|current\s+date|date\s+today)\b)"))) {
         return Intent{"get_date", std::nullopt, std::nullopt, false, spoken};
+    }
+
+    if (std::regex_match(command, m,
+                         std::regex(R"((?:search(?:\s+the\s+web)?(?:\s+for)?|look\s+up|google)\s+(.+))",
+                                    std::regex::icase))) {
+        std::string target = clean_target(m[1].str());
+        if (!target.empty()) {
+            return Intent{"web_search", target, std::nullopt, false, spoken};
+        }
+    }
+
+    if (std::regex_match(command, m,
+                         std::regex(R"((?:research(?:\s+the\s+web)?(?:\s+for)?|do\s+research\s+on|investigate|find\s+information\s+(?:on|about))\s+(.+))",
+                                    std::regex::icase))) {
+        std::string target = clean_target(m[1].str());
+        if (!target.empty()) {
+            return Intent{"web_research", target, std::nullopt, false, spoken};
+        }
     }
 
     const std::set<std::string> smalltalk = {
