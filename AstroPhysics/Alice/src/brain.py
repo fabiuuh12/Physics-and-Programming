@@ -69,8 +69,16 @@ class AliceBrain:
             "when you ask with the wake word Alice."
         )
 
-    def _llm_reply(self, text: str, context: dict[str, str] | None = None) -> str:
+    def _llm_reply(
+        self,
+        text: str,
+        context: dict[str, str] | None = None,
+        memories: list[str] | None = None,
+        web_facts: list[str] | None = None,
+    ) -> str:
         context = context or {}
+        memories = memories or []
+        web_facts = web_facts or []
         if not self._llm.available:
             return self._fallback_reply(text, context)
 
@@ -93,6 +101,26 @@ class AliceBrain:
                     "content": "Runtime context: " + ", ".join(context_parts),
                 }
             )
+        if memories:
+            bullets = "; ".join(memories[:6])
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "Relevant long-term memory about Fabio/projects: " + bullets,
+                }
+            )
+        if web_facts:
+            web_bullets = " | ".join(web_facts[:4])
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "Web research snippets (use only if relevant): "
+                        + web_bullets
+                        + ". If you use them, mention the source briefly."
+                    ),
+                }
+            )
 
         for user_msg, assistant_msg in self._history[-4:]:
             messages.append({"role": "user", "content": user_msg})
@@ -104,8 +132,14 @@ class AliceBrain:
             return self._fallback_reply(text, context)
         return answer
 
-    def reply(self, text: str, context: dict[str, str] | None = None) -> str:
-        answer = self._llm_reply(text, context)
+    def reply(
+        self,
+        text: str,
+        context: dict[str, str] | None = None,
+        memories: list[str] | None = None,
+        web_facts: list[str] | None = None,
+    ) -> str:
+        answer = self._llm_reply(text, context, memories, web_facts)
         self._history.append((text, answer))
         if len(self._history) > 12:
             self._history = self._history[-12:]

@@ -4,7 +4,7 @@ Local assistant prototype with wake word + command execution.
 
 ## What it does
 
-- Wake-word commands (default: `Alice`)
+- Wake word is optional (you can still say `Alice`)
 - Voice input mode with local transcription (`faster-whisper`) when available
 - Conversational replies for general speech after wake word
 - Natural-language intent parsing for command execution (local Ollama-first)
@@ -17,10 +17,16 @@ Local assistant prototype with wake word + command execution.
 ## Supported commands
 
 - `Alice run <path-to-file>`
+- `run <path-to-file>` (wake word optional)
 - `Alice, can you run the gravity script in examples for me?` (natural-language command)
+- `open the blackhole visualization` (auto-matches best file in repository and runs it)
 - `Alice list files in <folder>`
 - `Alice open folder <folder>`
 - `Alice stop process` or `Alice stop process <pid>`
+- `Alice what time is it`
+- `Alice what is today's date`
+- `Alice remember that my favorite voice is Samantha`
+- `Alice what do you remember about my project`
 - `Alice help`
 - `Alice hello` (and other basic small talk)
 - `Alice <any other phrase>` for chat replies
@@ -72,6 +78,16 @@ Run in voice mode:
 python3 src/main.py --mode voice
 ```
 
+Wake-word behavior:
+
+```bash
+# default: wake word optional
+python3 src/main.py --mode voice
+
+# require wake word explicitly
+python3 src/main.py --mode voice --require-wake
+```
+
 Run with Alice interface window:
 
 ```bash
@@ -93,12 +109,38 @@ export ALICE_VOICE="Samantha"
 
 You can also persist voice/model settings in `AstroPhysics/Alice/.env.local`.
 
+Memory is stored locally in SQLite (default: `data/alice_memory.db`).
+You can override with:
+
+```bash
+export ALICE_MEMORY_DB=/absolute/path/to/alice_memory.db
+```
+
+Optional web-research augmentation for chat:
+
+```bash
+export ALICE_WEB_SEARCH_MODE=auto   # auto | always | off
+export ALICE_WEB_SEARCH_TIMEOUT=6
+```
+
 Optional local TTS with Piper:
 
 ```bash
 # Install Piper CLI separately and download a model (.onnx), then:
 export ALICE_TTS_BACKEND=piper
 export ALICE_PIPER_MODEL=/absolute/path/to/voice-model.onnx
+```
+
+Optional C/C++ runner flags (used when Alice compiles `.cpp/.cc/.cxx/.c`):
+
+```bash
+# pick compilers explicitly if needed
+export ALICE_CXX=clang++
+export ALICE_CC=clang
+
+# add include/lib flags if your C++ visualization needs dependencies (example raylib)
+export ALICE_CXXFLAGS="-I/opt/homebrew/include"
+export ALICE_LDFLAGS="-L/opt/homebrew/lib -lraylib -framework OpenGL -framework Cocoa -framework IOKit -framework CoreAudio -framework CoreVideo"
 ```
 
 Optional cloud fallback (OpenAI):

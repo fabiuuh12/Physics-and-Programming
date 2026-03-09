@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Callable, TypeVar
 
@@ -18,14 +21,17 @@ from executor import AliceExecutor, ExecResult
 from face_tracker import FaceTracker
 from intent import Intent
 from listener import BaseListener, ListenerError, TextListener, VoiceListener
+from memory_store import MemoryStore
 from nlu import IntentRouter
 from speaker import Speaker
 from ui import AliceFaceUI
+from web_search import WebHit, WebSearcher
 
 
 HELP_TEXT = (
-    "Try commands like: Alice run <file>, Alice list files in <folder>, "
-    "Alice open folder <folder>, Alice stop process, Alice exit."
+    "Try commands like: run <file>, list files in <folder>, open folder <folder>, "
+    "stop process, what time is it, what is today's date, remember that <fact>, "
+    "what do you remember about <topic>, exit. Wake word is optional."
 )
 
 T = TypeVar("T")
@@ -88,6 +94,10 @@ def execute_intent(intent: Intent, executor: AliceExecutor) -> ExecResult:
         return executor.run_file(intent.target)
     if intent.action == "stop_process":
         return executor.stop_process(intent.pid)
+    if intent.action == "get_time":
+        return ExecResult(True, f"It is {datetime.now().strftime('%I:%M %p')}.")
+    if intent.action == "get_date":
+        return ExecResult(True, f"Today is {datetime.now().strftime('%A, %B %d, %Y')}.")
     if intent.action == "exit":
         return ExecResult(True, "Shutting down.")
     return ExecResult(False, "I did not understand that command. Say 'Alice help'.")
@@ -140,6 +150,52 @@ def _camera_chat_reply(text: str, face_tracker: FaceTracker | None) -> str | Non
     return (
         "I cannot see your face right now. Please face the camera and try better lighting."
     )
+
+
+def _extract_memorable_fact(text: str) -> str | None:
+    cleaned = " ".join(text.strip().split())
+    if not cleaned:
+        return None
+    if "?" in cleaned:
+        return None
+
+    lowered = cleaned.lower()
+    starters = (
+        "my name is ",
+        "i am ",
+        "i'm ",
+        "i like ",
+        "i love ",
+        "i prefer ",
+        "my favorite ",
+        "my project is ",
+        "i am working on ",
+        "i'm working on ",
+    )
+    if not any(lowered.startswith(prefix) for prefix in starters):
+        return None
+
+    if len(cleaned) < 8 or len(cleaned) > 180:
+        return None
+    cleaned = re.sub(r"[.!\s]+$", "", cleaned)
+    return cleaned
+
+
+def _format_recalled_memories(query: str, memories: list[str]) -> str:
+    if not memories:
+        return f"I do not have a saved memory about '{query}' yet."
+    joined = " | ".join(memories)
+    return f"Here is what I remember about {query}: {joined}"
+
+
+def _web_fallback_reply(query: str, hits: list[WebHit]) -> str | None:
+    if not hits:
+        return None
+    top = hits[0]
+    source = top.source
+    if top.url:
+        source = f"{source}: {top.url}"
+    return f"From web search: {top.snippet} (source {source})."
 
 
 def _run_blocking_with_ui(
@@ -209,6 +265,8 @@ def handle_utterance(
     executor: AliceExecutor,
     brain: AliceBrain,
     router: IntentRouter,
+    memory_store: MemoryStore,
+    web_searcher: WebSearcher,
     ui: AliceFaceUI | None,
     face_tracker: FaceTracker | None,
 ) -> bool:
@@ -223,9 +281,35 @@ def handle_utterance(
             ui.set_status("Online")
         return True
 
+    if intent.action == "remember_memory":
+        fact = (intent.target or "").strip()
+        if not fact:
+            _speak(speaker, "Tell me what to remember.", ui=ui)
+            return True
+        stored = memory_store.add(fact, category="profile")
+        if stored:
+            _speak(speaker, "Saved. I will remember that.", ui=ui)
+        else:
+            _speak(speaker, "I already remember that.", ui=ui)
+        return True
+
+    if intent.action == "recall_memory":
+        query = (intent.target or "me").strip() or "me"
+        recalled = memory_store.search(query, limit=5)
+        reply = _format_recalled_memories(query, [item.content for item in recalled])
+        _speak(speaker, reply, ui=ui)
+        return True
+
     if intent.action == "chat":
         chat_text = intent.target or intent.raw
         context = _chat_context(face_tracker)
+        related_memories = memory_store.search(chat_text, limit=4)
+        memory_lines = [item.content for item in related_memories]
+        web_hits: list[WebHit] = []
+        web_lines: list[str] = []
+        if web_searcher.should_search(chat_text):
+            web_hits = web_searcher.lookup(chat_text, max_results=3)
+            web_lines = web_searcher.format_for_prompt(web_hits)
 
         if not brain.using_openai:
             camera_reply = _camera_chat_reply(chat_text, face_tracker)
@@ -233,7 +317,30 @@ def handle_utterance(
                 _speak(speaker, camera_reply, ui=ui)
                 return True
 
-        _speak(speaker, brain.reply(chat_text, context=context), ui=ui)
+        if brain.llm_backend == "none":
+            web_reply = _web_fallback_reply(chat_text, web_hits)
+            if web_reply is not None:
+                _speak(speaker, web_reply, ui=ui)
+            else:
+                _speak(speaker, brain.reply(chat_text, context=context, memories=memory_lines), ui=ui)
+        else:
+            response_text = brain.reply(
+                chat_text,
+                context=context,
+                memories=memory_lines,
+                web_facts=web_lines,
+            )
+            if web_hits and "source" not in response_text.lower():
+                response_text = f"{response_text} Source: {web_hits[0].source}."
+            _speak(
+                speaker,
+                response_text,
+                ui=ui,
+            )
+
+        auto_fact = _extract_memorable_fact(chat_text)
+        if auto_fact is not None:
+            memory_store.add(auto_fact, category="profile")
         return True
 
     if intent.requires_confirmation:
@@ -278,7 +385,20 @@ def parse_args() -> argparse.Namespace:
         help="Input mode",
     )
     parser.add_argument("--wake-word", default="Alice", help="Wake word")
-    parser.add_argument("--no-wake", action="store_true", help="Accept commands without wake word")
+    wake_group = parser.add_mutually_exclusive_group()
+    wake_group.add_argument(
+        "--require-wake",
+        dest="require_wake",
+        action="store_true",
+        help="Require wake word before commands",
+    )
+    wake_group.add_argument(
+        "--no-wake",
+        dest="require_wake",
+        action="store_false",
+        help="Accept commands without wake word",
+    )
+    parser.set_defaults(require_wake=False)
     parser.add_argument("--no-tts", action="store_true", help="Disable text-to-speech replies")
     parser.add_argument("--ui", action="store_true", help="Show animated Alice face window")
     parser.add_argument("--camera", action="store_true", help="Enable camera face tracking (requires --ui)")
@@ -326,6 +446,13 @@ def main() -> int:
 
     brain = AliceBrain()
     router = IntentRouter()
+    web_searcher = WebSearcher()
+    memory_db_path = Path(
+        os.getenv("ALICE_MEMORY_DB", str(project_root / "data" / "alice_memory.db"))
+    ).expanduser()
+    if not memory_db_path.is_absolute():
+        memory_db_path = (project_root / memory_db_path).resolve()
+    memory_store = MemoryStore(memory_db_path)
     executor = AliceExecutor(
         allowed_roots=config.allowed_roots,
         log_dir=config.log_dir,
@@ -350,6 +477,8 @@ def main() -> int:
         print(f"[Alice] NLU mode: {router.llm_backend} intent parsing enabled")
     else:
         print("[Alice] NLU mode: fallback parser only")
+    print(f"[Alice] Memory items: {memory_store.count()} ({memory_store.db_path})")
+    print(f"[Alice] Web search mode: {web_searcher.mode}")
 
     keep_running = True
     try:
@@ -376,12 +505,14 @@ def main() -> int:
                     keep_running = handle_utterance(
                         utterance,
                         wake_word=args.wake_word,
-                        require_wake=not args.no_wake,
+                        require_wake=args.require_wake,
                         listener=listener,
                         speaker=speaker,
                         executor=executor,
                         brain=brain,
                         router=router,
+                        memory_store=memory_store,
+                        web_searcher=web_searcher,
                         ui=ui,
                         face_tracker=face_tracker,
                     )

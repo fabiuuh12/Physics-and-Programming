@@ -41,10 +41,10 @@ def parse_intent(text: str, wake_word: str = "alice", require_wake: bool = True)
         return None
 
     command = spoken
-    if require_wake:
-        stripped = _strip_wake_phrase(spoken, wake_word=wake_word)
-        if stripped is None:
-            return None
+    stripped = _strip_wake_phrase(spoken, wake_word=wake_word)
+    if require_wake and stripped is None:
+        return None
+    if stripped is not None:
         command = stripped
 
     command_lower = command.lower().strip()
@@ -53,6 +53,34 @@ def parse_intent(text: str, wake_word: str = "alice", require_wake: bool = True)
 
     if command_lower in {"help", "what can you do", "commands"}:
         return Intent(action="help", raw=spoken)
+
+    remember_match = re.match(
+        r"^(?:please\s+)?(?:remember|save)\s+(?:that\s+)?(?P<target>.+)$",
+        command,
+        flags=re.IGNORECASE,
+    )
+    if remember_match:
+        target = _clean_target(remember_match.group("target"))
+        if target:
+            return Intent(action="remember_memory", target=target, raw=spoken)
+
+    recall_match = re.match(
+        r"^(?:what\s+do\s+you\s+remember(?:\s+about)?|recall|remember\s+about)\s*(?P<target>.*)$",
+        command,
+        flags=re.IGNORECASE,
+    )
+    if recall_match:
+        target = _clean_target(recall_match.group("target"))
+        return Intent(action="recall_memory", target=target or "me", raw=spoken)
+
+    if command_lower in {"what do you know about me", "what do you remember about me"}:
+        return Intent(action="recall_memory", target="me", raw=spoken)
+
+    if re.search(r"\b(what('?s| is)?\s+the\s+time|current\s+time|time\s+is\s+it)\b", command_lower):
+        return Intent(action="get_time", raw=spoken)
+
+    if re.search(r"\b(what('?s| is)?\s+the\s+date|what\s+day\s+is\s+it|today('?s| is)\s+date|today('?s| is)\s+day)\b", command_lower):
+        return Intent(action="get_date", raw=spoken)
 
     if command_lower in {
         "hello",

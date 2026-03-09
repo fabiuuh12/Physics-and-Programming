@@ -23,6 +23,9 @@ class AliceFaceUI:
         self._blink_stage = 0
         self._blink_started_at = 0.0
         self._speak_phase = 0.0
+        self._idle_phase = 0.0
+        self._face_offset_y = 0.0
+        self._mouth_open = 3.2
         self._last_frame_time = time.monotonic()
         self._gaze_x = 0.0
         self._gaze_y = 0.0
@@ -105,8 +108,10 @@ class AliceFaceUI:
     def _draw_static_face(self) -> None:
         c = self.canvas
         c.create_oval(18, -42, 442, 382, fill="#101a29", outline="#1b2f4a", width=1)
+        self.aura_ring = c.create_oval(36, -24, 424, 364, fill="", outline="#274365", width=1, dash=(2, 6))
         c.create_oval(48, -8, 412, 352, fill="", outline="#1e3455", width=1, dash=(3, 5))
         self.state_ring = c.create_oval(55, -1, 405, 349, outline="#4f7fb8", width=3)
+        self.orbit_dot = c.create_oval(228, -16, 236, -8, fill="#7fbfff", outline="")
         self.face_base = c.create_oval(95, 36, 365, 318, fill="#f0dcc8", outline="#cfb5a0", width=2)
         self.face_shade = c.create_oval(108, 62, 352, 325, fill="", outline="#d8bca7", width=1)
 
@@ -125,18 +130,52 @@ class AliceFaceUI:
         self.right_pupil = c.create_oval(280, 143, 288, 151, fill="#0f1a27", outline="")
         self.left_highlight = c.create_oval(177, 145, 180, 148, fill="#edf5ff", outline="")
         self.right_highlight = c.create_oval(283, 145, 286, 148, fill="#edf5ff", outline="")
-        self.left_lid = c.create_line(146, 149, 208, 149, fill="#d49f8d", width=2, smooth=True)
-        self.right_lid = c.create_line(252, 149, 314, 149, fill="#d49f8d", width=2, smooth=True)
+        self.left_upper_lid = c.create_line(146, 131, 177, 126, 208, 131, fill="#cf9a88", width=2, smooth=True)
+        self.right_upper_lid = c.create_line(252, 131, 283, 126, 314, 131, fill="#cf9a88", width=2, smooth=True)
+        self.left_lower_lid = c.create_line(146, 167, 177, 171, 208, 167, fill="#c0907f", width=2, smooth=True)
+        self.right_lower_lid = c.create_line(252, 167, 283, 171, 314, 167, fill="#c0907f", width=2, smooth=True)
         self.left_brow = c.create_line(142, 113, 176, 100, 212, 112, fill="#644a3f", width=3, smooth=True)
         self.right_brow = c.create_line(248, 112, 284, 100, 318, 113, fill="#644a3f", width=3, smooth=True)
 
         self.nose_bridge = c.create_line(230, 148, 226, 182, 230, 194, fill="#c9a995", width=2, smooth=True)
         self.nose_tip = c.create_line(220, 198, 230, 202, 240, 198, fill="#c9a995", width=2, smooth=True)
 
-        self.mouth_shadow = c.create_oval(186, 244, 274, 272, fill="#8d4f50", outline="")
-        self.mouth_upper = c.create_line(176, 254, 204, 246, 230, 244, 256, 246, 284, 254, fill="#8a4a4c", width=3, smooth=True)
+        self.mouth_inner = c.create_oval(192, 248, 268, 266, fill="#7f4146", outline="")
+        self.mouth_teeth = c.create_rectangle(200, 250, 260, 256, fill="#f8efe7", outline="")
+        self.mouth_upper = c.create_line(176, 254, 204, 245, 230, 243, 256, 245, 284, 254, fill="#8a4a4c", width=3, smooth=True)
         self.mouth_lower = c.create_line(176, 254, 204, 262, 230, 266, 256, 262, 284, 254, fill="#8a4a4c", width=3, smooth=True)
         self.lip_highlight = c.create_line(186, 252, 214, 247, 230, 246, 246, 247, 274, 252, fill="#d97b81", width=1, smooth=True)
+        self._sync_layer_order()
+
+    def _sync_layer_order(self) -> None:
+        for item in (
+            self.face_base,
+            self.face_shade,
+            self.left_cheek,
+            self.right_cheek,
+            self.nose_bridge,
+            self.nose_tip,
+            self.left_eye_white,
+            self.right_eye_white,
+            self.left_iris,
+            self.right_iris,
+            self.left_pupil,
+            self.right_pupil,
+            self.left_highlight,
+            self.right_highlight,
+            self.left_upper_lid,
+            self.right_upper_lid,
+            self.left_lower_lid,
+            self.right_lower_lid,
+            self.left_brow,
+            self.right_brow,
+            self.mouth_inner,
+            self.mouth_teeth,
+            self.mouth_lower,
+            self.mouth_upper,
+            self.lip_highlight,
+        ):
+            self.canvas.tag_raise(item)
 
     def _ring_color_for_state(self) -> str:
         if self.state == "listening":
@@ -201,25 +240,67 @@ class AliceFaceUI:
         self._gaze_x += (self._target_gaze_x - self._gaze_x) * 0.15
         self._gaze_y += (self._target_gaze_y - self._gaze_y) * 0.15
 
-        blink_h = max(2.0, 54.0 * self._blink_value)
+        blink_h = max(2.0, 52.0 * self._blink_value)
         left_mid_x, right_mid_x = 177.0, 283.0
-        mid_y = 149.0
+        mid_y = 149.0 + self._face_offset_y
         half_w = 31.0
         top = mid_y - blink_h / 2.0
         bottom = mid_y + blink_h / 2.0
 
         self.canvas.coords(self.left_eye_white, left_mid_x - half_w, top, left_mid_x + half_w, bottom)
         self.canvas.coords(self.right_eye_white, right_mid_x - half_w, top, right_mid_x + half_w, bottom)
-        self.canvas.coords(self.left_lid, left_mid_x - half_w, mid_y, left_mid_x, mid_y - 2, left_mid_x + half_w, mid_y)
-        self.canvas.coords(self.right_lid, right_mid_x - half_w, mid_y, right_mid_x, mid_y - 2, right_mid_x + half_w, mid_y)
+        upper_lid_y = top + max(2.0, 0.18 * blink_h)
+        lower_lid_y = bottom - max(2.0, 0.18 * blink_h)
+        if lower_lid_y < upper_lid_y + 2.0:
+            lower_lid_y = upper_lid_y + 2.0
+        upper_peak = upper_lid_y - max(1.3, 0.12 * blink_h)
+        lower_valley = lower_lid_y + max(1.3, 0.10 * blink_h)
+        self.canvas.coords(
+            self.left_upper_lid,
+            left_mid_x - half_w,
+            upper_lid_y + 0.8,
+            left_mid_x,
+            upper_peak,
+            left_mid_x + half_w,
+            upper_lid_y + 0.8,
+        )
+        self.canvas.coords(
+            self.right_upper_lid,
+            right_mid_x - half_w,
+            upper_lid_y + 0.8,
+            right_mid_x,
+            upper_peak,
+            right_mid_x + half_w,
+            upper_lid_y + 0.8,
+        )
+        self.canvas.coords(
+            self.left_lower_lid,
+            left_mid_x - half_w,
+            lower_lid_y - 0.8,
+            left_mid_x,
+            lower_valley,
+            left_mid_x + half_w,
+            lower_lid_y - 0.8,
+        )
+        self.canvas.coords(
+            self.right_lower_lid,
+            right_mid_x - half_w,
+            lower_lid_y - 0.8,
+            right_mid_x,
+            lower_valley,
+            right_mid_x + half_w,
+            lower_lid_y - 0.8,
+        )
 
-        if blink_h < 5:
+        if blink_h < 8:
             self.canvas.itemconfigure(self.left_iris, state="hidden")
             self.canvas.itemconfigure(self.right_iris, state="hidden")
             self.canvas.itemconfigure(self.left_pupil, state="hidden")
             self.canvas.itemconfigure(self.right_pupil, state="hidden")
             self.canvas.itemconfigure(self.left_highlight, state="hidden")
             self.canvas.itemconfigure(self.right_highlight, state="hidden")
+            self.canvas.itemconfigure(self.left_lower_lid, state="hidden")
+            self.canvas.itemconfigure(self.right_lower_lid, state="hidden")
             return
 
         self.canvas.itemconfigure(self.left_iris, state="normal")
@@ -228,9 +309,13 @@ class AliceFaceUI:
         self.canvas.itemconfigure(self.right_pupil, state="normal")
         self.canvas.itemconfigure(self.left_highlight, state="normal")
         self.canvas.itemconfigure(self.right_highlight, state="normal")
+        self.canvas.itemconfigure(self.left_lower_lid, state="normal")
+        self.canvas.itemconfigure(self.right_lower_lid, state="normal")
 
-        px = self._gaze_x * 10.0
-        py = self._gaze_y * 8.0
+        micro_x = 0.8 * math.sin(self._idle_phase * 2.3) if not self._face_found else 0.0
+        micro_y = 0.5 * math.cos(self._idle_phase * 1.9) if not self._face_found else 0.0
+        px = self._gaze_x * 10.0 + micro_x
+        py = self._gaze_y * 8.0 + micro_y
         li_x = left_mid_x + px
         li_y = mid_y + py
         ri_x = right_mid_x + px
@@ -244,40 +329,48 @@ class AliceFaceUI:
         self.canvas.coords(self.right_highlight, ri_x - 1, ri_y - 1, ri_x + 2, ri_y + 2)
 
     def _layout_brows(self) -> None:
+        dy = self._face_offset_y * 0.8
         if self.state == "thinking":
-            left = (142, 110, 176, 104, 212, 114)
-            right = (248, 114, 284, 104, 318, 110)
+            left = (142, 109 + dy, 176, 103 + dy, 212, 113 + dy)
+            right = (248, 113 + dy, 284, 103 + dy, 318, 109 + dy)
         elif self.state == "speaking":
-            left = (142, 114, 176, 99, 212, 112)
-            right = (248, 112, 284, 99, 318, 114)
+            left = (142, 115 + dy, 176, 98 + dy, 212, 111 + dy)
+            right = (248, 111 + dy, 284, 98 + dy, 318, 115 + dy)
         elif self.state == "error":
-            left = (142, 116, 176, 120, 212, 112)
-            right = (248, 112, 284, 120, 318, 116)
+            left = (142, 116 + dy, 176, 121 + dy, 212, 112 + dy)
+            right = (248, 112 + dy, 284, 121 + dy, 318, 116 + dy)
         else:
-            left = (142, 113, 176, 100, 212, 112)
-            right = (248, 112, 284, 100, 318, 113)
+            left = (142, 113 + dy, 176, 100 + dy, 212, 112 + dy)
+            right = (248, 112 + dy, 284, 100 + dy, 318, 113 + dy)
         self.canvas.coords(self.left_brow, *left)
         self.canvas.coords(self.right_brow, *right)
 
     def _layout_mouth(self, dt: float) -> None:
         if self.state == "speaking":
             self._speak_phase += dt * 10.0
-            open_val = 10.0 + 18.0 * (0.5 + 0.5 * math.sin(self._speak_phase))
+            target_open = 8.0 + 14.0 * (0.5 + 0.5 * math.sin(self._speak_phase))
             smile = 4.0
+        elif self.state == "listening":
+            target_open = 4.2
+            smile = 1.0
         elif self.state == "thinking":
-            open_val = 5.0
+            target_open = 3.8
             smile = 0.5
         elif self.state == "error":
-            open_val = 3.0
+            target_open = 2.2
             smile = -3.5
         else:
-            open_val = 6.0
+            target_open = 2.8
             smile = 2.0
+
+        smoothing = min(1.0, dt * 12.0)
+        self._mouth_open += (target_open - self._mouth_open) * smoothing
+        open_val = max(1.8, self._mouth_open)
 
         mid_x = 230.0
         left_x = 176.0
         right_x = 284.0
-        y = 254.0
+        y = 254.0 + self._face_offset_y
 
         self.canvas.coords(
             self.mouth_upper,
@@ -318,22 +411,59 @@ class AliceFaceUI:
             274,
             y - 2,
         )
-        self.canvas.coords(self.mouth_shadow, 186, y - 4, 274, y + open_val + 1)
+
+        inner_left = 194.0 - smile * 0.3
+        inner_right = 266.0 + smile * 0.3
+        inner_top = y - 2.0
+        inner_bottom = y + max(3.0, open_val * 0.95)
+        if open_val < 3.1:
+            self.canvas.itemconfigure(self.mouth_inner, state="hidden")
+            self.canvas.itemconfigure(self.mouth_teeth, state="hidden")
+        else:
+            self.canvas.itemconfigure(self.mouth_inner, state="normal")
+            self.canvas.coords(self.mouth_inner, inner_left, inner_top, inner_right, inner_bottom)
+            if 3.1 <= open_val < 7.8:
+                teeth_top = inner_top + 2.0
+                teeth_bottom = teeth_top + min(6.0, open_val * 0.40)
+                self.canvas.coords(
+                    self.mouth_teeth,
+                    inner_left + 6.0,
+                    teeth_top,
+                    inner_right - 6.0,
+                    teeth_bottom,
+                )
+                self.canvas.itemconfigure(self.mouth_teeth, state="normal")
+            else:
+                self.canvas.itemconfigure(self.mouth_teeth, state="hidden")
 
     def _frame(self) -> None:
         now = time.monotonic()
         dt = now - self._last_frame_time
+        dt = min(max(dt, 1.0 / 240.0), 1.0 / 24.0)
         self._last_frame_time = now
+        self._idle_phase += dt * (2.2 if self.state == "speaking" else 1.5)
+        self._face_offset_y = math.sin(self._idle_phase) * 0.8
         self._update_face_tracking()
         self._animate_blink(now)
         self._layout_eyes()
         self._layout_brows()
         self._layout_mouth(dt)
 
+        orbit_x = 230.0 + 186.0 * math.cos(self._idle_phase * 0.42)
+        orbit_y = 170.0 + 186.0 * math.sin(self._idle_phase * 0.42)
+        self.canvas.coords(self.orbit_dot, orbit_x - 4.0, orbit_y - 4.0, orbit_x + 4.0, orbit_y + 4.0)
+        self.canvas.itemconfigure(self.aura_ring, dashoffset=int(self._idle_phase * 20))
+
         blush_fill = "#efb5ab" if self.state in {"speaking", "listening"} else "#e8b2a8"
         self.canvas.itemconfigure(self.left_cheek, fill=blush_fill)
         self.canvas.itemconfigure(self.right_cheek, fill=blush_fill)
         self.canvas.itemconfigure(self.state_ring, outline=self._ring_color_for_state())
+        if self.state in {"listening", "speaking"}:
+            ring_width = 3.0 + 1.1 * (0.5 + 0.5 * math.sin(self._idle_phase * 5.0))
+        else:
+            ring_width = 3.0
+        self.canvas.itemconfigure(self.state_ring, width=ring_width)
+        self._sync_layer_order()
 
     def pump(self) -> None:
         if not self.running:

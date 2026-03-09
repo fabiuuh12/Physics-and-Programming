@@ -57,6 +57,39 @@ class IntentRouter:
         if "what can you do" in lowered or lowered.strip() in {"help", "commands"}:
             return Intent(action="help", raw=raw)
 
+        if lowered.startswith("remember ") or lowered.startswith("save "):
+            target = self._clean_target(
+                re.sub(r"^(remember|save)\s+(that\s+)?", "", command_text, flags=re.IGNORECASE)
+            )
+            if target:
+                return Intent(action="remember_memory", target=target, raw=raw)
+
+        if (
+            "what do you remember" in lowered
+            or "what do you know about me" in lowered
+            or lowered.startswith("recall")
+            or lowered.startswith("remember about")
+        ):
+            target = self._extract_target_after_preposition(command_text)
+            if target is None:
+                target = re.sub(
+                    r"^(what do you remember( about)?|what do you know about me|recall|remember about)\s*",
+                    "",
+                    command_text,
+                    flags=re.IGNORECASE,
+                ).strip()
+            target = self._clean_target(target or "")
+            return Intent(action="recall_memory", target=target or "me", raw=raw)
+
+        if any(phrase in lowered for phrase in {"what time", "current time", "time is it"}):
+            return Intent(action="get_time", raw=raw)
+
+        if any(
+            phrase in lowered
+            for phrase in {"what date", "today's date", "todays date", "what day is it", "date today", "today date"}
+        ) and any(token in lowered for token in {"date", "day", "today"}):
+            return Intent(action="get_date", raw=raw)
+
         if any(word in lowered for word in {"quit", "exit", "shutdown", "stop listening"}):
             return Intent(action="exit", raw=raw)
 
@@ -84,6 +117,21 @@ class IntentRouter:
                     target = self._clean_target(match.group(1))
             return Intent(action="open_folder", target=target or ".", raw=raw)
 
+        open_run_match = re.match(
+            r"^\s*open\s+(?:the\s+)?(.+)$",
+            command_text,
+            flags=re.IGNORECASE,
+        )
+        if open_run_match and not any(word in lowered for word in {"folder", "directory"}):
+            target = self._clean_target(open_run_match.group(1))
+            if target:
+                return Intent(
+                    action="run_file",
+                    target=target,
+                    requires_confirmation=True,
+                    raw=raw,
+                )
+
         run_match = re.search(
             r"\b(?:run|execute|start|launch)\b(?:\s+(?:the|this))?(?:\s+(?:file|script|program))?\s+(.+)$",
             command_text,
@@ -108,13 +156,19 @@ class IntentRouter:
         system_prompt = (
             "You classify a user's spoken request into one local assistant action.\n"
             "Return ONLY a JSON object with keys: action, target, pid.\n"
-            "Valid actions: run_file, list_files, open_folder, stop_process, help, exit, chat.\n"
+            "Valid actions: run_file, list_files, open_folder, stop_process, remember_memory, recall_memory, get_time, get_date, help, exit, chat.\n"
             "Rules:\n"
             "- If user wants to execute a script/program, choose run_file and include file path if present.\n"
             "- If user wants files shown, choose list_files.\n"
             "- If user wants a directory opened/checked, choose open_folder.\n"
             "- If user wants a process killed/stopped, choose stop_process and pid if present.\n"
-            "- Choose help for capability questions.\n"
+            "- If user says open <something> and that is not clearly a folder, treat it as run_file.\n"
+            "- If user asks you to remember/save a fact, choose remember_memory with that fact in target.\n"
+            "- If user asks what you remember/know about a topic/person, choose recall_memory with topic in target.\n"
+            "- If user asks for the current time, choose get_time.\n"
+            "- If user asks for today's date or day, choose get_date.\n"
+            "- Choose help ONLY for assistant-capability questions (for example: what can you do, show commands).\n"
+            "- General knowledge questions (for example: what is astrophysics) are chat.\n"
             "- Choose exit for shutdown/quit intents.\n"
             "- Otherwise choose chat.\n"
             "- Do not invent paths; if unknown keep target empty."
@@ -130,6 +184,14 @@ class IntentRouter:
                 {"role": "assistant", "content": '{"action":"list_files","target":"AstroPhysics/Alice","pid":null}'},
                 {"role": "user", "content": "can you run examples/hello_alice.py for me"},
                 {"role": "assistant", "content": '{"action":"run_file","target":"examples/hello_alice.py","pid":null}'},
+                {"role": "user", "content": "what time is it right now"},
+                {"role": "assistant", "content": '{"action":"get_time","target":null,"pid":null}'},
+                {"role": "user", "content": "remember that my favorite voice is Samantha"},
+                {"role": "assistant", "content": '{"action":"remember_memory","target":"my favorite voice is Samantha","pid":null}'},
+                {"role": "user", "content": "do you know what astrophysics is"},
+                {"role": "assistant", "content": '{"action":"chat","target":"do you know what astrophysics is","pid":null}'},
+                {"role": "user", "content": "open the blackhole visualization"},
+                {"role": "assistant", "content": '{"action":"run_file","target":"blackhole visualization","pid":null}'},
                 {"role": "user", "content": command_text},
             ]
         )
@@ -141,6 +203,10 @@ class IntentRouter:
             "list_files",
             "open_folder",
             "stop_process",
+            "remember_memory",
+            "recall_memory",
+            "get_time",
+            "get_date",
             "help",
             "exit",
             "chat",
