@@ -26,3 +26,17 @@ class MemoryItem:
     category: str = ""
     created_at: str = ""
     use_count: int = 0
+
+
+@dataclass
+class AutonomyLearningItem:
+    id: int = 0
+    question: str = ""
+    answer: str = ""
+    source: str = ""
+    confidence: float = 0.0
+    topic: str = ""
+    last_checked: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+    use_count: int = 0

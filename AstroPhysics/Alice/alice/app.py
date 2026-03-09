@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -22,6 +23,7 @@ from .executor import AliceExecutor
 from .face_tracker import FaceObservation, FaceTracker
 from .intent import describe_for_confirmation, parse_confirmation, parse_intent
 from .memory_store import MemoryStore
+from .self_updater import SelfUpdater
 from .string_utils import format_clock_time, format_long_date, join, normalize_text, replace_all, to_lower, trim
 from .types import ExecResult, Intent, MemoryItem
 from .ui import AliceUI
@@ -31,7 +33,7 @@ HELP_TEXT = (
     "Try commands like: run <file>, list files in <folder>, open folder <folder>, "
     "stop process, what time is it, what is today's date, search the web for <topic>, research <topic>, "
     "remember that <fact>, what do you remember about <topic>, can you see me, look around, "
-    "how are you feeling, help, exit. "
+    "how are you feeling, update yourself for <goal>, help, exit. "
     "Wake word is optional."
 )
 
@@ -46,6 +48,18 @@ class Args:
     camera: bool = True
     camera_index: int = 0
     no_tts: bool = False
+    autonomous: bool = True
+    autonomy_interval_seconds: int = 420
+    autonomy_cooldown_seconds: int = 240
+    autonomy_max_updates: int = 3
+    autonomy_warmup_seconds: int = 45
+    autonomy_exploration_rate: float = 0.22
+    autonomous_web: bool = True
+    autonomy_web_cooldown_seconds: int = 180
+    autonomy_max_web_researches: int = 6
+    autonomous_self_talk: bool = True
+    autonomy_self_talk_interval_seconds: int = 90
+    autonomy_presence_grace_seconds: int = 20
     command: Optional[str] = None
     config_path: Path = Path.cwd() / "config" / "allowed_paths.json"
 
@@ -56,6 +70,46 @@ _g_tts_voice_name: Optional[str] = None
 _g_tts_rate_wpm = 185
 
 
+@dataclass
+class AutonomyState:
+    enabled: bool
+    enable_web_research: bool
+    enable_self_talk: bool
+    interval_seconds: int
+    cooldown_seconds: int
+    max_updates: int
+    web_cooldown_seconds: int
+    max_web_researches: int
+    self_talk_interval_seconds: int
+    presence_grace_seconds: int
+    warmup_seconds: int = 45
+    min_turns_before_update: int = 1
+    exploration_rate: float = 0.22
+    updates_done: int = 0
+    web_researches_done: int = 0
+    failure_streak: int = 0
+    last_action: str = ""
+    last_goal: str = ""
+    last_result: str = ""
+    last_web_query: str = ""
+    started_monotonic: float = 0.0
+    last_user_activity_monotonic: float = 0.0
+    last_attempt_monotonic: float = 0.0
+    last_web_research_monotonic: float = 0.0
+    last_self_talk_monotonic: float = 0.0
+    next_allowed_monotonic: float = 0.0
+
+
+@dataclass
+class AutonomyChoice:
+    action: str
+    payload: str | None = None
+    utility: float = 0.0
+    reason: str = ""
+    exploration: float = 0.0
+    candidates: tuple[str, ...] = tuple()
+
+
 def _command_exists(name: str) -> bool:
     return shutil.which(name) is not None
 
@@ -63,7 +117,7 @@ def _command_exists(name: str) -> bool:
 def _smalltalk_reply(topic: Optional[str]) -> str:
     key = to_lower(trim(topic or ""))
     if key in {"hello", "hi", "hey"}:
-        return "Hey Fabio, I'm here. What's up?"
+        return "Hey Fabio, I'm here and ready."
     if key in {
         "sorry",
         "i'm sorry",
@@ -83,7 +137,7 @@ def _smalltalk_reply(topic: Optional[str]) -> str:
         return "I'm Alice, your local assistant."
     if key in {"thanks", "thank you"}:
         return "Anytime."
-    return "Yep, I'm listening."
+    return "Yep, I'm listening and tracking."
 
 
 def _sanitize_spoken_text(text: str) -> str:
@@ -154,7 +208,7 @@ def _clamp_spoken_summary(text: str, max_chars: int = 380) -> str:
     return f"{trim(cleaned)}..."
 
 
-def _research_web(query: str) -> ExecResult:
+def _research_web(query: str, open_browser_on_failure: bool = True) -> ExecResult:
     cleaned_query = trim(query)
     if not cleaned_query:
         return ExecResult(False, "Tell me what topic to research.")
@@ -170,8 +224,13 @@ def _research_web(query: str) -> ExecResult:
         with urllib.request.urlopen(api_url, timeout=18) as response:
             data = json.loads(response.read().decode("utf-8", errors="replace"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
-        _open_url(search_url)
-        return ExecResult(False, f"I could not fetch research results right now, so I opened web results for {cleaned_query}.")
+        if open_browser_on_failure:
+            _open_url(search_url)
+            return ExecResult(
+                False,
+                f"I could not fetch research results right now, so I opened web results for {cleaned_query}.",
+            )
+        return ExecResult(False, f"I could not fetch research results for {cleaned_query} right now.")
 
     heading = data.get("Heading", "") if isinstance(data, dict) else ""
     abstract = data.get("AbstractText", "") if isinstance(data, dict) else ""
@@ -190,8 +249,10 @@ def _research_web(query: str) -> ExecResult:
         snippets.append(item)
 
     if not snippets:
-        _open_url(search_url)
-        return ExecResult(False, f"I found limited direct data, so I opened web results for {cleaned_query}.")
+        if open_browser_on_failure:
+            _open_url(search_url)
+            return ExecResult(False, f"I found limited direct data, so I opened web results for {cleaned_query}.")
+        return ExecResult(False, f"I found limited direct data for {cleaned_query}.")
 
     title = heading if isinstance(heading, str) and trim(heading) else cleaned_query
     message = f"Here is what I found about {title}: {_clamp_spoken_summary(join(snippets, ' '))}"
@@ -372,8 +433,133 @@ def _parse_args(argv: list[str]) -> Args:
             args.no_tts = True
             i += 1
             continue
+        if token == "--autonomous":
+            args.autonomous = True
+            i += 1
+            continue
+        if token == "--no-autonomous":
+            args.autonomous = False
+            i += 1
+            continue
+        if token == "--autonomy-interval" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value > 0:
+                    args.autonomy_interval_seconds = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomy-cooldown" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value > 0:
+                    args.autonomy_cooldown_seconds = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomy-max-updates" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value > 0:
+                    args.autonomy_max_updates = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomy-warmup" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value >= 0:
+                    args.autonomy_warmup_seconds = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomy-exploration" and i + 1 < len(argv):
+            try:
+                value = float(argv[i + 1])
+                if 0.0 <= value <= 1.0:
+                    args.autonomy_exploration_rate = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomous-web":
+            args.autonomous_web = True
+            i += 1
+            continue
+        if token == "--no-autonomous-web":
+            args.autonomous_web = False
+            i += 1
+            continue
+        if token == "--autonomy-web-cooldown" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value > 0:
+                    args.autonomy_web_cooldown_seconds = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomy-max-web-researches" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value > 0:
+                    args.autonomy_max_web_researches = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomous-self-talk":
+            args.autonomous_self_talk = True
+            i += 1
+            continue
+        if token == "--no-autonomous-self-talk":
+            args.autonomous_self_talk = False
+            i += 1
+            continue
+        if token == "--autonomy-self-talk-interval" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value > 0:
+                    args.autonomy_self_talk_interval_seconds = value
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if token == "--autonomy-presence-grace" and i + 1 < len(argv):
+            try:
+                value = int(argv[i + 1])
+                if value >= 0:
+                    args.autonomy_presence_grace_seconds = value
+            except ValueError:
+                pass
+            i += 2
+            continue
         i += 1
     return args
+
+
+def _poll_stdin_line(timeout_seconds: float) -> tuple[bool, Optional[str]]:
+    try:
+        import select  # Unix-only behavior is acceptable for current macOS target.
+    except ImportError:
+        return False, None
+
+    try:
+        ready, _w, _x = select.select([sys.stdin], [], [], max(0.0, timeout_seconds))
+    except (ValueError, OSError):
+        return False, None
+
+    if not ready:
+        return True, ""
+
+    line = sys.stdin.readline()
+    if line == "":
+        return True, None
+    return True, line.rstrip("\n")
 
 
 def _extract_memorable_fact(text: str) -> Optional[str]:
@@ -524,6 +710,82 @@ def _store_memory_candidates(memory_store: MemoryStore, text: str) -> bool:
     return changed
 
 
+def _feedback_signal(text: str) -> int:
+    lowered = normalize_text(text)
+    if not lowered:
+        return 0
+
+    positive_terms = (
+        "good job",
+        "great job",
+        "nice work",
+        "well done",
+        "that was good",
+        "that is good",
+        "that was great",
+        "perfect",
+        "exactly",
+        "this works",
+        "that works",
+        "you are right",
+        "you're right",
+    )
+    negative_terms = (
+        "that was bad",
+        "that is bad",
+        "wrong",
+        "not right",
+        "does not work",
+        "doesn't work",
+        "did not work",
+        "didn't work",
+        "you are wrong",
+        "you're wrong",
+        "terrible",
+        "awful",
+        "bad answer",
+    )
+
+    positive = any(term in lowered for term in positive_terms)
+    negative = any(term in lowered for term in negative_terms)
+
+    if "not bad" in lowered:
+        positive = True
+        negative = False
+    if "not good" in lowered:
+        negative = True
+        positive = False
+
+    if positive == negative:
+        return 0
+    return 1 if positive else -1
+
+
+def _store_feedback_signal(memory_store: MemoryStore, brain: AliceBrain, user_text: str) -> None:
+    signal = _feedback_signal(user_text)
+    if signal == 0:
+        return
+
+    label = "positive" if signal > 0 else "negative"
+    memory_store.bump_counter("feedback_total", 1, "learning")
+    memory_store.bump_counter(f"feedback_{label}_total", 1, "learning")
+    memory_store.bump_counter("feedback_balance", 1 if signal > 0 else -1, "learning")
+
+    cleaned_feedback = trim(user_text)
+    if cleaned_feedback:
+        memory_store.upsert("last_feedback_text", cleaned_feedback[:220], "learning")
+    memory_store.upsert("last_feedback_signal", label, "learning")
+
+    last_reply = trim(brain.last_reply())
+    if last_reply:
+        memory_store.upsert("last_feedback_on_reply", last_reply[:220], "learning")
+
+    note = f"{label} feedback: {cleaned_feedback[:120]}"
+    if last_reply:
+        note += f" | reply: {last_reply[:120]}"
+    memory_store.add_unique(note, "feedback_log", 0.99)
+
+
 def _store_vision_memory(memory_store: MemoryStore, observation: FaceObservation) -> None:
     memory_store.upsert("scene_label", observation.scene_label, "vision")
     memory_store.upsert("scene_confidence", f"{observation.scene_confidence:.2f}", "vision")
@@ -533,6 +795,18 @@ def _store_vision_memory(memory_store: MemoryStore, observation: FaceObservation
     memory_store.upsert("face_count", str(observation.face_count), "vision")
     memory_store.upsert("dominant_color", observation.dominant_color, "vision")
     memory_store.upsert("objects", ", ".join(observation.objects[:8]) if observation.objects else "none", "vision")
+    memory_store.upsert("face_details_count", str(len(observation.face_descriptions)), "vision")
+    if observation.face_descriptions:
+        memory_store.upsert("face_details", " | ".join(observation.face_descriptions[:8]), "vision")
+    else:
+        memory_store.upsert("face_details", "none", "vision")
+
+    for idx in range(1, 7):
+        if idx <= len(observation.face_descriptions):
+            memory_store.upsert(f"face_{idx}_details", observation.face_descriptions[idx - 1], "vision")
+        else:
+            memory_store.upsert(f"face_{idx}_details", "not visible", "vision")
+
     if observation.summary:
         memory_store.add_unique(observation.summary, "vision_note", 0.95)
 
@@ -574,12 +848,26 @@ def _is_scene_query(text: str) -> bool:
     return any(trigger in query for trigger in triggers)
 
 
+def _face_breakdown_text(observation: FaceObservation, max_faces: int = 4) -> str:
+    if not observation.face_descriptions:
+        return ""
+    visible = list(observation.face_descriptions[:max_faces])
+    extra = len(observation.face_descriptions) - max_faces
+    if extra > 0:
+        visible.append(f"And {extra} more faces are visible.")
+    return " ".join(visible)
+
+
 def _vision_status_reply(vision_enabled: bool, observation: FaceObservation) -> str:
     if not vision_enabled:
         return "Camera isn't on right now. Start Alice with --ui and camera enabled."
     if observation.found:
         faces = "face" if observation.face_count == 1 else "faces"
-        return f"Yep, I can see you. I spot {observation.face_count} {faces} and it looks like a {observation.scene_label}."
+        base = f"Yep, I can see {observation.face_count} {faces}."
+        details = _face_breakdown_text(observation, 3)
+        if details:
+            base += f" {details}"
+        return f"{base} Scene looks like {observation.scene_label}."
     return (
         "Not yet, I can't see your face right now. "
         "Try moving into frame and check camera permission for Terminal or iTerm."
@@ -596,10 +884,12 @@ def _scene_description_reply(vision_enabled: bool, observation: FaceObservation)
         people_text = "I can see one person"
     elif observation.people_count > 1:
         people_text = f"I can see around {observation.people_count} people"
+    face_breakdown = _face_breakdown_text(observation, 4)
+    face_line = f" Per-face details: {face_breakdown}" if face_breakdown else ""
     return (
         f"From what I can tell, this looks like a {observation.scene_label}. "
         f"Lighting is {observation.light_level}, movement is {observation.motion_level}, and {people_text}. "
-        f"I'm also noticing: {objects}."
+        f"I'm also noticing: {objects}.{face_line}"
     )
 
 
@@ -607,10 +897,12 @@ def _vision_context_line(vision_enabled: bool, observation: FaceObservation) -> 
     if not vision_enabled:
         return "camera=off"
     objects = ", ".join(observation.objects[:6]) if observation.objects else "none"
+    face_profiles = join(list(observation.face_descriptions[:4]), " || ") if observation.face_descriptions else "none"
     return (
         f"camera=on face_found={observation.found} faces={observation.face_count} people={observation.people_count} "
         f"scene={observation.scene_label} scene_conf={observation.scene_confidence:.2f} "
-        f"light={observation.light_level} motion={observation.motion_level} objects={objects}"
+        f"light={observation.light_level} motion={observation.motion_level} objects={objects} "
+        f"face_profiles={face_profiles}"
     )
 
 
@@ -644,11 +936,681 @@ def _emotion_catalog_reply() -> str:
     return f"I can model these emotions: {catalog}."
 
 
+_AUTONOMY_DRIVE_DEFAULTS: dict[str, float] = {
+    "drive_help_user": 1.00,
+    "drive_self_improve": 0.92,
+    "drive_curiosity": 0.82,
+    "drive_stability": 0.76,
+}
+
+
+def _clamp_float(value: float, lo: float, hi: float) -> float:
+    if value < lo:
+        return lo
+    if value > hi:
+        return hi
+    return value
+
+
+def _memory_int(memory_store: MemoryStore, key: str, default: int = 0, category: str = "learning") -> int:
+    raw = memory_store.get(key, category)
+    if raw is None:
+        return default
+    try:
+        return int(float(raw))
+    except ValueError:
+        m = re.search(r"-?\d+", raw)
+        if not m:
+            return default
+        try:
+            return int(m.group(0))
+        except ValueError:
+            return default
+
+
+def _memory_float(memory_store: MemoryStore, key: str, default: float, category: str = "drives") -> float:
+    raw = memory_store.get(key, category)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _autonomy_drive(memory_store: MemoryStore, key: str) -> float:
+    default = _AUTONOMY_DRIVE_DEFAULTS.get(key, 0.7)
+    return _clamp_float(_memory_float(memory_store, key, default, "drives"), 0.2, 2.5)
+
+
+def _autonomy_set_drive(memory_store: MemoryStore, key: str, value: float) -> None:
+    memory_store.upsert(key, f"{_clamp_float(value, 0.2, 2.5):.3f}", "drives")
+
+
+def _initialize_autonomy_drives(memory_store: MemoryStore) -> None:
+    for key, value in _AUTONOMY_DRIVE_DEFAULTS.items():
+        if memory_store.get(key, "drives") is None:
+            memory_store.upsert(key, f"{value:.3f}", "drives")
+
+
+def _autonomy_adjust_drives(memory_store: MemoryStore, action: str, reward: float) -> None:
+    reward_clamped = _clamp_float(reward, -1.2, 1.2)
+    help_user = _autonomy_drive(memory_store, "drive_help_user")
+    self_improve = _autonomy_drive(memory_store, "drive_self_improve")
+    curiosity = _autonomy_drive(memory_store, "drive_curiosity")
+    stability = _autonomy_drive(memory_store, "drive_stability")
+
+    if action == "self_update":
+        self_improve += 0.08 * reward_clamped
+        help_user += 0.03 * reward_clamped
+        stability += 0.02 * reward_clamped
+    elif action == "web_research":
+        curiosity += 0.09 * reward_clamped
+        help_user += 0.02 * reward_clamped
+        stability += 0.01 * reward_clamped
+    else:
+        stability += 0.05 * reward_clamped
+        curiosity += 0.01 * reward_clamped
+
+    _autonomy_set_drive(memory_store, "drive_help_user", help_user)
+    _autonomy_set_drive(memory_store, "drive_self_improve", self_improve)
+    _autonomy_set_drive(memory_store, "drive_curiosity", curiosity)
+    _autonomy_set_drive(memory_store, "drive_stability", stability)
+
+
+def _sanitize_research_query(text: str) -> str:
+    cleaned = trim(text)
+    cleaned = re.sub(r"^(alice[\s,:-]*)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    if len(cleaned) > 140:
+        cleaned = cleaned[:140]
+    return trim(cleaned)
+
+
+_AUTONOMY_BACKGROUND_TOPICS: tuple[str, ...] = (
+    "memory retrieval ranking for personal AI assistants",
+    "reducing repetition in conversational assistants",
+    "how AI agents evaluate their own outcomes",
+    "safe autonomous software improvement workflows",
+    "voice assistant dialogue policy for natural short replies",
+    "tools planning and execution in local autonomous agents",
+    "long-term preference memory structures in sqlite",
+    "grounded perception to language alignment for assistants",
+)
+
+_AUTONOMY_INTERNAL_QUESTIONS: tuple[str, ...] = (
+    "how can a local voice assistant sound more natural and direct in everyday conversation",
+    "how can an assistant learn from user feedback without repeating itself",
+    "how can webcam face tracking reacquire people quickly after an empty frame",
+    "how can an assistant store learned facts with confidence and avoid duplicates",
+    "how can an autonomous assistant decide what is worth learning next",
+    "how can a voice assistant keep separate stable descriptions for multiple faces",
+)
+
+
+def _autonomy_background_topic(memory_store: MemoryStore) -> str:
+    cursor = _memory_int(memory_store, "autonomy_topic_cursor", 0, "autonomy_stats")
+    topic = _AUTONOMY_BACKGROUND_TOPICS[cursor % len(_AUTONOMY_BACKGROUND_TOPICS)]
+    memory_store.upsert("autonomy_topic_cursor", str(cursor + 1), "autonomy_stats")
+    return topic
+
+
+def _autonomy_internal_question(memory_store: MemoryStore, brain: AliceBrain, face_observation: FaceObservation) -> str:
+    recent_turns = list(reversed(brain.recent_history(8)))
+    last_feedback = normalize_text(memory_store.get("last_feedback_text", "learning") or "")
+    last_signal = normalize_text(memory_store.get("last_feedback_signal", "learning") or "")
+    last_question = normalize_text(memory_store.get("autonomy_last_internal_question", "autonomy") or "")
+
+    candidates: list[str] = []
+    if last_signal == "negative" or any(term in last_feedback for term in ("natural", "normal", "human", "robot", "weird")):
+        candidates.append("how can a local voice assistant sound more natural and direct in everyday conversation")
+    if face_observation.face_count <= 0:
+        candidates.append("how can webcam face tracking reacquire people quickly after an empty frame")
+    if face_observation.face_count > 1:
+        candidates.append("how can a voice assistant keep separate stable descriptions for multiple faces")
+
+    for user_text, _assistant_text in recent_turns:
+        lowered = normalize_text(user_text)
+        if not lowered:
+            continue
+        if any(term in lowered for term in ("camera", "face", "vision", "see me", "look around")):
+            candidates.append("how can webcam face tracking reacquire people quickly after an empty frame")
+        if any(term in lowered for term in ("memory", "remember", "recall", "sql", "sqlite")):
+            candidates.append("how can an assistant store learned facts with confidence and avoid duplicates")
+        if any(term in lowered for term in ("autonomous", "autonomy", "learn", "self improve", "self-improve")):
+            candidates.append("how can an autonomous assistant decide what is worth learning next")
+        if any(term in lowered for term in ("voice", "speak", "natural", "human", "person")):
+            candidates.append("how can a local voice assistant sound more natural and direct in everyday conversation")
+
+    candidates.extend(_AUTONOMY_INTERNAL_QUESTIONS)
+    for question in candidates:
+        normalized = normalize_text(question)
+        if normalized and normalized != last_question:
+            return question
+    return _AUTONOMY_INTERNAL_QUESTIONS[0]
+
+
+def _research_source(message: str) -> str:
+    match = re.search(r"\bSource:\s+(\S+)", message, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    return trim(match.group(1))
+
+
+def _research_summary(message: str) -> str:
+    cleaned = trim(message)
+    if not cleaned:
+        return ""
+    cleaned = re.sub(r"\s+Source:\s+\S+\s*\.?\s*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^Here is what I found about [^:]+:\s*", "", cleaned, flags=re.IGNORECASE)
+    return trim(cleaned)
+
+
+def _store_autonomy_learning(memory_store: MemoryStore, question: str, result: ExecResult) -> None:
+    question_clean = trim(question)
+    if not question_clean:
+        return
+
+    source = _research_source(result.message)
+    summary = _research_summary(result.message) or trim(result.message)
+    confidence = 0.78 if result.ok and source else (0.64 if result.ok else 0.18)
+    topic = _slug_fragment(question_clean, 4)
+    memory_store.upsert_autonomy_learning(
+        question=question_clean,
+        answer=_clamp_spoken_summary(summary, 220),
+        source=source or "unknown",
+        confidence=confidence,
+        topic=topic,
+    )
+    memory_store.upsert("autonomy_last_internal_question", question_clean[:220], "autonomy")
+    memory_store.upsert("autonomy_last_internal_answer", _clamp_spoken_summary(summary, 220), "autonomy")
+    memory_store.upsert("autonomy_last_internal_source", source or "unknown", "autonomy")
+    memory_store.upsert("autonomy_last_internal_confidence", f"{confidence:.2f}", "autonomy")
+    memory_store.add_unique(
+        f"autonomy learned: question={question_clean} | answer={_clamp_spoken_summary(summary, 160)} | "
+        f"source={source or 'unknown'} | confidence={confidence:.2f}",
+        "autonomy_learning_log",
+        0.995,
+    )
+
+
+def _autonomy_research_query(memory_store: MemoryStore, brain: AliceBrain, state: AutonomyState) -> str | None:
+    turn_candidates: list[str] = []
+    for user_text, _assistant_text in reversed(brain.recent_history(12)):
+        candidate = _sanitize_research_query(user_text)
+        lowered = normalize_text(candidate)
+        if len(candidate) < 12:
+            continue
+        if lowered in {"hi", "hello", "hey", "thanks", "thank you"}:
+            continue
+        if lowered.startswith(("update yourself", "self update")):
+            continue
+        turn_candidates.append(candidate)
+        if len(turn_candidates) >= 4:
+            break
+
+    feedback_reply = _sanitize_research_query(memory_store.get("last_feedback_on_reply", "learning") or "")
+    feedback_text = _sanitize_research_query(memory_store.get("last_feedback_text", "learning") or "")
+
+    candidates: list[str] = []
+    candidates.extend(turn_candidates)
+    if feedback_reply:
+        candidates.append(f"how to improve this assistant reply: {feedback_reply}")
+    if feedback_text:
+        candidates.append(f"user feedback interpretation best practices: {feedback_text}")
+
+    for recent_item in memory_store.recent(20):
+        content = trim(recent_item.content)
+        lowered = normalize_text(content)
+        if lowered.startswith("autonomy update failed:"):
+            candidates.append(f"debug assistant self-update failure: {content[:120]}")
+            break
+
+    candidates.append(_autonomy_background_topic(memory_store))
+    if not candidates:
+        candidates.append("conversational ai memory retrieval and planning best practices")
+
+    last_query = normalize_text(state.last_web_query)
+    seen: set[str] = set()
+    for query in candidates:
+        normalized = normalize_text(query)
+        if not normalized:
+            continue
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        if last_query and normalized == last_query:
+            continue
+        return query[:140]
+
+    if last_query:
+        return "conversational ai planning and autonomous learning best practices"
+    return None
+
+
+def _autonomy_dynamic_exploration_rate(memory_store: MemoryStore, state: AutonomyState) -> float:
+    base = _clamp_float(state.exploration_rate, 0.02, 0.70)
+    recent_reward = memory_store.autonomy_recent_average_reward(30)
+    if recent_reward < 0.0:
+        base += 0.12
+    elif recent_reward > 0.45:
+        base -= 0.08
+    if state.failure_streak >= 2:
+        base += 0.06
+    return _clamp_float(base, 0.02, 0.70)
+
+
+def _select_autonomy_action(
+    *,
+    state: AutonomyState,
+    self_updater: SelfUpdater,
+    memory_store: MemoryStore,
+    brain: AliceBrain,
+    now: float,
+) -> AutonomyChoice:
+    recent_turn_count = len(brain.recent_history(10))
+    drive_help = _autonomy_drive(memory_store, "drive_help_user")
+    drive_self = _autonomy_drive(memory_store, "drive_self_improve")
+    drive_curiosity = _autonomy_drive(memory_store, "drive_curiosity")
+    drive_stability = _autonomy_drive(memory_store, "drive_stability")
+    feedback_balance = _memory_int(memory_store, "feedback_balance", 0, "learning")
+
+    self_score = drive_self + (drive_help * 0.25)
+    if feedback_balance < 0:
+        self_score += 0.25
+    if state.last_action == "self_update":
+        self_score -= 0.12
+    if state.failure_streak > 0:
+        self_score -= 0.04 * state.failure_streak
+    if recent_turn_count < state.min_turns_before_update:
+        self_score -= 0.80
+    if (not self_updater.available()) or state.updates_done >= state.max_updates:
+        self_score = -999.0
+
+    web_query: str | None = None
+    web_score = -999.0
+    if state.enable_web_research and state.web_researches_done < state.max_web_researches:
+        web_query = _autonomy_research_query(memory_store, brain, state)
+        if web_query:
+            web_score = drive_curiosity + (drive_help * 0.15)
+            if feedback_balance < 0:
+                web_score += 0.18
+            if state.last_action == "web_research":
+                web_score -= 0.10
+            if state.last_web_research_monotonic > 0 and (now - state.last_web_research_monotonic) < state.web_cooldown_seconds:
+                web_score -= 1.5
+            if state.failure_streak > 0:
+                web_score -= 0.03 * state.failure_streak
+
+    reflect_score = drive_stability + 0.05
+    candidates: list[tuple[str, float, str | None, str]] = []
+    if self_score > -100.0:
+        candidates.append(("self_update", self_score, None, "improve behavior policy"))
+    if web_query and web_score > -100.0:
+        candidates.append(("web_research", web_score, web_query, "learn from external knowledge"))
+    candidates.append(("reflect", reflect_score, None, "stabilize and consolidate"))
+
+    candidates.sort(key=lambda item: item[1], reverse=True)
+    selected = candidates[0]
+    exploration = _autonomy_dynamic_exploration_rate(memory_store, state)
+    exploration_used = 0.0
+
+    if len(candidates) > 1 and random.random() < exploration:
+        others = candidates[1:]
+        min_score = min(item[1] for item in others)
+        weights = [max(0.05, (item[1] - min_score) + 0.10) for item in others]
+        selected = random.choices(others, weights=weights, k=1)[0]
+        exploration_used = exploration
+
+    candidates_snapshot = tuple(f"{item[0]}:{item[1]:.3f}" for item in candidates[:3])
+    return AutonomyChoice(
+        action=selected[0],
+        payload=selected[2],
+        utility=float(selected[1]),
+        reason=selected[3],
+        exploration=exploration_used,
+        candidates=candidates_snapshot,
+    )
+
+
+def _autonomy_reward(action: str, ok: bool, message: str) -> float:
+    msg = normalize_text(message)
+    if action == "self_update":
+        if not ok:
+            return -0.48
+        reward = 0.72
+        if "changed:" in msg:
+            reward += 0.10
+        return reward
+    if action == "web_research":
+        if not ok:
+            return -0.22
+        reward = 0.34
+        if "source:" in msg:
+            reward += 0.07
+        return reward
+    # reflect
+    return 0.05 if ok else -0.05
+
+
+def _maybe_autonomous_self_talk(
+    *,
+    state: AutonomyState,
+    memory_store: MemoryStore,
+    brain: AliceBrain,
+    face_observation: FaceObservation,
+    conversation_active: bool,
+) -> Optional[str]:
+    if not state.enabled or not state.enable_self_talk:
+        return None
+
+    now = time.monotonic()
+    warmup = max(8.0, float(state.warmup_seconds) * 0.5)
+    if state.started_monotonic <= 0:
+        state.started_monotonic = now
+    if (now - state.started_monotonic) < warmup:
+        return None
+    if state.last_self_talk_monotonic > 0 and (now - state.last_self_talk_monotonic) < state.self_talk_interval_seconds:
+        return None
+    if conversation_active:
+        return None
+
+    state.last_self_talk_monotonic = now
+    question = _autonomy_internal_question(memory_store, brain, face_observation)
+    memory_store.upsert("autonomy_last_internal_question", question[:220], "autonomy")
+    decision_id = memory_store.log_autonomy_decision(
+        action="self_learn",
+        payload=question,
+        reason="internal question-driven learning",
+        utility=_autonomy_drive(memory_store, "drive_curiosity"),
+        exploration=0.0,
+        drives={
+            "help_user": _autonomy_drive(memory_store, "drive_help_user"),
+            "self_improve": _autonomy_drive(memory_store, "drive_self_improve"),
+            "curiosity": _autonomy_drive(memory_store, "drive_curiosity"),
+            "stability": _autonomy_drive(memory_store, "drive_stability"),
+        },
+        context={"mode": "internal_learning"},
+    )
+
+    result = _research_web(question, open_browser_on_failure=False)
+    reward = _autonomy_reward("web_research", result.ok, result.message)
+    memory_store.log_autonomy_outcome(
+        decision_id=decision_id,
+        ok=result.ok,
+        reward=reward,
+        message=result.message,
+        metrics={"action": "self_learn", "question": question},
+    )
+    memory_store.bump_counter("autonomy_self_talks", 1, "autonomy_stats")
+    memory_store.bump_counter("autonomy_internal_questions", 1, "autonomy_stats")
+    memory_store.upsert("autonomy_last_self_talk", question[:220], "autonomy")
+
+    if result.ok:
+        memory_store.bump_counter("autonomy_internal_learning_success", 1, "autonomy_stats")
+        _store_autonomy_learning(memory_store, question, result)
+        _autonomy_adjust_drives(memory_store, "web_research", reward)
+        return None
+
+    memory_store.bump_counter("autonomy_internal_learning_failures", 1, "autonomy_stats")
+    memory_store.upsert("autonomy_last_internal_answer", result.message[:220], "autonomy")
+    memory_store.upsert("autonomy_last_internal_source", "unknown", "autonomy")
+    memory_store.upsert("autonomy_last_internal_confidence", "0.18", "autonomy")
+    memory_store.add_unique(
+        f"autonomy internal learning failed: {question} -> {result.message}",
+        "autonomy_log",
+        0.995,
+    )
+    _autonomy_adjust_drives(memory_store, "web_research", reward)
+    return None
+
+
+def _maybe_autonomous_self_update(
+    *,
+    state: AutonomyState,
+    self_updater: SelfUpdater,
+    memory_store: MemoryStore,
+    brain: AliceBrain,
+) -> Optional[str]:
+    if not state.enabled:
+        return None
+
+    now = time.monotonic()
+    if state.started_monotonic <= 0:
+        state.started_monotonic = now
+    if (now - state.started_monotonic) < state.warmup_seconds:
+        return None
+    if now < state.next_allowed_monotonic:
+        return None
+    if state.last_attempt_monotonic > 0 and (now - state.last_attempt_monotonic) < state.interval_seconds:
+        return None
+
+    memory_lines = [item.content for item in memory_store.recent(18)]
+    recent_turns = brain.recent_history(10)
+    state.last_attempt_monotonic = now
+
+    choice = _select_autonomy_action(
+        state=state,
+        self_updater=self_updater,
+        memory_store=memory_store,
+        brain=brain,
+        now=now,
+    )
+    drives_snapshot = {
+        "help_user": _autonomy_drive(memory_store, "drive_help_user"),
+        "self_improve": _autonomy_drive(memory_store, "drive_self_improve"),
+        "curiosity": _autonomy_drive(memory_store, "drive_curiosity"),
+        "stability": _autonomy_drive(memory_store, "drive_stability"),
+    }
+    decision_id = memory_store.log_autonomy_decision(
+        action=choice.action,
+        payload=choice.payload,
+        reason=choice.reason,
+        utility=choice.utility,
+        exploration=choice.exploration,
+        drives=drives_snapshot,
+        context={
+            "recent_turns": len(recent_turns),
+            "memory_items": len(memory_lines),
+            "failure_streak": state.failure_streak,
+            "candidates": list(choice.candidates),
+        },
+    )
+
+    if choice.action == "reflect":
+        state.last_action = "reflect"
+        state.last_result = "reflection tick complete"
+        state.next_allowed_monotonic = now + state.interval_seconds
+        memory_store.bump_counter("autonomy_reflections", 1, "autonomy_stats")
+        memory_store.upsert("autonomy_last_action", "reflect", "autonomy")
+        memory_store.upsert("autonomy_last_result", state.last_result, "autonomy")
+        reward = _autonomy_reward("reflect", True, state.last_result)
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=True,
+            reward=reward,
+            message=state.last_result,
+            metrics={"action": "reflect"},
+        )
+        _autonomy_adjust_drives(memory_store, "reflect", reward)
+        return None
+
+    if choice.action == "web_research":
+        query = trim(choice.payload or "")
+        if not query:
+            state.next_allowed_monotonic = now + state.interval_seconds
+            reward = _autonomy_reward("web_research", False, "empty query")
+            memory_store.log_autonomy_outcome(
+                decision_id=decision_id,
+                ok=False,
+                reward=reward,
+                message="autonomy web research skipped: empty query",
+                metrics={"action": "web_research"},
+            )
+            _autonomy_adjust_drives(memory_store, "web_research", reward)
+            return None
+
+        result = _research_web(query, open_browser_on_failure=False)
+        state.last_action = "web_research"
+        state.last_web_query = query
+        state.last_result = result.message
+        state.last_web_research_monotonic = now
+        memory_store.upsert("autonomy_last_action", "web_research", "autonomy")
+        memory_store.upsert("autonomy_last_web_query", query, "autonomy")
+        memory_store.upsert("autonomy_last_result", result.message[:240], "autonomy")
+        memory_store.bump_counter("autonomy_web_attempts", 1, "autonomy_stats")
+        reward = _autonomy_reward("web_research", result.ok, result.message)
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=result.ok,
+            reward=reward,
+            message=result.message,
+            metrics={"action": "web_research", "query": query},
+        )
+
+        if result.ok:
+            state.failure_streak = 0
+            state.web_researches_done += 1
+            state.next_allowed_monotonic = now + state.web_cooldown_seconds
+            memory_store.bump_counter("autonomy_web_success", 1, "autonomy_stats")
+            memory_store.add_unique(
+                f"autonomy web research: {query} -> {result.message[:220]}",
+                "autonomy_web",
+                0.995,
+            )
+            _autonomy_adjust_drives(memory_store, "web_research", reward)
+            return f"Autonomy researched: {query}"
+
+        state.failure_streak += 1
+        state.next_allowed_monotonic = now + max(state.interval_seconds * 2, state.web_cooldown_seconds)
+        memory_store.bump_counter("autonomy_web_failures", 1, "autonomy_stats")
+        memory_store.add_unique(
+            f"autonomy web research failed: {query} -> {result.message}",
+            "autonomy_log",
+            0.995,
+        )
+        _autonomy_adjust_drives(memory_store, "web_research", reward)
+        return None
+
+    if choice.action != "self_update":
+        state.next_allowed_monotonic = now + state.interval_seconds
+        reward = _autonomy_reward("reflect", False, "unknown autonomy action")
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=False,
+            reward=reward,
+            message="unknown autonomy action",
+            metrics={"action": choice.action},
+        )
+        _autonomy_adjust_drives(memory_store, "reflect", reward)
+        return None
+
+    if not self_updater.available() or state.updates_done >= state.max_updates:
+        state.next_allowed_monotonic = now + state.interval_seconds
+        reward = _autonomy_reward("self_update", False, "self updater unavailable")
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=False,
+            reward=reward,
+            message="self update unavailable right now",
+            metrics={"action": "self_update"},
+        )
+        _autonomy_adjust_drives(memory_store, "self_update", reward)
+        return None
+
+    if len(recent_turns) < state.min_turns_before_update:
+        state.next_allowed_monotonic = now + min(3, state.interval_seconds)
+        reward = _autonomy_reward("self_update", False, "insufficient turns")
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=False,
+            reward=reward,
+            message="self update postponed: insufficient conversational context",
+            metrics={"recent_turns": len(recent_turns)},
+        )
+        _autonomy_adjust_drives(memory_store, "self_update", reward)
+        return None
+
+    proposed_goal = self_updater.propose_goal(
+        memory_lines=memory_lines,
+        recent_turns=recent_turns,
+        last_goal=state.last_goal or None,
+        last_result=state.last_result or None,
+    )
+    if not proposed_goal:
+        state.last_result = "planner produced no actionable goal"
+        state.next_allowed_monotonic = now + state.interval_seconds
+        reward = _autonomy_reward("self_update", False, state.last_result)
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=False,
+            reward=reward,
+            message=state.last_result,
+            metrics={"action": "self_update"},
+        )
+        _autonomy_adjust_drives(memory_store, "self_update", reward)
+        return None
+
+    if state.last_goal and normalize_text(proposed_goal) == normalize_text(state.last_goal):
+        state.last_result = "planner repeated previous goal"
+        state.next_allowed_monotonic = now + state.interval_seconds
+        reward = _autonomy_reward("self_update", False, state.last_result)
+        memory_store.log_autonomy_outcome(
+            decision_id=decision_id,
+            ok=False,
+            reward=reward,
+            message=state.last_result,
+            metrics={"action": "self_update"},
+        )
+        _autonomy_adjust_drives(memory_store, "self_update", reward)
+        return None
+
+    result = self_updater.apply_goal(proposed_goal)
+    state.last_action = "self_update"
+    state.last_goal = proposed_goal
+    state.last_result = result.message
+    memory_store.upsert("autonomy_last_action", "self_update", "autonomy")
+    memory_store.upsert("autonomy_last_goal", proposed_goal, "autonomy")
+    memory_store.upsert("autonomy_last_result", result.message[:240], "autonomy")
+    memory_store.bump_counter("autonomy_self_update_attempts", 1, "autonomy_stats")
+    reward = _autonomy_reward("self_update", result.ok, result.message)
+    memory_store.log_autonomy_outcome(
+        decision_id=decision_id,
+        ok=result.ok,
+        reward=reward,
+        message=result.message,
+        metrics={"action": "self_update", "goal": proposed_goal[:180]},
+    )
+
+    if result.ok:
+        state.failure_streak = 0
+        state.updates_done += 1
+        state.next_allowed_monotonic = now + state.cooldown_seconds
+        memory_store.bump_counter("autonomy_self_update_success", 1, "autonomy_stats")
+        memory_store.add_unique(f"autonomy update success: {proposed_goal}", "autonomy_log", 0.98)
+        _autonomy_adjust_drives(memory_store, "self_update", reward)
+        return f"Autonomy self-update #{state.updates_done}: {proposed_goal}"
+
+    state.failure_streak += 1
+    if state.failure_streak >= 2:
+        state.next_allowed_monotonic = now + max(state.interval_seconds * 4, 900)
+    else:
+        state.next_allowed_monotonic = now + max(state.interval_seconds * 2, state.cooldown_seconds)
+    memory_store.bump_counter("autonomy_self_update_failures", 1, "autonomy_stats")
+    memory_store.add_unique(
+        f"autonomy update failed: {proposed_goal} -> {result.message}",
+        "autonomy_log",
+        0.99,
+    )
+    _autonomy_adjust_drives(memory_store, "self_update", reward)
+    return None
+
+
 def _execute_intent(intent: Intent, executor: AliceExecutor) -> ExecResult:
     if intent.action == "help":
         return ExecResult(True, HELP_TEXT)
     if intent.action == "greet":
-        return ExecResult(True, "I am listening.")
+        return ExecResult(True, "Yeah, I'm here.")
     if intent.action == "smalltalk":
         return ExecResult(True, _smalltalk_reply(intent.target))
     if intent.action == "list_files":
@@ -678,12 +1640,53 @@ def _execute_intent(intent: Intent, executor: AliceExecutor) -> ExecResult:
     return ExecResult(False, "I did not understand that command. Say 'Alice help'.")
 
 
+def _confirm_intent(
+    intent: Intent,
+    voice_mode: bool,
+    voice_listener: Optional[VoiceListener],
+    ui: Optional[AliceUI],
+) -> Optional[bool]:
+    _speak(f"Please confirm: {describe_for_confirmation(intent)}. Say yes or no.", ui)
+
+    for _ in range(3):
+        confirmation = ""
+        voice_confirm = (voice_mode or ui is not None) and voice_listener is not None and voice_listener.available()
+        if voice_confirm:
+            heard = voice_listener.listen(
+                timeout_seconds=10.0,
+                phrase_time_limit_seconds=12.0,
+                tick=(lambda: ui.pump()) if ui is not None else None,
+            )
+            if not heard:
+                _speak("I did not catch yes or no. Please say yes or no.", ui)
+                continue
+            confirmation = heard
+            print(confirmation)
+        else:
+            try:
+                confirmation = input("Confirm> ")
+            except EOFError:
+                return None
+
+        if ui is not None and trim(confirmation):
+            ui.add_message("You", confirmation)
+
+        decision, decision_known = parse_confirmation(confirmation)
+        if not decision_known:
+            _speak("I did not catch yes or no. Please say yes or no.", ui)
+            continue
+        return decision
+
+    return False
+
+
 def _handle_utterance(
     utterance: str,
     wake_word: str,
     require_wake: bool,
     executor: AliceExecutor,
     brain: AliceBrain,
+    self_updater: SelfUpdater,
     emotion_engine: EmotionEngine,
     memory_store: MemoryStore,
     voice_mode: bool,
@@ -703,6 +1706,8 @@ def _handle_utterance(
             ui.set_state("idle")
             ui.set_status("Online")
         return True
+
+    _store_feedback_signal(memory_store, brain, utterance)
     emotion_engine.observe_intent(intent.action)
 
     if intent.action == "vision_status":
@@ -754,6 +1759,25 @@ def _handle_utterance(
         emotion_engine.observe_result(True)
         return True
 
+    if intent.action == "self_update":
+        goal = trim(intent.target or "")
+        if not goal:
+            _speak("Tell me what exactly I should improve, then say update yourself for that goal.", ui)
+            emotion_engine.observe_result(False)
+            return True
+        if intent.requires_confirmation:
+            approved = _confirm_intent(intent, voice_mode, voice_listener, ui)
+            if approved is None:
+                return False
+            if not approved:
+                _speak("Canceled.", ui)
+                emotion_engine.observe_result(False)
+                return True
+        result = self_updater.apply_goal(goal)
+        _speak(result.message, ui)
+        emotion_engine.observe_result(result.ok)
+        return True
+
     if intent.action == "chat":
         chat_text = intent.target or intent.raw
         if _is_vision_query(chat_text):
@@ -788,42 +1812,10 @@ def _handle_utterance(
         return True
 
     if intent.requires_confirmation:
-        _speak(f"Please confirm: {describe_for_confirmation(intent)}. Say yes or no.", ui)
-        decision_known = False
-        approved = False
-
-        for _ in range(3):
-            confirmation = ""
-            voice_confirm = (voice_mode or ui is not None) and voice_listener is not None and voice_listener.available()
-            if voice_confirm:
-                heard = voice_listener.listen(
-                    timeout_seconds=10.0,
-                    phrase_time_limit_seconds=12.0,
-                    tick=(lambda: ui.pump()) if ui is not None else None,
-                )
-                if not heard:
-                    _speak("I did not catch yes or no. Please say yes or no.", ui)
-                    continue
-                confirmation = heard
-                print(confirmation)
-            else:
-                try:
-                    confirmation = input("Confirm> ")
-                except EOFError:
-                    return False
-
-            if ui is not None and trim(confirmation):
-                ui.add_message("You", confirmation)
-
-            decision, decision_known = parse_confirmation(confirmation)
-            if not decision_known:
-                _speak("I did not catch yes or no. Please say yes or no.", ui)
-                continue
-
-            approved = decision
-            break
-
-        if not decision_known or not approved:
+        approved = _confirm_intent(intent, voice_mode, voice_listener, ui)
+        if approved is None:
+            return False
+        if not approved:
             _speak("Canceled.", ui)
             emotion_engine.observe_result(False)
             return True
@@ -852,14 +1844,14 @@ def run(argv: list[str] | None = None) -> int:
     env_memory = os.getenv("ALICE_MEMORY_DB", "")
     if env_memory:
         memory_path = Path(env_memory)
-        if memory_path.suffix == ".db":
-            memory_path = memory_path.with_suffix(".tsv")
     else:
-        memory_path = config.project_root / "data" / "alice_memory.tsv"
+        memory_path = config.project_root / "data" / "alice_memory.db"
 
     memory_store = MemoryStore(memory_path)
+    _initialize_autonomy_drives(memory_store)
     executor = AliceExecutor(config.allowed_roots, config.log_dir, config.max_runtime_seconds)
     brain = AliceBrain()
+    self_updater = SelfUpdater(config.project_root)
     emotion_engine = EmotionEngine()
     # In UI mode, enable speech input as well so conversation can be hands-free.
     voice_listener = VoiceListener() if (voice_mode or ui_enabled) else None
@@ -915,6 +1907,42 @@ def run(argv: list[str] | None = None) -> int:
         print("[Alice] TTS backend: none")
 
     print(f"[Alice] LLM backend: {brain.llm_backend()}")
+    print(f"[Alice] Self-update backend: {self_updater.backend() if self_updater.available() else 'none'}")
+    interactive_session = (not args.once) and args.command is None
+    autonomy_state = AutonomyState(
+        enabled=args.autonomous and interactive_session,
+        enable_web_research=args.autonomous_web,
+        enable_self_talk=args.autonomous_self_talk,
+        interval_seconds=max(30, args.autonomy_interval_seconds),
+        cooldown_seconds=max(30, args.autonomy_cooldown_seconds),
+        max_updates=max(1, args.autonomy_max_updates),
+        web_cooldown_seconds=max(30, args.autonomy_web_cooldown_seconds),
+        max_web_researches=max(1, args.autonomy_max_web_researches),
+        self_talk_interval_seconds=max(15, args.autonomy_self_talk_interval_seconds),
+        presence_grace_seconds=max(0, args.autonomy_presence_grace_seconds),
+        warmup_seconds=max(0, args.autonomy_warmup_seconds),
+        exploration_rate=_clamp_float(args.autonomy_exploration_rate, 0.0, 1.0),
+        started_monotonic=time.monotonic(),
+    )
+    print(
+        "[Alice] Autonomous mode:",
+        (
+            f"on (interval={autonomy_state.interval_seconds}s, "
+            f"cooldown={autonomy_state.cooldown_seconds}s, max_updates={autonomy_state.max_updates}, "
+            f"web={'on' if autonomy_state.enable_web_research else 'off'}, "
+            f"web_cooldown={autonomy_state.web_cooldown_seconds}s, "
+            f"max_web={autonomy_state.max_web_researches}, warmup={autonomy_state.warmup_seconds}s, "
+            f"self_talk={'on' if autonomy_state.enable_self_talk else 'off'} "
+            f"({autonomy_state.self_talk_interval_seconds}s, grace={autonomy_state.presence_grace_seconds}s), "
+            f"exploration={autonomy_state.exploration_rate:.2f})"
+            if autonomy_state.enabled
+            else "off"
+        ),
+    )
+    if autonomy_state.enabled and not self_updater.available():
+        print("[Alice] Autonomous self-update unavailable without LLM backend; research/learning autonomy remains active.")
+    if autonomy_state.enabled and ui is None and not voice_mode:
+        print("[Alice] Autonomous idle mode active. Type anytime and press Enter.")
     print(f"[Alice] Emotion profiles: {len(EmotionEngine.all_emotions())}")
     if brain.using_llm():
         _speak(f"Alice is online with conversational mode enabled using {brain.llm_backend()}.", ui)
@@ -947,6 +1975,32 @@ def run(argv: list[str] | None = None) -> int:
                 light_level=latest_face_observation.light_level,
             )
             current_emotion = emotion_engine.current()
+            now = time.monotonic()
+            conversation_active = (
+                autonomy_state.last_user_activity_monotonic > 0.0
+                and (now - autonomy_state.last_user_activity_monotonic) < autonomy_state.presence_grace_seconds
+            )
+
+            autonomy_message = _maybe_autonomous_self_update(
+                state=autonomy_state,
+                self_updater=self_updater,
+                memory_store=memory_store,
+                brain=brain,
+            )
+            if autonomy_message and not conversation_active:
+                if ui is not None:
+                    ui.add_message("Alice", f"[Autonomous] {autonomy_message}")
+                    ui.set_status("Autonomous update completed")
+                else:
+                    print(f"[Alice][Autonomous] {autonomy_message}")
+
+            _maybe_autonomous_self_talk(
+                state=autonomy_state,
+                memory_store=memory_store,
+                brain=brain,
+                face_observation=latest_face_observation,
+                conversation_active=conversation_active,
+            )
 
             if ui is not None:
                 ui.set_emotion(current_emotion.name, current_emotion.intensity)
@@ -997,6 +2051,7 @@ def run(argv: list[str] | None = None) -> int:
                             args.require_wake,
                             executor,
                             brain,
+                            self_updater,
                             emotion_engine,
                             memory_store,
                             voice_mode,
@@ -1011,12 +2066,27 @@ def run(argv: list[str] | None = None) -> int:
                     utterance = heard
                     print(f"You (voice)> {utterance}")
                 else:
-                    try:
-                        utterance = input("You> ")
-                    except EOFError:
-                        break
+                    if autonomy_state.enabled and ui is None:
+                        supported, polled = _poll_stdin_line(1.0)
+                        if supported:
+                            if polled is None:
+                                break
+                            utterance = polled
+                            if not trim(utterance):
+                                continue
+                        else:
+                            try:
+                                utterance = input("You> ")
+                            except EOFError:
+                                break
+                    else:
+                        try:
+                            utterance = input("You> ")
+                        except EOFError:
+                            break
 
             if trim(utterance):
+                autonomy_state.last_user_activity_monotonic = time.monotonic()
                 if ui is not None:
                     ui.add_message("You", utterance)
                 keep_running = _handle_utterance(
@@ -1025,6 +2095,7 @@ def run(argv: list[str] | None = None) -> int:
                     args.require_wake,
                     executor,
                     brain,
+                    self_updater,
                     emotion_engine,
                     memory_store,
                     voice_mode,

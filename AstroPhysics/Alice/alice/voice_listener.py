@@ -31,6 +31,8 @@ class VoiceListener:
         self._recognizer = None
         self._microphone = None
         self._sample_rate = 16000
+        self._last_ambient_calibration_at = 0.0
+        self._ambient_calibration_interval_seconds = 90.0
 
         if sr is None:
             self._error = (
@@ -40,6 +42,10 @@ class VoiceListener:
             return
 
         self._recognizer = sr.Recognizer()
+        self._recognizer.dynamic_energy_threshold = True
+        self._recognizer.pause_threshold = 0.6
+        self._recognizer.non_speaking_duration = 0.2
+        self._recognizer.phrase_threshold = 0.2
 
         has_pyaudio = False
         with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
@@ -92,6 +98,16 @@ class VoiceListener:
         self._backend = "speech_recognition+sounddevice"
         self._error = ""
 
+    def _calibrate_if_needed(self, source, force: bool = False) -> None:
+        if self._recognizer is None:
+            return
+        now = time.monotonic()
+        if (not force) and self._last_ambient_calibration_at > 0.0:
+            if (now - self._last_ambient_calibration_at) < self._ambient_calibration_interval_seconds:
+                return
+        self._recognizer.adjust_for_ambient_noise(source, duration=0.15)
+        self._last_ambient_calibration_at = now
+
     def available(self) -> bool:
         return self._available
 
@@ -117,7 +133,7 @@ class VoiceListener:
                 with self._microphone as source:
                     if tick is not None:
                         tick()
-                    self._recognizer.adjust_for_ambient_noise(source, duration=0.35)
+                    self._calibrate_if_needed(source)
                     audio = self._recognizer.listen(
                         source,
                         timeout=max(0.5, timeout_seconds),

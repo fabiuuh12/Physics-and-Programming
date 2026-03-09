@@ -691,9 +691,16 @@ class AliceUI:
             self._root.update()
         except Exception:
             self._running = False
+            self._root = None
+            self._canvas = None
+            self._status_var = None
+            self._chat_text = None
 
     def stop(self) -> None:
         self._running = False
+        self._canvas = None
+        self._status_var = None
+        self._chat_text = None
         if self._root is not None:
             try:
                 self._root.destroy()
@@ -710,20 +717,30 @@ class AliceUI:
     def set_status(self, status: str) -> None:
         self._status_text = status
         if self._status_var is not None:
-            self._status_var.set(status)
+            try:
+                if self._root is not None and self._root.winfo_exists():
+                    self._status_var.set(status)
+            except Exception:
+                self._status_var = None
 
     def add_message(self, speaker: str, text: str) -> None:
         if self._chat_text is None:
             return
 
-        self._chat_text.configure(state="normal")
-        self._chat_text.insert(tk.END, f"{speaker}: {text}\n")
-        self._chat_lines += 1
-        if self._chat_lines > 120:
-            self._chat_text.delete("1.0", "3.0")
-            self._chat_lines -= 2
-        self._chat_text.see(tk.END)
-        self._chat_text.configure(state="disabled")
+        try:
+            if self._root is None or not self._root.winfo_exists() or not self._chat_text.winfo_exists():
+                self._chat_text = None
+                return
+            self._chat_text.configure(state="normal")
+            self._chat_text.insert(tk.END, f"{speaker}: {text}\n")
+            self._chat_lines += 1
+            if self._chat_lines > 120:
+                self._chat_text.delete("1.0", "3.0")
+                self._chat_lines -= 2
+            self._chat_text.see(tk.END)
+            self._chat_text.configure(state="disabled")
+        except Exception:
+            self._chat_text = None
 
     def set_face_target(
         self,

@@ -135,6 +135,21 @@ def parse_intent(text: str, wake_word: str, require_wake: bool) -> tuple[Intent,
         if target:
             return Intent(action="web_research", target=target, raw=spoken), matched
 
+    m = re.fullmatch(
+        r"(?:self[-\s]?update|update\s+yourself|improve\s+yourself|improve\s+your\s+code|"
+        r"update\s+your\s+code|refactor\s+yourself)(?:\s+(?:for|to|so\s+that))?\s*(.*)",
+        command,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        target = _clean_target(m.group(1))
+        return Intent(
+            action="self_update",
+            target=target if target else None,
+            requires_confirmation=True,
+            raw=spoken,
+        ), matched
+
     if re.search(
         r"\b(can\s+you\s+see\s+me|do\s+you\s+see\s+me|can\s+you\s+see\s+my\s+face|do\s+you\s+see\s+my\s+face|are\s+you\s+looking\s+at\s+me|can\s+you\s+see\s+us)\b",
         lowered,
@@ -203,6 +218,9 @@ def describe_for_confirmation(intent: Intent) -> str:
         if intent.pid is not None:
             return f"stop process {intent.pid}"
         return "stop the latest process"
+    if intent.action == "self_update":
+        target = intent.target or "(no goal given)"
+        return f"update Alice code for '{target}'"
     return intent.action
 
 
