@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
-project(alice_cpp LANGUAGES CXX)
+
+if(APPLE)
+  project(alice_cpp LANGUAGES CXX OBJCXX)
+else()
+  project(alice_cpp LANGUAGES CXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(alice
+set(ALICE_SOURCES
   src/main.cpp
   src/string_utils.cpp
   src/config.cpp
@@ -16,8 +21,18 @@ add_executable(alice
   src/brain.cpp
 )
 
+if(APPLE)
+  list(APPEND ALICE_SOURCES src/ui_macos.mm src/voice_listener_macos.mm)
+else()
+  list(APPEND ALICE_SOURCES src/ui_stub.cpp src/voice_listener_stub.cpp)
+endif()
+
+add_executable(alice ${ALICE_SOURCES})
+
 target_include_directories(alice PRIVATE include)
 
 if(APPLE)
-  target_compile_definitions(alice PRIVATE ALICE_PLATFORM_MACOS=1)
+  set_source_files_properties(src/ui_macos.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+  set_source_files_properties(src/voice_listener_macos.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+  target_link_libraries(alice "-framework AppKit" "-framework AVFoundation" "-framework Speech")
 endif()

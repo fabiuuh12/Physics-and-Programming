@@ -1,6 +1,6 @@
 # Alice (C++ Rewrite)
 
-Alice is now implemented in C++ in this folder.
+Alice is implemented in C++ in this folder.
 
 ## What is included
 
@@ -9,19 +9,55 @@ Alice is now implemented in C++ in this folder.
 - Safe command execution with allowlisted roots (`config/allowed_paths.json`)
 - C/C++ compile-and-run support for `.cpp/.cc/.cxx/.c`
 - Optional chat backend via Ollama or OpenAI using environment variables
+- macOS UI mode (`--ui`) with animated Alice face + chat log
+- macOS spoken replies via `say` (disable with `--no-tts`)
+- macOS voice input mode (`--mode voice`) via Apple Speech framework
 
 ## Build
 
 ```bash
 cd AstroPhysics/Alice
+# if CMake is installed:
 cmake -S . -B build
 cmake --build build -j
+
+# fallback without CMake:
+clang++ -std=c++20 -O2 -fobjc-arc -Iinclude \
+  src/main.cpp src/string_utils.cpp src/config.cpp src/intent.cpp \
+  src/memory_store.cpp src/executor.cpp src/llm_client.cpp src/brain.cpp src/ui_macos.mm src/voice_listener_macos.mm \
+  -framework AppKit -framework AVFoundation -framework Speech -o build/alice
 ```
 
 ## Run
 
+Text mode:
+
 ```bash
 ./build/alice --mode text
+```
+
+Voice mode:
+
+```bash
+./build/alice --mode voice
+```
+
+UI mode (face window + spoken responses):
+
+```bash
+./build/alice --mode text --ui
+```
+
+UI + voice mode:
+
+```bash
+./build/alice --mode voice --ui
+```
+
+Disable speech:
+
+```bash
+./build/alice --mode text --ui --no-tts
 ```
 
 One-shot command:
@@ -77,5 +113,5 @@ export ALICE_LDFLAGS="-L/opt/homebrew/lib"
 
 ## Notes
 
-- Voice, UI, and camera tracking are not part of this C++ pass yet.
-- Python source files were removed from `src/` in this rewrite.
+- Camera tracking is not part of this C++ pass yet.
+- For voice mode on macOS, allow microphone and speech recognition access for your terminal app (Terminal/iTerm) in System Settings > Privacy & Security.

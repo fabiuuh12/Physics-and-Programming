@@ -4,16 +4,24 @@
 #include "alice/intent.hpp"
 #include "alice/memory_store.hpp"
 #include "alice/string_utils.hpp"
+#include "alice/ui.hpp"
+#include "alice/voice_listener.hpp"
 
+#include <chrono>
 #include <cstdlib>
+#include <cerrno>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
-#include <random>
 #include <regex>
+#include <set>
 #include <string>
 #include <vector>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <thread>
 
 namespace alice {
 
@@ -27,9 +35,38 @@ struct Args {
     bool require_wake = false;
     std::string wake_word = "alice";
     bool once = false;
+    bool ui = false;
+    bool no_tts = false;
     std::optional<std::string> command;
     std::filesystem::path config_path;
 };
+
+static AliceUI* g_ui = nullptr;
+static bool g_tts_enabled = false;
+
+static bool command_exists(const std::string& name) {
+    const char* path_env = std::getenv("PATH");
+    if (path_env == nullptr) {
+        return false;
+    }
+    std::string all(path_env);
+    std::size_t start = 0;
+    while (start <= all.size()) {
+        std::size_t end = all.find(':', start);
+        if (end == std::string::npos) {
+            end = all.size();
+        }
+        const std::filesystem::path candidate = std::filesystem::path(all.substr(start, end - start)) / name;
+        if (std::filesystem::exists(candidate) && ::access(candidate.c_str(), X_OK) == 0) {
+            return true;
+        }
+        if (end == all.size()) {
+            break;
+        }
+        start = end + 1;
+    }
+    return false;
+}
 
 static std::string smalltalk_reply(const std::optional<std::string>& topic) {
     const std::string key = to_lower(trim(topic.value_or("")));
@@ -58,8 +95,87 @@ static std::string smalltalk_reply(const std::optional<std::string>& topic) {
     return "I am here and listening.";
 }
 
+static std::string sanitize_spoken_text(const std::string& text) {
+    std::string out = trim(text);
+    out = std::regex_replace(out, std::regex(R"(https?://\S+)", std::regex::icase), " link ");
+    out = replace_all(out, "|", ". ");
+    out = replace_all(out, "_", " ");
+    out = std::regex_replace(out, std::regex(R"(\s+)"), " ");
+    return trim(out);
+}
+
 static void speak(const std::string& text) {
     std::cout << "Alice> " << text << std::endl;
+
+    if (g_ui != nullptr) {
+        g_ui->add_message("Alice", text);
+        g_ui->set_state("speaking");
+        g_ui->set_status("Speaking...");
+        g_ui->pump();
+    }
+
+    if (g_tts_enabled) {
+        const std::string spoken = sanitize_spoken_text(text);
+        if (!spoken.empty()) {
+            const std::string cmd = "say " + shell_quote(spoken) + " >/dev/null 2>&1 &";
+            (void)std::system(cmd.c_str());
+        }
+    }
+
+    if (g_ui != nullptr) {
+        g_ui->set_state("idle");
+        g_ui->set_status("Online");
+    }
+}
+
+static bool read_line_with_ui(std::string& out) {
+    while (true) {
+        if (g_ui != nullptr) {
+            g_ui->pump();
+            if (!g_ui->running()) {
+                return false;
+            }
+        }
+
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(STDIN_FILENO, &readfds);
+        timeval timeout{};
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 20000;
+
+        const int rc = select(STDIN_FILENO + 1, &readfds, nullptr, nullptr, &timeout);
+        if (rc < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return false;
+        }
+        if (rc == 0) {
+            continue;
+        }
+
+        return static_cast<bool>(std::getline(std::cin, out));
+    }
+}
+
+static bool read_voice_with_ui(VoiceListener& listener, std::string& out, double timeout_seconds = 6.0,
+                               double phrase_time_limit_seconds = 8.0) {
+    const auto maybe_text = listener.listen(
+        timeout_seconds,
+        phrase_time_limit_seconds,
+        []() {
+            if (g_ui != nullptr) {
+                g_ui->pump();
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(8));
+        });
+    if (!maybe_text.has_value()) {
+        out.clear();
+        return false;
+    }
+    out = *maybe_text;
+    return true;
 }
 
 static void load_env_file(const std::filesystem::path& file_path) {
@@ -84,7 +200,8 @@ static void load_env_file(const std::filesystem::path& file_path) {
         if (key.empty()) {
             continue;
         }
-        if (!value.empty() && ((value.front() == '\"' && value.back() == '\"') || (value.front() == '\'' && value.back() == '\''))) {
+        if (!value.empty() &&
+            ((value.front() == '"' && value.back() == '"') || (value.front() == '\'' && value.back() == '\''))) {
             value = value.substr(1, value.size() - 2);
         }
 
@@ -129,6 +246,14 @@ static Args parse_args(int argc, char** argv) {
             args.config_path = argv[++i];
             continue;
         }
+        if (token == "--ui") {
+            args.ui = true;
+            continue;
+        }
+        if (token == "--no-tts") {
+            args.no_tts = true;
+            continue;
+        }
     }
 
     return args;
@@ -167,7 +292,8 @@ static std::optional<std::string> extract_memorable_fact(const std::string& text
         return std::nullopt;
     }
 
-    while (!cleaned.empty() && (cleaned.back() == '.' || cleaned.back() == '!' || std::isspace(static_cast<unsigned char>(cleaned.back())))) {
+    while (!cleaned.empty() &&
+           (cleaned.back() == '.' || cleaned.back() == '!' || std::isspace(static_cast<unsigned char>(cleaned.back())))) {
         cleaned.pop_back();
     }
     return cleaned;
@@ -219,10 +345,20 @@ static ExecResult execute_intent(const Intent& intent, AliceExecutor& executor) 
 }
 
 static bool handle_utterance(const std::string& utterance, const std::string& wake_word, bool require_wake,
-                             AliceExecutor& executor, AliceBrain& brain, MemoryStore& memory_store) {
+                             AliceExecutor& executor, AliceBrain& brain, MemoryStore& memory_store,
+                             bool voice_mode, VoiceListener* voice_listener) {
+    if (g_ui != nullptr) {
+        g_ui->set_state("thinking");
+        g_ui->set_status("Thinking...");
+    }
+
     bool matched = false;
     Intent intent = parse_intent(utterance, wake_word, require_wake, &matched);
     if (intent.action == "skip") {
+        if (g_ui != nullptr) {
+            g_ui->set_state("idle");
+            g_ui->set_status("Online");
+        }
         return true;
     }
 
@@ -268,10 +404,28 @@ static bool handle_utterance(const std::string& utterance, const std::string& wa
         bool approved = false;
 
         for (int attempt = 0; attempt < 3; ++attempt) {
-            std::cout << "Confirm> " << std::flush;
+            if (g_ui != nullptr) {
+                g_ui->set_state("listening");
+                g_ui->set_status("Waiting for confirmation...");
+            }
             std::string confirmation;
-            if (!std::getline(std::cin, confirmation)) {
-                return false;
+            if (voice_mode && voice_listener != nullptr && voice_listener->available()) {
+                std::cout << "Confirm (voice)> " << std::flush;
+                const bool captured = read_voice_with_ui(*voice_listener, confirmation, 5.5, 5.0);
+                if (!captured) {
+                    std::cout << "[no speech]" << std::endl;
+                    speak("I did not catch yes or no. Please say yes or no.");
+                    continue;
+                }
+                std::cout << confirmation << std::endl;
+            } else {
+                std::cout << "Confirm> " << std::flush;
+                if (!read_line_with_ui(confirmation)) {
+                    return false;
+                }
+            }
+            if (g_ui != nullptr && !trim(confirmation).empty()) {
+                g_ui->add_message("You", confirmation);
             }
             decision = parse_confirmation(confirmation, &decision_known);
             if (!decision_known) {
@@ -295,12 +449,10 @@ static bool handle_utterance(const std::string& utterance, const std::string& wa
 
 int run(int argc, char** argv) {
     const Args args = parse_args(argc, argv);
+    const bool voice_mode = (to_lower(trim(args.mode)) == "voice");
 
-    if (args.mode != "text") {
-        std::cout << "[Alice] Voice mode is not enabled in this C++ rewrite yet. Falling back to text mode." << std::endl;
-    }
-
-    const std::filesystem::path config_path = args.config_path.is_absolute() ? args.config_path : std::filesystem::current_path() / args.config_path;
+    const std::filesystem::path config_path =
+        args.config_path.is_absolute() ? args.config_path : std::filesystem::current_path() / args.config_path;
     const AliceConfig config = load_config(config_path);
     load_project_env(config.project_root);
 
@@ -317,8 +469,35 @@ int run(int argc, char** argv) {
     MemoryStore memory_store(memory_path);
     AliceExecutor executor(config.allowed_roots, config.log_dir, config.max_runtime_seconds);
     AliceBrain brain;
+    VoiceListener voice_listener;
 
-    std::cout << "[Alice] TTS backend: none" << std::endl;
+    AliceUI ui;
+    if (args.ui) {
+        if (ui.start()) {
+            g_ui = &ui;
+            g_ui->set_state("idle");
+            g_ui->set_status("Online");
+            std::cout << "[Alice] UI: enabled" << std::endl;
+        } else {
+            std::cout << "[Alice] UI: unavailable on this platform/runtime." << std::endl;
+        }
+    }
+
+    g_tts_enabled = !args.no_tts && command_exists("say");
+
+    std::cout << "[Alice] STT backend: ";
+    if (voice_mode) {
+        if (voice_listener.available()) {
+            std::cout << voice_listener.backend_name() << std::endl;
+        } else {
+            std::cout << "none (" << voice_listener.last_error() << ")" << std::endl;
+            std::cout << "[Alice] Voice mode unavailable. Falling back to text input." << std::endl;
+        }
+    } else {
+        std::cout << "disabled" << std::endl;
+    }
+
+    std::cout << "[Alice] TTS backend: " << (g_tts_enabled ? "say" : "none") << std::endl;
     std::cout << "[Alice] LLM backend: " << brain.llm_backend() << std::endl;
     if (brain.using_llm()) {
         speak("Alice is online with conversational mode enabled using " + brain.llm_backend() + ".");
@@ -326,22 +505,54 @@ int run(int argc, char** argv) {
         speak("Alice is online. Advanced AI chat is unavailable, so I will use built-in responses.");
     }
     std::cout << "[Alice] NLU mode: rule-based intent parsing" << std::endl;
-    std::cout << "[Alice] Memory items: " << memory_store.count() << " (" << memory_store.db_path().string() << ")" << std::endl;
+    std::cout << "[Alice] Memory items: " << memory_store.count() << " (" << memory_store.db_path().string() << ")"
+              << std::endl;
 
     bool keep_running = true;
     while (keep_running) {
-        std::string utterance;
-        if (args.command.has_value()) {
-            utterance = *args.command;
-        } else {
-            std::cout << "You> " << std::flush;
-            if (!std::getline(std::cin, utterance)) {
+        if (g_ui != nullptr) {
+            g_ui->pump();
+            if (!g_ui->running()) {
+                std::cout << "[Alice] UI window closed. Exiting." << std::endl;
                 break;
             }
         }
 
+        std::string utterance;
+        if (args.command.has_value()) {
+            utterance = *args.command;
+        } else {
+            if (g_ui != nullptr) {
+                g_ui->set_state("listening");
+                g_ui->set_status(voice_mode ? "Listening to microphone..." : "Listening...");
+            }
+
+            if (voice_mode && voice_listener.available()) {
+                std::cout << "You (voice)> " << std::flush;
+                const bool captured = read_voice_with_ui(voice_listener, utterance, 6.0, 8.0);
+                if (!captured) {
+                    std::cout << "[no speech]" << std::endl;
+                    if (args.once) {
+                        break;
+                    }
+                    continue;
+                }
+                std::cout << utterance << std::endl;
+            } else {
+                std::cout << "You> " << std::flush;
+                if (!read_line_with_ui(utterance)) {
+                    break;
+                }
+            }
+        }
+
         if (!trim(utterance).empty()) {
-            keep_running = handle_utterance(utterance, args.wake_word, args.require_wake, executor, brain, memory_store);
+            if (g_ui != nullptr) {
+                g_ui->add_message("You", utterance);
+            }
+            keep_running =
+                handle_utterance(utterance, args.wake_word, args.require_wake, executor, brain, memory_store,
+                                 voice_mode, &voice_listener);
         }
 
         if (args.once || args.command.has_value()) {
@@ -350,6 +561,13 @@ int run(int argc, char** argv) {
     }
 
     executor.shutdown();
+    if (g_ui != nullptr) {
+        g_ui->set_state("offline");
+        g_ui->set_status("Offline");
+        g_ui = nullptr;
+        ui.stop();
+    }
+
     return 0;
 }
 
