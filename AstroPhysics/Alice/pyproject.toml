@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alice-assistant"
+version = "0.1.0"
+description = "Alice assistant rewritten in Python"
+requires-python = ">=3.10"
+
+[project.scripts]
+alice = "alice.app:main"
