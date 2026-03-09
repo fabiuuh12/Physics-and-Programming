@@ -10,13 +10,26 @@ Alice is now implemented in Python in this folder.
 - Python and shell file execution support (`.py`, `.sh`, `.bash`, or executable files)
 - Optional chat backend via Ollama or OpenAI using environment variables
 - macOS spoken replies via `say` (disable with `--no-tts`)
-- Voice/UI/face-tracking interfaces are present as stubs in Python and currently report unavailable by default
+- Built-in Tkinter face UI with eyes + animated mouth while speaking
+- Optional microphone voice input mode via `SpeechRecognition` (if installed)
 
 ## Run
 
 ```bash
 cd AstroPhysics/Alice
 python3 main.py --mode text
+```
+
+Text mode + face UI:
+
+```bash
+python3 main.py --mode text --ui
+```
+
+Voice mode:
+
+```bash
+python3 main.py --mode voice
 ```
 
 One-shot command:
@@ -65,12 +78,19 @@ Speech tuning (optional):
 
 ```bash
 export ALICE_TTS_RATE=185
+# optional: override macOS default voice
 export ALICE_VOICE=Samantha
-# set to 0 to disable automatic voice selection when ALICE_VOICE is empty
-export ALICE_TTS_AUTO_VOICE=1
+# speech engine for SpeechRecognition listener: google (default) or whisper
+export ALICE_STT_ENGINE=google
 ```
 
 ## Notes
 
-- `--mode voice`, `--ui`, and camera options are accepted for compatibility, but the current Python rewrite runs in text mode unless you replace the provided stubs.
 - For TTS on macOS, allow your terminal app to use speech services if prompted.
+- For microphone input, install dependencies:
+
+```bash
+python3 -m pip install SpeechRecognition sounddevice numpy
+# optional alternative backend:
+# python3 -m pip install pyaudio
+```

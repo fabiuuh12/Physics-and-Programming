@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -228,19 +229,8 @@ def _natural_voice_from_system() -> Optional[str]:
     if explicit_voice:
         return explicit_voice
 
-    auto_voice = to_lower(trim(os.getenv("ALICE_TTS_AUTO_VOICE", "1")))
-    if auto_voice in {"0", "false", "no", "off"}:
-        return None
-
-    installed = _installed_say_voices()
-    if not installed:
-        return None
-
-    preferred = ["Samantha", "Alex", "Ava", "Victoria", "Karen", "Moira", "Daniel", "Nora", "Zoe"]
-    for name in preferred:
-        if name in installed:
-            return name
-    return installed[0]
+    # When no explicit voice is configured, let `say` use macOS system default voice.
+    return None
 
 
 def _configure_tts() -> None:
@@ -291,8 +281,11 @@ def _speak(text: str, ui: Optional[AliceUI]) -> None:
         ui.set_status("Speaking...")
         ui.pump()
 
-    if _g_tts_enabled:
-        _start_tts(_sanitize_spoken_text(text))
+    if _g_tts_enabled and _start_tts(_sanitize_spoken_text(text)):
+        while _g_tts_process is not None and _g_tts_process.poll() is None:
+            if ui is not None:
+                ui.pump()
+            time.sleep(0.03)
 
     if ui is not None:
         ui.set_state("idle")
@@ -503,7 +496,11 @@ def _handle_utterance(
         for _ in range(3):
             confirmation = ""
             if voice_mode and voice_listener is not None and voice_listener.available():
-                heard = voice_listener.listen(timeout_seconds=10.0, phrase_time_limit_seconds=12.0)
+                heard = voice_listener.listen(
+                    timeout_seconds=10.0,
+                    phrase_time_limit_seconds=12.0,
+                    tick=(lambda: ui.pump()) if ui is not None else None,
+                )
                 if not heard:
                     _speak("I did not catch yes or no. Please say yes or no.", ui)
                     continue
@@ -639,11 +636,30 @@ def run(argv: list[str] | None = None) -> int:
             else:
                 if ui is not None:
                     ui.set_state("listening")
-                    ui.set_status("Listening...")
-                try:
-                    utterance = input("You> ")
-                except EOFError:
-                    break
+                    ui.set_status("Listening..." if not voice_mode else "Listening to microphone...")
+
+                if voice_mode and voice_listener is not None and voice_listener.available():
+                    heard = voice_listener.listen(
+                        timeout_seconds=16.0,
+                        phrase_time_limit_seconds=24.0,
+                        tick=(lambda: ui.pump()) if ui is not None else None,
+                    )
+                    if not heard:
+                        reason = trim(voice_listener.last_error())
+                        if reason:
+                            print(f"[no speech: {reason}]")
+                        else:
+                            print("[no speech]")
+                        if args.once:
+                            break
+                        continue
+                    utterance = heard
+                    print(f"You (voice)> {utterance}")
+                else:
+                    try:
+                        utterance = input("You> ")
+                    except EOFError:
+                        break
 
             if trim(utterance):
                 if ui is not None:
