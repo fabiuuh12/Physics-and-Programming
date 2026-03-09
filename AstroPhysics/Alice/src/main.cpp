@@ -9,12 +9,15 @@
 #include "alice/face_tracker.hpp"
 
 #include <chrono>
-#include <cstdlib>
 #include <cerrno>
+#include <csignal>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <optional>
+#include <spawn.h>
 #include <regex>
 #include <set>
 #include <string>
@@ -22,8 +25,11 @@
 #include <memory>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <thread>
+
+extern char** environ;
 
 namespace alice {
 
@@ -37,7 +43,7 @@ struct Args {
     bool require_wake = false;
     std::string wake_word = "alice";
     bool once = false;
-    bool ui = false;
+    std::optional<bool> ui;
     bool camera = true;
     int camera_index = 0;
     bool no_tts = false;
@@ -47,6 +53,10 @@ struct Args {
 
 static AliceUI* g_ui = nullptr;
 static bool g_tts_enabled = false;
+static std::mutex g_tts_mutex;
+static pid_t g_tts_pid = -1;
+static std::string g_tts_active_normalized;
+static bool g_tts_barge_engaged = false;
 
 static bool command_exists(const std::string& name) {
     const char* path_env = std::getenv("PATH");
@@ -108,6 +118,153 @@ static std::string sanitize_spoken_text(const std::string& text) {
     return trim(out);
 }
 
+static void reap_tts_process_locked() {
+    if (g_tts_pid <= 0) {
+        return;
+    }
+    int status = 0;
+    const pid_t rc = ::waitpid(g_tts_pid, &status, WNOHANG);
+    if (rc == g_tts_pid || (rc < 0 && errno == ECHILD)) {
+        g_tts_pid = -1;
+        g_tts_active_normalized.clear();
+        g_tts_barge_engaged = false;
+    }
+}
+
+static void stop_tts_locked() {
+    reap_tts_process_locked();
+    if (g_tts_pid <= 0) {
+        g_tts_active_normalized.clear();
+        g_tts_barge_engaged = false;
+        return;
+    }
+
+    const pid_t pid = g_tts_pid;
+    (void)::kill(pid, SIGTERM);
+
+    for (int attempt = 0; attempt < 20; ++attempt) {
+        int status = 0;
+        const pid_t rc = ::waitpid(pid, &status, WNOHANG);
+        if (rc == pid || (rc < 0 && errno == ECHILD)) {
+            g_tts_pid = -1;
+            g_tts_active_normalized.clear();
+            g_tts_barge_engaged = false;
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    (void)::kill(pid, SIGKILL);
+    int status = 0;
+    (void)::waitpid(pid, &status, 0);
+    g_tts_pid = -1;
+    g_tts_active_normalized.clear();
+    g_tts_barge_engaged = false;
+}
+
+static void stop_tts() {
+    std::lock_guard<std::mutex> lock(g_tts_mutex);
+    stop_tts_locked();
+}
+
+static bool start_tts(const std::string& spoken) {
+    std::lock_guard<std::mutex> lock(g_tts_mutex);
+    stop_tts_locked();
+    if (spoken.empty()) {
+        return false;
+    }
+
+    std::vector<std::string> args_storage;
+    args_storage.push_back("say");
+    if (const char* voice = std::getenv("ALICE_VOICE"); voice != nullptr && voice[0] != '\0') {
+        args_storage.push_back("-v");
+        args_storage.push_back(voice);
+    }
+    args_storage.push_back(spoken);
+
+    std::vector<char*> argv;
+    argv.reserve(args_storage.size() + 1);
+    for (auto& arg : args_storage) {
+        argv.push_back(arg.data());
+    }
+    argv.push_back(nullptr);
+
+    pid_t pid = -1;
+    const int spawn_rc = ::posix_spawnp(&pid, "say", nullptr, nullptr, argv.data(), ::environ);
+    if (spawn_rc != 0 || pid <= 0) {
+        g_tts_pid = -1;
+        g_tts_active_normalized.clear();
+        g_tts_barge_engaged = false;
+        return false;
+    }
+
+    g_tts_pid = pid;
+    g_tts_active_normalized = normalize_text(spoken);
+    g_tts_barge_engaged = false;
+    return true;
+}
+
+static bool should_interrupt_tts_from_partial(const std::string& partial_raw) {
+    const std::string partial = normalize_text(partial_raw);
+    if (partial.empty()) {
+        return false;
+    }
+
+    const auto partial_tokens = split_words(partial);
+    if (partial_tokens.empty()) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(g_tts_mutex);
+    reap_tts_process_locked();
+    if (g_tts_pid <= 0 || g_tts_barge_engaged) {
+        return false;
+    }
+
+    const bool explicit_interrupt =
+        partial == "alice" || starts_with_ci(partial, "alice ") || partial == "stop" || partial == "wait" ||
+        partial == "hold on" || partial == "listen";
+    if (explicit_interrupt) {
+        g_tts_barge_engaged = true;
+        return true;
+    }
+
+    if (partial.size() < 8 || partial_tokens.size() < 2) {
+        return false;
+    }
+
+    if (!g_tts_active_normalized.empty()) {
+        if (g_tts_active_normalized.find(partial) != std::string::npos) {
+            return false;
+        }
+
+        const auto active_tokens = split_words(g_tts_active_normalized);
+        std::set<std::string> active_set(active_tokens.begin(), active_tokens.end());
+        std::size_t overlap = 0;
+        for (const auto& token : partial_tokens) {
+            if (active_set.find(token) != active_set.end()) {
+                ++overlap;
+            }
+        }
+
+        const double overlap_ratio = static_cast<double>(overlap) / static_cast<double>(partial_tokens.size());
+        if (overlap_ratio >= 0.72) {
+            return false;
+        }
+    }
+
+    g_tts_barge_engaged = true;
+    return true;
+}
+
+static bool barge_in_enabled() {
+    if (const char* raw = std::getenv("ALICE_BARGE_IN"); raw != nullptr && raw[0] != '\0') {
+        const std::string value = to_lower(trim(raw));
+        return !(value == "0" || value == "false" || value == "no" || value == "off");
+    }
+    return true;
+}
+
 static void speak(const std::string& text) {
     std::cout << "Alice> " << text << std::endl;
 
@@ -120,10 +277,7 @@ static void speak(const std::string& text) {
 
     if (g_tts_enabled) {
         const std::string spoken = sanitize_spoken_text(text);
-        if (!spoken.empty()) {
-            const std::string cmd = "say " + shell_quote(spoken) + " >/dev/null 2>&1 &";
-            (void)std::system(cmd.c_str());
-        }
+        (void)start_tts(spoken);
     }
 
     if (g_ui != nullptr) {
@@ -173,6 +327,14 @@ static bool read_voice_with_ui(VoiceListener& listener, std::string& out, double
                 g_ui->pump();
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(8));
+        },
+        [](const std::string& partial_text) {
+            if (!barge_in_enabled()) {
+                return;
+            }
+            if (should_interrupt_tts_from_partial(partial_text)) {
+                stop_tts();
+            }
         });
     if (!maybe_text.has_value()) {
         out.clear();
@@ -252,6 +414,10 @@ static Args parse_args(int argc, char** argv) {
         }
         if (token == "--ui") {
             args.ui = true;
+            continue;
+        }
+        if (token == "--no-ui") {
+            args.ui = false;
             continue;
         }
         if (token == "--no-camera") {
@@ -429,7 +595,12 @@ static bool handle_utterance(const std::string& utterance, const std::string& wa
                 std::cout << "Confirm (voice)> " << std::flush;
                 const bool captured = read_voice_with_ui(*voice_listener, confirmation, 8.0, 8.0);
                 if (!captured) {
-                    std::cout << "[no speech]" << std::endl;
+                    const std::string reason = trim(voice_listener->last_error());
+                    if (!reason.empty()) {
+                        std::cout << "[no speech: " << reason << "]" << std::endl;
+                    } else {
+                        std::cout << "[no speech]" << std::endl;
+                    }
                     speak("I did not catch yes or no. Please say yes or no.");
                     continue;
                 }
@@ -466,6 +637,7 @@ static bool handle_utterance(const std::string& utterance, const std::string& wa
 int run(int argc, char** argv) {
     const Args args = parse_args(argc, argv);
     const bool voice_mode = (to_lower(trim(args.mode)) == "voice");
+    const bool ui_enabled = args.ui.has_value() ? *args.ui : voice_mode;
 
     const std::filesystem::path config_path =
         args.config_path.is_absolute() ? args.config_path : std::filesystem::current_path() / args.config_path;
@@ -492,7 +664,7 @@ int run(int argc, char** argv) {
     }
 
     AliceUI ui;
-    if (args.ui) {
+    if (ui_enabled) {
         if (ui.start()) {
             g_ui = &ui;
             g_ui->set_state("idle");
@@ -503,7 +675,7 @@ int run(int argc, char** argv) {
         }
     }
 
-    if (args.ui && args.camera) {
+    if (ui_enabled && args.camera) {
         face_tracker = std::make_unique<FaceTracker>();
         if (face_tracker->start(args.camera_index)) {
             std::cout << "[Alice] Camera tracking: enabled (camera " << args.camera_index << ")" << std::endl;
@@ -566,7 +738,12 @@ int run(int argc, char** argv) {
                 std::cout << "You (voice)> " << std::flush;
                 const bool captured = read_voice_with_ui(*voice_listener, utterance, 10.0, 14.0);
                 if (!captured) {
-                    std::cout << "[no speech]" << std::endl;
+                    const std::string reason = trim(voice_listener->last_error());
+                    if (!reason.empty()) {
+                        std::cout << "[no speech: " << reason << "]" << std::endl;
+                    } else {
+                        std::cout << "[no speech]" << std::endl;
+                    }
                     if (args.once) {
                         break;
                     }
@@ -596,6 +773,7 @@ int run(int argc, char** argv) {
     }
 
     executor.shutdown();
+    stop_tts();
     if (face_tracker != nullptr) {
         face_tracker->stop();
     }

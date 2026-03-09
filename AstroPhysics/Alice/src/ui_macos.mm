@@ -4,8 +4,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <deque>
-#include <utility>
 #include <vector>
 
 @interface AliceFaceView : NSView
@@ -56,13 +54,18 @@
 }
 
 - (void)tick {
-    self.phase += 0.06;
+    self.phase += 0.055;
+    NSString* state = self.stateName ?: @"idle";
 
     CGFloat tx = self.targetX;
     CGFloat ty = self.targetY;
     if (!self.faceLocked) {
-        tx = std::sin(self.phase * 0.8) * 0.22;
-        ty = std::cos(self.phase * 0.55) * 0.14;
+        const CGFloat sway = [state isEqualToString:@"thinking"] ? 0.16 : 0.22;
+        tx = std::sin(self.phase * 0.8) * sway;
+        ty = std::cos(self.phase * 0.55) * 0.14 + std::sin(self.phase * 0.31) * 0.04;
+    }
+    if ([state isEqualToString:@"speaking"]) {
+        ty += std::sin(self.phase * 2.6) * 0.05;
     }
 
     self.smoothX += (tx - self.smoothX) * 0.18;
@@ -88,8 +91,9 @@
     [aura2 setLineWidth:1.4];
     [aura2 stroke];
 
+    const CGFloat breath = std::sin(self.phase * 0.42) * 4.0;
     const CGFloat cx = NSMidX(bounds) + self.smoothX * 14.0;
-    const CGFloat cy = NSMidY(bounds) + 18.0 + self.smoothY * 10.0;
+    const CGFloat cy = NSMidY(bounds) + 18.0 + self.smoothY * 10.0 + breath;
 
     NSRect headRect = NSMakeRect(cx - 140, cy - 138, 280, 286);
     NSBezierPath* head = [NSBezierPath bezierPathWithOvalInRect:headRect];
@@ -111,8 +115,20 @@
 
     const CGFloat eyeYOffset = 46;
     const CGFloat eyeDX = 58;
-    NSRect leftEye = NSMakeRect(cx - eyeDX - 34, cy + eyeYOffset - 22, 68, 46);
-    NSRect rightEye = NSMakeRect(cx + eyeDX - 34, cy + eyeYOffset - 22, 68, 46);
+    const CGFloat blinkCycle = std::fmod(self.phase, 18.0);
+    CGFloat blink = 0.0;
+    if (blinkCycle > 16.9) {
+        const CGFloat t = std::clamp((blinkCycle - 16.9) / 1.1, 0.0, 1.0);
+        blink = std::sin(t * 3.14159265358979323846);
+    }
+    if ([self.stateName isEqualToString:@"speaking"]) {
+        blink = std::max(blink, static_cast<CGFloat>(std::max(0.0, std::sin(self.phase * 1.9)) * 0.08));
+    }
+    const CGFloat eyeOpen = std::clamp(1.0 - blink * 0.94, 0.08, 1.0);
+    const CGFloat eyeWidth = 68.0;
+    const CGFloat eyeHeight = std::max(6.0, 46.0 * eyeOpen);
+    NSRect leftEye = NSMakeRect(cx - eyeDX - eyeWidth / 2.0, cy + eyeYOffset - eyeHeight / 2.0, eyeWidth, eyeHeight);
+    NSRect rightEye = NSMakeRect(cx + eyeDX - eyeWidth / 2.0, cy + eyeYOffset - eyeHeight / 2.0, eyeWidth, eyeHeight);
 
     NSGradient* scleraGrad = [[NSGradient alloc] initWithStartingColor:[NSColor colorWithRed:0.88 green:0.96 blue:1.0 alpha:0.95]
                                                            endingColor:[NSColor colorWithRed:0.52 green:0.68 blue:0.80 alpha:0.95]];
@@ -122,14 +138,17 @@
     const CGFloat pupilOffsetX = std::clamp(self.smoothX * 10.0, -9.0, 9.0);
     const CGFloat pupilOffsetY = std::clamp(self.smoothY * 7.0, -7.0, 7.0);
 
-    NSRect leftIris = NSMakeRect(NSMidX(leftEye) - 12 + pupilOffsetX, NSMidY(leftEye) - 12 + pupilOffsetY, 24, 24);
-    NSRect rightIris = NSMakeRect(NSMidX(rightEye) - 12 + pupilOffsetX, NSMidY(rightEye) - 12 + pupilOffsetY, 24, 24);
+    const CGFloat irisSize = std::clamp(20.0 + eyeOpen * 6.0, 18.0, 26.0);
+    NSRect leftIris =
+        NSMakeRect(NSMidX(leftEye) - irisSize / 2.0 + pupilOffsetX, NSMidY(leftEye) - irisSize / 2.0 + pupilOffsetY, irisSize, irisSize);
+    NSRect rightIris =
+        NSMakeRect(NSMidX(rightEye) - irisSize / 2.0 + pupilOffsetX, NSMidY(rightEye) - irisSize / 2.0 + pupilOffsetY, irisSize, irisSize);
     [[NSColor colorWithRed:0.22 green:0.84 blue:0.99 alpha:1.0] setFill];
     [[NSBezierPath bezierPathWithOvalInRect:leftIris] fill];
     [[NSBezierPath bezierPathWithOvalInRect:rightIris] fill];
 
-    NSRect leftPupil = NSInsetRect(leftIris, 7, 7);
-    NSRect rightPupil = NSInsetRect(rightIris, 7, 7);
+    NSRect leftPupil = NSInsetRect(leftIris, irisSize * 0.30, irisSize * 0.30);
+    NSRect rightPupil = NSInsetRect(rightIris, irisSize * 0.30, irisSize * 0.30);
     [[NSColor colorWithRed:0.02 green:0.07 blue:0.12 alpha:1.0] setFill];
     [[NSBezierPath bezierPathWithOvalInRect:leftPupil] fill];
     [[NSBezierPath bezierPathWithOvalInRect:rightPupil] fill];
@@ -137,6 +156,26 @@
     [[NSColor colorWithRed:0.85 green:0.98 blue:1.0 alpha:0.85] setFill];
     [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(NSMinX(leftIris) + 5, NSMinY(leftIris) + 15, 5, 5)] fill];
     [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(NSMinX(rightIris) + 5, NSMinY(rightIris) + 15, 5, 5)] fill];
+
+    const CGFloat browLift = [self.stateName isEqualToString:@"thinking"] ? 15.0
+                              : [self.stateName isEqualToString:@"listening"] ? 11.0
+                                                                               : 8.0;
+    const CGFloat browSway = std::sin(self.phase * 0.7) * 2.0;
+    NSBezierPath* leftBrow = [NSBezierPath bezierPath];
+    [leftBrow moveToPoint:NSMakePoint(cx - eyeDX - 32, cy + eyeYOffset + browLift + browSway)];
+    [leftBrow curveToPoint:NSMakePoint(cx - eyeDX + 32, cy + eyeYOffset + browLift + 2.0 + browSway)
+             controlPoint1:NSMakePoint(cx - eyeDX - 16, cy + eyeYOffset + browLift + 7.0 + browSway)
+             controlPoint2:NSMakePoint(cx - eyeDX + 14, cy + eyeYOffset + browLift + 6.0 + browSway)];
+    NSBezierPath* rightBrow = [NSBezierPath bezierPath];
+    [rightBrow moveToPoint:NSMakePoint(cx + eyeDX - 32, cy + eyeYOffset + browLift + 2.0 - browSway)];
+    [rightBrow curveToPoint:NSMakePoint(cx + eyeDX + 32, cy + eyeYOffset + browLift - browSway)
+              controlPoint1:NSMakePoint(cx + eyeDX - 14, cy + eyeYOffset + browLift + 7.0 - browSway)
+              controlPoint2:NSMakePoint(cx + eyeDX + 16, cy + eyeYOffset + browLift + 6.0 - browSway)];
+    [[NSColor colorWithRed:0.32 green:0.82 blue:0.97 alpha:0.92] setStroke];
+    [leftBrow setLineWidth:2.6];
+    [rightBrow setLineWidth:2.6];
+    [leftBrow stroke];
+    [rightBrow stroke];
 
     NSBezierPath* nose = [NSBezierPath bezierPath];
     [nose moveToPoint:NSMakePoint(cx, cy + 28)];
@@ -146,19 +185,25 @@
     [[NSColor colorWithRed:0.12 green:0.38 blue:0.56 alpha:0.86] setFill];
     [nose fill];
 
-    CGFloat mouthOpen = 10.0;
+    CGFloat mouthOpen = 7.0;
+    CGFloat smileLift = 3.0;
     if ([self.stateName isEqualToString:@"speaking"]) {
-        mouthOpen = 12.0 + std::fabs(std::sin(self.phase * 2.9)) * 18.0;
+        mouthOpen = 10.0 + std::fabs(std::sin(self.phase * 3.1)) * 22.0;
+        smileLift = 2.0 + std::sin(self.phase * 1.2) * 2.0;
+    } else if ([self.stateName isEqualToString:@"listening"]) {
+        mouthOpen = 6.0;
+        smileLift = 4.0;
     } else if ([self.stateName isEqualToString:@"thinking"]) {
-        mouthOpen = 8.0;
+        mouthOpen = 5.0;
+        smileLift = 1.0;
     }
 
     NSRect mouthOuter = NSMakeRect(cx - 52, cy - 70, 104, 24);
     NSBezierPath* upperLip = [NSBezierPath bezierPath];
     [upperLip moveToPoint:NSMakePoint(NSMinX(mouthOuter), NSMidY(mouthOuter))];
     [upperLip curveToPoint:NSMakePoint(NSMaxX(mouthOuter), NSMidY(mouthOuter))
-             controlPoint1:NSMakePoint(cx - 24, NSMaxY(mouthOuter) + 6)
-             controlPoint2:NSMakePoint(cx + 24, NSMaxY(mouthOuter) + 6)];
+             controlPoint1:NSMakePoint(cx - 24, NSMaxY(mouthOuter) + smileLift)
+             controlPoint2:NSMakePoint(cx + 24, NSMaxY(mouthOuter) + smileLift)];
     [[NSColor colorWithRed:0.32 green:0.78 blue:0.95 alpha:1.0] setStroke];
     [upperLip setLineWidth:3.0];
     [upperLip stroke];
@@ -184,7 +229,6 @@
 @property(nonatomic, strong) NSWindow* window;
 @property(nonatomic, strong) AliceFaceView* faceView;
 @property(nonatomic, strong) NSTextField* statusLabel;
-@property(nonatomic, strong) NSTextView* chatView;
 @property(nonatomic) BOOL alive;
 - (void)build;
 @end
@@ -193,7 +237,7 @@
 
 - (void)build {
     self.alive = YES;
-    NSRect frame = NSMakeRect(200, 160, 560, 760);
+    NSRect frame = NSMakeRect(220, 120, 640, 720);
     self.window = [[NSWindow alloc] initWithContentRect:frame
                                               styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable)
                                                 backing:NSBackingStoreBuffered
@@ -203,28 +247,17 @@
 
     NSView* root = [self.window contentView];
 
-    self.faceView = [[AliceFaceView alloc] initWithFrame:NSMakeRect(30, 330, 500, 390)];
+    self.faceView = [[AliceFaceView alloc] initWithFrame:NSMakeRect(20, 64, 600, 636)];
     [root addSubview:self.faceView];
 
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(30, 300, 500, 24)];
+    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 22, 600, 24)];
     [self.statusLabel setBezeled:NO];
     [self.statusLabel setEditable:NO];
     [self.statusLabel setDrawsBackground:NO];
     [self.statusLabel setTextColor:[NSColor colorWithRed:0.67 green:0.86 blue:1.0 alpha:1.0]];
+    [self.statusLabel setAlignment:NSTextAlignmentCenter];
     [self.statusLabel setStringValue:@"Online"];
     [root addSubview:self.statusLabel];
-
-    NSScrollView* scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(30, 30, 500, 250)];
-    [scroll setHasVerticalScroller:YES];
-    [scroll setBorderType:NSNoBorder];
-
-    self.chatView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 500, 250)];
-    [self.chatView setEditable:NO];
-    [self.chatView setBackgroundColor:[NSColor colorWithRed:0.07 green:0.12 blue:0.18 alpha:1.0]];
-    [self.chatView setTextColor:[NSColor colorWithRed:0.86 green:0.92 blue:1.0 alpha:1.0]];
-    [self.chatView setFont:[NSFont fontWithName:@"Avenir Next" size:14.0]];
-    [scroll setDocumentView:self.chatView];
-    [root addSubview:scroll];
 
     [self.window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
@@ -243,7 +276,6 @@ struct AliceUI::Impl {
     bool is_running = false;
     std::string pending_state = "idle";
     std::string pending_status = "Online";
-    std::deque<std::pair<std::string, std::string>> pending_messages;
     float pending_face_x = 0.0f;
     float pending_face_y = 0.0f;
     bool pending_face_found = false;
@@ -284,15 +316,6 @@ void AliceUI::pump() {
 
     impl_->controller.statusLabel.stringValue = [NSString stringWithUTF8String:impl_->pending_status.c_str()];
 
-    while (!impl_->pending_messages.empty()) {
-        const auto msg = impl_->pending_messages.front();
-        impl_->pending_messages.pop_front();
-        NSString* line = [NSString stringWithFormat:@"%s> %s\n", msg.first.c_str(), msg.second.c_str()];
-        NSAttributedString* attr = [[NSAttributedString alloc] initWithString:line];
-        [[impl_->controller.chatView textStorage] appendAttributedString:attr];
-        [impl_->controller.chatView scrollRangeToVisible:NSMakeRange(impl_->controller.chatView.string.length, 0)];
-    }
-
     [impl_->controller.faceView tick];
 
     NSEvent* event = nil;
@@ -329,9 +352,7 @@ void AliceUI::set_state(const std::string& state) { impl_->pending_state = state
 
 void AliceUI::set_status(const std::string& status) { impl_->pending_status = status; }
 
-void AliceUI::add_message(const std::string& speaker, const std::string& text) {
-    impl_->pending_messages.emplace_back(speaker, text);
-}
+void AliceUI::add_message(const std::string&, const std::string&) {}
 
 void AliceUI::set_face_target(float x, float y, bool found, int face_count) {
     impl_->pending_face_x = x;

@@ -45,7 +45,11 @@ Voice mode:
 ./build/alice --mode voice
 ```
 
-UI mode (face window + spoken responses):
+`--mode voice` enables the UI face by default. Use `--no-ui` to run voice mode without a window.
+Voice mode also supports barge-in: start speaking while Alice talks and she will stop TTS and listen.
+If you want to disable barge-in (for example to avoid speaker echo interruptions), set `ALICE_BARGE_IN=0`.
+
+UI mode (face-only 3D window + spoken responses):
 
 ```bash
 ./build/alice --mode text --ui

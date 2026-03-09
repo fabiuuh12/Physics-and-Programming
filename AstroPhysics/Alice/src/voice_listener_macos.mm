@@ -116,15 +116,22 @@ std::string VoiceListener::last_error() const {
 }
 
 std::optional<std::string> VoiceListener::listen(double timeout_seconds, double phrase_time_limit_seconds,
-                                                 const std::function<void()>& tick) {
+                                                 const std::function<void()>& tick,
+                                                 const std::function<void(const std::string&)>& on_partial_text) {
     if (!impl_->is_available || impl_->recognizer == nil) {
         return std::nullopt;
     }
+    impl_->error.clear();
 
     @try {
+        if ([impl_->recognizer isAvailable] == NO) {
+            impl_->error = "Speech recognizer is currently unavailable.";
+            return std::nullopt;
+        }
         AVAudioEngine* engine = [[AVAudioEngine alloc] init];
         SFSpeechAudioBufferRecognitionRequest* request = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
-        request.shouldReportPartialResults = NO;
+        // Keep partial hypotheses so we can still return recognized speech on timeout.
+        request.shouldReportPartialResults = YES;
         request.taskHint = SFSpeechRecognitionTaskHintDictation;
         if ([request respondsToSelector:@selector(setRequiresOnDeviceRecognition:)]) {
             if (const char* raw = std::getenv("ALICE_STT_ON_DEVICE"); raw != nullptr && raw[0] != '\0') {
@@ -148,6 +155,9 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
                                                   NSString* text = result.bestTranscription.formattedString;
                                                   if (text != nil && text.length > 0) {
                                                       best_text = text;
+                                                      if (on_partial_text) {
+                                                          on_partial_text(std::string([text UTF8String]));
+                                                      }
                                                       if (!has_speech) {
                                                           has_speech = true;
                                                           speech_started_at = std::chrono::steady_clock::now();
@@ -190,6 +200,8 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
 
         const auto started = std::chrono::steady_clock::now();
         const auto deadline = started + std::chrono::milliseconds(static_cast<int>(timeout_seconds * 1000.0));
+        bool timed_out = false;
+        bool phrase_timed_out = false;
 
         while (!done) {
             if (tick) {
@@ -200,12 +212,14 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
 
             const auto now = std::chrono::steady_clock::now();
             if (now >= deadline) {
+                timed_out = true;
                 break;
             }
             if (has_speech && phrase_time_limit_seconds > 0.0) {
                 const auto phrase_deadline =
                     speech_started_at + std::chrono::milliseconds(static_cast<int>(phrase_time_limit_seconds * 1000.0));
                 if (now >= phrase_deadline) {
+                    phrase_timed_out = true;
                     break;
                 }
             }
@@ -222,6 +236,13 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
         }
 
         if (best_text == nil || best_text.length == 0) {
+            if (timed_out) {
+                impl_->error = "No speech recognized before listen timeout.";
+            } else if (phrase_timed_out) {
+                impl_->error = "No usable speech recognized before phrase timeout.";
+            } else {
+                impl_->error = "No speech recognized.";
+            }
             return std::nullopt;
         }
 
