@@ -10,7 +10,8 @@ Alice is now implemented in Python in this folder.
 - Python and shell file execution support (`.py`, `.sh`, `.bash`, or executable files)
 - Optional chat backend via Ollama or OpenAI using environment variables
 - macOS spoken replies via `say` (disable with `--no-tts`)
-- Built-in Tkinter face UI with eyes + animated mouth while speaking
+- Built-in classic early-Python Alice face model (restored) with a blue themed background
+- Webcam face tracking (OpenCV): eyes follow your detected face and UI shows when Alice can see you
 - Optional microphone voice input mode via `SpeechRecognition` (if installed)
 
 ## Run
@@ -25,6 +26,8 @@ Text mode + face UI:
 ```bash
 python3 main.py --mode text --ui
 ```
+
+In `--ui` mode, Alice also listens to the microphone when available (hands-free).
 
 Voice mode:
 
@@ -93,4 +96,8 @@ export ALICE_STT_ENGINE=google
 python3 -m pip install SpeechRecognition sounddevice numpy
 # optional alternative backend:
 # python3 -m pip install pyaudio
+# webcam face tracking:
+python3 -m pip install opencv-python
 ```
+
+- For webcam tracking, allow camera access for Terminal/iTerm in System Settings > Privacy & Security > Camera.

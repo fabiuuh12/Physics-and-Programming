@@ -18,7 +18,7 @@ from typing import Optional
 from .brain import AliceBrain
 from .config import AliceConfig, load_config
 from .executor import AliceExecutor
-from .face_tracker import FaceTracker
+from .face_tracker import FaceObservation, FaceTracker
 from .intent import describe_for_confirmation, parse_confirmation, parse_intent
 from .memory_store import MemoryStore
 from .string_utils import format_clock_time, format_long_date, join, normalize_text, replace_all, to_lower, trim
@@ -405,6 +405,33 @@ def _format_recalled_memories(query: str, memories: list[MemoryItem]) -> str:
     return f"Here is what I remember about {query}: {join([item.content for item in memories], ' | ')}"
 
 
+def _is_vision_query(text: str) -> bool:
+    query = normalize_text(text)
+    if not query:
+        return False
+    triggers = [
+        "can you see me",
+        "do you see me",
+        "can you see my face",
+        "do you see my face",
+        "are you looking at me",
+        "can you see us",
+    ]
+    return any(trigger in query for trigger in triggers)
+
+
+def _vision_status_reply(vision_enabled: bool, observation: FaceObservation) -> str:
+    if not vision_enabled:
+        return "Camera vision is not active right now. Start Alice with --ui and camera enabled."
+    if observation.found:
+        faces = "face" if observation.face_count == 1 else "faces"
+        return f"Yes, I can see you. I detect {observation.face_count} {faces} in frame."
+    return (
+        "Not yet. I cannot see your face right now. "
+        "Move into frame and make sure Camera permission is enabled for Terminal or iTerm."
+    )
+
+
 def _execute_intent(intent: Intent, executor: AliceExecutor) -> ExecResult:
     if intent.action == "help":
         return ExecResult(True, HELP_TEXT)
@@ -449,6 +476,8 @@ def _handle_utterance(
     voice_mode: bool,
     voice_listener: Optional[VoiceListener],
     ui: Optional[AliceUI],
+    vision_enabled: bool,
+    face_observation: FaceObservation,
 ) -> bool:
     if ui is not None:
         ui.set_state("thinking")
@@ -479,6 +508,10 @@ def _handle_utterance(
 
     if intent.action == "chat":
         chat_text = intent.target or intent.raw
+        if _is_vision_query(chat_text):
+            _speak(_vision_status_reply(vision_enabled, face_observation), ui)
+            return True
+
         related = memory_store.search(chat_text, 4)
         memory_lines = [item.content for item in related]
         _speak(brain.reply(chat_text, memory_lines), ui)
@@ -495,7 +528,8 @@ def _handle_utterance(
 
         for _ in range(3):
             confirmation = ""
-            if voice_mode and voice_listener is not None and voice_listener.available():
+            voice_confirm = (voice_mode or ui is not None) and voice_listener is not None and voice_listener.available()
+            if voice_confirm:
                 heard = voice_listener.listen(
                     timeout_seconds=10.0,
                     phrase_time_limit_seconds=12.0,
@@ -558,7 +592,8 @@ def run(argv: list[str] | None = None) -> int:
     memory_store = MemoryStore(memory_path)
     executor = AliceExecutor(config.allowed_roots, config.log_dir, config.max_runtime_seconds)
     brain = AliceBrain()
-    voice_listener = VoiceListener() if voice_mode else None
+    # In UI mode, enable speech input as well so conversation can be hands-free.
+    voice_listener = VoiceListener() if (voice_mode or ui_enabled) else None
 
     ui: Optional[AliceUI] = None
     if ui_enabled:
@@ -592,13 +627,13 @@ def run(argv: list[str] | None = None) -> int:
         _configure_tts()
 
     print("[Alice] STT backend:", end=" ")
-    if voice_mode:
+    if voice_mode or ui_enabled:
         if voice_listener is not None and voice_listener.available():
             print(voice_listener.backend_name())
         else:
             reason = voice_listener.last_error() if voice_listener else "voice listener unavailable"
             print(f"none ({reason})")
-            print("[Alice] Voice mode unavailable. Falling back to text input.")
+            print("[Alice] Voice input unavailable. Falling back to keyboard input.")
     else:
         print("disabled")
 
@@ -619,11 +654,17 @@ def run(argv: list[str] | None = None) -> int:
     print(f"[Alice] Memory items: {memory_store.count()} ({memory_store.db_path})")
 
     keep_running = True
+    latest_face_observation = FaceObservation()
     try:
         while keep_running:
             if ui is not None and face_tracker is not None:
-                obs = face_tracker.latest()
-                ui.set_face_target(obs.x, obs.y, obs.found, obs.face_count)
+                latest_face_observation = face_tracker.latest()
+                ui.set_face_target(
+                    latest_face_observation.x,
+                    latest_face_observation.y,
+                    latest_face_observation.found,
+                    latest_face_observation.face_count,
+                )
 
             if ui is not None:
                 ui.pump()
@@ -636,21 +677,51 @@ def run(argv: list[str] | None = None) -> int:
             else:
                 if ui is not None:
                     ui.set_state("listening")
-                    ui.set_status("Listening..." if not voice_mode else "Listening to microphone...")
 
-                if voice_mode and voice_listener is not None and voice_listener.available():
+                voice_enabled = voice_listener is not None and voice_listener.available() and (voice_mode or ui_enabled)
+                if ui is not None:
+                    ui.set_status("Listening to microphone..." if voice_enabled else "Listening...")
+
+                if voice_enabled:
                     heard = voice_listener.listen(
-                        timeout_seconds=16.0,
-                        phrase_time_limit_seconds=24.0,
+                        timeout_seconds=16.0 if voice_mode else 4.0,
+                        phrase_time_limit_seconds=24.0 if voice_mode else 6.0,
                         tick=(lambda: ui.pump()) if ui is not None else None,
                     )
                     if not heard:
-                        reason = trim(voice_listener.last_error())
-                        if reason:
-                            print(f"[no speech: {reason}]")
-                        else:
-                            print("[no speech]")
+                        if voice_mode:
+                            reason = trim(voice_listener.last_error())
+                            if reason:
+                                print(f"[no speech: {reason}]")
+                            else:
+                                print("[no speech]")
                         if args.once:
+                            break
+                        if ui_enabled:
+                            # In UI mode we stay hands-free by continuing to listen.
+                            continue
+                        try:
+                            utterance = input("You> ")
+                        except EOFError:
+                            break
+                        if not trim(utterance):
+                            continue
+                        if ui is not None:
+                            ui.add_message("You", utterance)
+                        keep_running = _handle_utterance(
+                            utterance,
+                            args.wake_word,
+                            args.require_wake,
+                            executor,
+                            brain,
+                            memory_store,
+                            voice_mode,
+                            voice_listener,
+                            ui,
+                            face_tracker is not None and face_tracker.running(),
+                            latest_face_observation,
+                        )
+                        if args.once or args.command is not None:
                             break
                         continue
                     utterance = heard
@@ -674,6 +745,8 @@ def run(argv: list[str] | None = None) -> int:
                     voice_mode,
                     voice_listener,
                     ui,
+                    face_tracker is not None and face_tracker.running(),
+                    latest_face_observation,
                 )
 
             if args.once or args.command is not None:

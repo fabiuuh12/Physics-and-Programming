@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 
 [project.optional-dependencies]
 voice = ["SpeechRecognition>=3.10", "sounddevice>=0.5.0", "numpy>=2.0"]
+vision = ["opencv-python>=4.10"]
 
 [project.scripts]
 alice = "alice.app:main"

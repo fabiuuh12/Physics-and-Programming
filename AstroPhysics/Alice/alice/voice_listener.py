@@ -74,7 +74,10 @@ class VoiceListener:
             return
 
         if not has_input:
-            self._error = "Microphone unavailable: no input audio device found."
+            self._error = (
+                "Microphone unavailable: no input audio device found. "
+                "Check System Settings > Privacy & Security > Microphone for Terminal/iTerm."
+            )
             self._available = False
             return
 
