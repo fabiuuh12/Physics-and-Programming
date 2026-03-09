@@ -1,7 +1,0 @@
-{
-  "allowed_roots": [
-    "/Users/fabiofacin/Documents/Physics-and-Programming"
-  ],
-  "log_dir": "logs",
-  "max_runtime_seconds": 300
-}
