@@ -47,6 +47,31 @@ class WebSearcher:
         if not lowered:
             return False
 
+        greeting_like = (
+            "hi",
+            "hello",
+            "hey",
+            "yo",
+            "what's up",
+            "whats up",
+            "how are you",
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "thanks",
+            "thank you",
+            "nice to meet you",
+        )
+        normalized = re.sub(r"[^\w\s']", " ", lowered)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        if normalized in greeting_like:
+            return False
+        if any(
+            normalized.startswith(prefix)
+            for prefix in ("hi ", "hello ", "hey ", "yo ", "how are you")
+        ):
+            return False
+
         starts = (
             "what ",
             "who ",
@@ -74,9 +99,29 @@ class WebSearcher:
             "current",
             "right now",
         )
-        return lowered.endswith("?") or lowered.startswith(starts) or any(
-            token in lowered for token in temporal
+        explicit_factual = (
+            "what is ",
+            "what are ",
+            "who is ",
+            "who are ",
+            "tell me about ",
+            "explain ",
+            "define ",
+            "do you know what ",
+            "do you know who ",
         )
+
+        tokens = [tok for tok in normalized.split() if tok]
+        if any(normalized.startswith(prefix) for prefix in explicit_factual):
+            return True
+        if any(token in normalized for token in temporal):
+            return True
+
+        # Generic questions should not all trigger web search.
+        # Require enough content words unless they match factual patterns above.
+        if lowered.endswith("?") and len(tokens) >= 6 and lowered.startswith(starts):
+            return True
+        return False
 
     def lookup(self, query: str, *, max_results: int = 3) -> list[WebHit]:
         if not self.enabled:

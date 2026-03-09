@@ -64,11 +64,70 @@ def build_listener(mode: str) -> BaseListener:
         return TextListener()
 
 
-def is_yes(text: str | None) -> bool:
+def parse_confirmation(text: str | None) -> bool | None:
     if not text:
+        return None
+
+    lowered = text.strip().lower()
+    cleaned = re.sub(r"[^\w\s']", " ", lowered)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if not cleaned:
+        return None
+
+    if "yes or no" in cleaned or "say yes" in cleaned and " no" in f" {cleaned}":
+        return None
+
+    positive_phrases = {
+        "go ahead",
+        "do it",
+        "run it",
+        "open it",
+        "sounds good",
+        "confirm it",
+    }
+    negative_phrases = {
+        "do not",
+        "don't",
+        "dont",
+        "no way",
+        "not now",
+        "cancel it",
+        "stop that",
+        "never mind",
+        "nevermind",
+    }
+
+    has_positive_phrase = any(phrase in cleaned for phrase in positive_phrases)
+    has_negative_phrase = any(phrase in cleaned for phrase in negative_phrases)
+
+    tokens = set(re.findall(r"[a-z']+", cleaned))
+    positive_tokens = {
+        "y",
+        "yes",
+        "yeah",
+        "yep",
+        "sure",
+        "ok",
+        "okay",
+        "affirmative",
+        "confirm",
+        "proceed",
+        "run",
+        "open",
+        "doit",
+    }
+    negative_tokens = {"n", "no", "nope", "nah", "cancel", "stop", "abort"}
+
+    has_positive = has_positive_phrase or bool(tokens & positive_tokens)
+    has_negative = has_negative_phrase or bool(tokens & negative_tokens)
+
+    if has_positive and has_negative:
+        return None
+    if has_negative:
         return False
-    normalized = text.strip().lower()
-    return normalized in {"y", "yes", "yeah", "yep", "confirm"}
+    if has_positive:
+        return True
+    return None
 
 
 def describe_for_confirmation(intent: Intent) -> str:
@@ -349,15 +408,40 @@ def handle_utterance(
             f"Please confirm: {describe_for_confirmation(intent)}. Say yes or no.",
             ui=ui,
         )
-        confirmation = _run_blocking_with_ui(
-            ui,
-            lambda: listener.listen("Confirm> "),
-            state="listening",
-            status="Waiting for confirmation...",
-        )
-        if ui is not None and confirmation:
-            ui.add_message("You", confirmation)
-        if not is_yes(confirmation):
+        attempts = 0
+        pending_negative = False
+        while attempts < 3:
+            confirmation = _run_blocking_with_ui(
+                ui,
+                lambda: listener.listen("Confirm> "),
+                state="listening",
+                status="Waiting for confirmation...",
+            )
+            if ui is not None and confirmation:
+                ui.add_message("You", confirmation)
+            decision = parse_confirmation(confirmation)
+            if decision is True:
+                break
+            if decision is False:
+                if pending_negative:
+                    _speak(speaker, "Canceled.", ui=ui)
+                    return True
+                pending_negative = True
+                attempts += 1
+                if attempts < 3:
+                    _speak(
+                        speaker,
+                        "I heard no. Say no again to cancel, or say yes to continue.",
+                        ui=ui,
+                    )
+                    continue
+                _speak(speaker, "Canceled.", ui=ui)
+                return True
+            pending_negative = False
+            attempts += 1
+            if attempts < 3:
+                _speak(speaker, "I did not catch yes or no. Please say yes or no.", ui=ui)
+        else:
             _speak(speaker, "Canceled.", ui=ui)
             return True
 

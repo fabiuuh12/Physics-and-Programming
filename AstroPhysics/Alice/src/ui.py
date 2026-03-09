@@ -29,8 +29,13 @@ class AliceFaceUI:
         self._last_frame_time = time.monotonic()
         self._gaze_x = 0.0
         self._gaze_y = 0.0
+        self._gaze_vx = 0.0
+        self._gaze_vy = 0.0
         self._target_gaze_x = 0.0
         self._target_gaze_y = 0.0
+        self._smoothed_track_x = 0.0
+        self._smoothed_track_y = 0.0
+        self._track_blend = 0.0
         self._tracker = None
         self._face_found = False
         self._face_name = ""
@@ -206,15 +211,35 @@ class AliceFaceUI:
             return
 
         if obs.found:
-            self._target_gaze_x = max(-1.0, min(1.0, obs.x * 0.75))
-            self._target_gaze_y = max(-1.0, min(1.0, obs.y * 0.65))
+            tx = obs.x * 0.90
+            ty = obs.y * 0.78
+
+            dx = tx - self._smoothed_track_x
+            dy = ty - self._smoothed_track_y
+            motion = math.hypot(dx, dy)
+            alpha = 0.54 if motion > 0.35 else 0.30
+            self._smoothed_track_x += dx * alpha
+            self._smoothed_track_y += dy * alpha
+
+            smooth_x = self._smoothed_track_x
+            smooth_y = self._smoothed_track_y
+            # Non-linear boost near edges keeps gaze expressive.
+            smooth_x += 0.14 * smooth_x * abs(smooth_x)
+            smooth_y += 0.10 * smooth_y * abs(smooth_y)
+
+            self._target_gaze_x = max(-1.0, min(1.0, smooth_x))
+            self._target_gaze_y = max(-1.0, min(1.0, smooth_y))
             self._face_found = True
+            self._track_blend = min(1.0, self._track_blend + 0.14)
             self._face_name = obs.owner_name or "You"
             self.focus_label.configure(text=f"Camera: tracking {self._face_name}")
         else:
-            self._target_gaze_x *= 0.9
-            self._target_gaze_y *= 0.9
+            self._smoothed_track_x *= 0.90
+            self._smoothed_track_y *= 0.90
+            self._target_gaze_x = self._smoothed_track_x
+            self._target_gaze_y = self._smoothed_track_y
             self._face_found = False
+            self._track_blend = max(0.0, self._track_blend - 0.08)
             self.focus_label.configure(text="Camera: searching...")
 
     def _animate_blink(self, now: float) -> None:
@@ -236,9 +261,23 @@ class AliceFaceUI:
         else:
             self._blink_value = 1.0
 
-    def _layout_eyes(self) -> None:
-        self._gaze_x += (self._target_gaze_x - self._gaze_x) * 0.15
-        self._gaze_y += (self._target_gaze_y - self._gaze_y) * 0.15
+    def _layout_eyes(self, dt: float) -> None:
+        err_x = self._target_gaze_x - self._gaze_x
+        err_y = self._target_gaze_y - self._gaze_y
+        err_mag = min(1.0, math.hypot(err_x, err_y))
+
+        spring = (11.5 if self._face_found else 7.2) + err_mag * (5.2 if self._face_found else 2.0)
+        damping = 6.2 if self._face_found else 4.9
+        self._gaze_vx += (err_x * spring - self._gaze_vx * damping) * dt
+        self._gaze_vy += (err_y * spring - self._gaze_vy * damping) * dt
+        if self._face_found and err_mag > 0.34:
+            boost = min(0.18, err_mag * 0.22)
+            self._gaze_vx += err_x * boost
+            self._gaze_vy += err_y * boost
+        self._gaze_x += self._gaze_vx * dt
+        self._gaze_y += self._gaze_vy * dt
+        self._gaze_x = max(-1.2, min(1.2, self._gaze_x))
+        self._gaze_y = max(-1.2, min(1.2, self._gaze_y))
 
         blink_h = max(2.0, 52.0 * self._blink_value)
         left_mid_x, right_mid_x = 177.0, 283.0
@@ -312,19 +351,32 @@ class AliceFaceUI:
         self.canvas.itemconfigure(self.left_lower_lid, state="normal")
         self.canvas.itemconfigure(self.right_lower_lid, state="normal")
 
-        micro_x = 0.8 * math.sin(self._idle_phase * 2.3) if not self._face_found else 0.0
-        micro_y = 0.5 * math.cos(self._idle_phase * 1.9) if not self._face_found else 0.0
-        px = self._gaze_x * 10.0 + micro_x
-        py = self._gaze_y * 8.0 + micro_y
-        li_x = left_mid_x + px
+        if self._face_found:
+            micro_scale = 0.70 + 0.30 * (1.0 - self._track_blend)
+            micro_x = micro_scale * (
+                0.24 * math.sin(self._idle_phase * 10.4) + 0.16 * math.cos(self._idle_phase * 5.6)
+            )
+            micro_y = micro_scale * (0.18 * math.cos(self._idle_phase * 8.7))
+        else:
+            micro_x = 0.8 * math.sin(self._idle_phase * 2.3)
+            micro_y = 0.5 * math.cos(self._idle_phase * 1.9)
+        px = self._gaze_x * 10.8 + micro_x
+        py = self._gaze_y * 8.8 + micro_y
+        convergence = 0.7 * self._track_blend
+        li_x = left_mid_x + px + convergence
         li_y = mid_y + py
-        ri_x = right_mid_x + px
+        ri_x = right_mid_x + px - convergence
         ri_y = mid_y + py
 
-        self.canvas.coords(self.left_iris, li_x - 12, li_y - 12, li_x + 12, li_y + 12)
-        self.canvas.coords(self.right_iris, ri_x - 12, ri_y - 12, ri_x + 12, ri_y + 12)
-        self.canvas.coords(self.left_pupil, li_x - 4, li_y - 4, li_x + 4, li_y + 4)
-        self.canvas.coords(self.right_pupil, ri_x - 4, ri_y - 4, ri_x + 4, ri_y + 4)
+        eye_energy = min(1.0, abs(self._gaze_vx) + abs(self._gaze_vy))
+        iris_r = 11.5 + 1.0 * (0.5 + 0.5 * math.sin(self._idle_phase * 2.8))
+        if self.state == "thinking":
+            iris_r -= 0.8
+        pupil_r = 3.8 + 0.8 * eye_energy
+        self.canvas.coords(self.left_iris, li_x - iris_r, li_y - iris_r, li_x + iris_r, li_y + iris_r)
+        self.canvas.coords(self.right_iris, ri_x - iris_r, ri_y - iris_r, ri_x + iris_r, ri_y + iris_r)
+        self.canvas.coords(self.left_pupil, li_x - pupil_r, li_y - pupil_r, li_x + pupil_r, li_y + pupil_r)
+        self.canvas.coords(self.right_pupil, ri_x - pupil_r, ri_y - pupil_r, ri_x + pupil_r, ri_y + pupil_r)
         self.canvas.coords(self.left_highlight, li_x - 1, li_y - 1, li_x + 2, li_y + 2)
         self.canvas.coords(self.right_highlight, ri_x - 1, ri_y - 1, ri_x + 2, ri_y + 2)
 
@@ -445,7 +497,7 @@ class AliceFaceUI:
         self._face_offset_y = math.sin(self._idle_phase) * 0.8
         self._update_face_tracking()
         self._animate_blink(now)
-        self._layout_eyes()
+        self._layout_eyes(dt)
         self._layout_brows()
         self._layout_mouth(dt)
 
