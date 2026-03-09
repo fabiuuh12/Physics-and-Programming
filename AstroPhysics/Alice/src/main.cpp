@@ -6,6 +6,7 @@
 #include "alice/string_utils.hpp"
 #include "alice/ui.hpp"
 #include "alice/voice_listener.hpp"
+#include "alice/face_tracker.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -37,6 +38,8 @@ struct Args {
     std::string wake_word = "alice";
     bool once = false;
     bool ui = false;
+    bool camera = true;
+    int camera_index = 0;
     bool no_tts = false;
     std::optional<std::string> command;
     std::filesystem::path config_path;
@@ -251,6 +254,18 @@ static Args parse_args(int argc, char** argv) {
             args.ui = true;
             continue;
         }
+        if (token == "--no-camera") {
+            args.camera = false;
+            continue;
+        }
+        if (token == "--camera-index" && i + 1 < argc) {
+            try {
+                args.camera_index = std::stoi(argv[++i]);
+            } catch (...) {
+                args.camera_index = 0;
+            }
+            continue;
+        }
         if (token == "--no-tts") {
             args.no_tts = true;
             continue;
@@ -412,7 +427,7 @@ static bool handle_utterance(const std::string& utterance, const std::string& wa
             std::string confirmation;
             if (voice_mode && voice_listener != nullptr && voice_listener->available()) {
                 std::cout << "Confirm (voice)> " << std::flush;
-                const bool captured = read_voice_with_ui(*voice_listener, confirmation, 5.5, 5.0);
+                const bool captured = read_voice_with_ui(*voice_listener, confirmation, 8.0, 8.0);
                 if (!captured) {
                     std::cout << "[no speech]" << std::endl;
                     speak("I did not catch yes or no. Please say yes or no.");
@@ -471,6 +486,7 @@ int run(int argc, char** argv) {
     AliceExecutor executor(config.allowed_roots, config.log_dir, config.max_runtime_seconds);
     AliceBrain brain;
     std::unique_ptr<VoiceListener> voice_listener;
+    std::unique_ptr<FaceTracker> face_tracker;
     if (voice_mode) {
         voice_listener = std::make_unique<VoiceListener>();
     }
@@ -484,6 +500,16 @@ int run(int argc, char** argv) {
             std::cout << "[Alice] UI: enabled" << std::endl;
         } else {
             std::cout << "[Alice] UI: unavailable on this platform/runtime." << std::endl;
+        }
+    }
+
+    if (args.ui && args.camera) {
+        face_tracker = std::make_unique<FaceTracker>();
+        if (face_tracker->start(args.camera_index)) {
+            std::cout << "[Alice] Camera tracking: enabled (camera " << args.camera_index << ")" << std::endl;
+        } else {
+            std::cout << "[Alice] Camera tracking: unavailable (" << face_tracker->last_error() << ")" << std::endl;
+            face_tracker.reset();
         }
     }
 
@@ -515,6 +541,10 @@ int run(int argc, char** argv) {
 
     bool keep_running = true;
     while (keep_running) {
+        if (g_ui != nullptr && face_tracker != nullptr) {
+            const FaceObservation obs = face_tracker->latest();
+            g_ui->set_face_target(obs.x, obs.y, obs.found, obs.face_count);
+        }
         if (g_ui != nullptr) {
             g_ui->pump();
             if (!g_ui->running()) {
@@ -534,7 +564,7 @@ int run(int argc, char** argv) {
 
             if (voice_mode && voice_listener != nullptr && voice_listener->available()) {
                 std::cout << "You (voice)> " << std::flush;
-                const bool captured = read_voice_with_ui(*voice_listener, utterance, 6.0, 8.0);
+                const bool captured = read_voice_with_ui(*voice_listener, utterance, 10.0, 14.0);
                 if (!captured) {
                     std::cout << "[no speech]" << std::endl;
                     if (args.once) {
@@ -566,6 +596,9 @@ int run(int argc, char** argv) {
     }
 
     executor.shutdown();
+    if (face_tracker != nullptr) {
+        face_tracker->stop();
+    }
     if (g_ui != nullptr) {
         g_ui->set_state("offline");
         g_ui->set_status("Offline");

@@ -21,6 +21,7 @@ public:
     void set_state(const std::string& state);
     void set_status(const std::string& status);
     void add_message(const std::string& speaker, const std::string& text);
+    void set_face_target(float x, float y, bool found, int face_count = 0);
 
 private:
     struct Impl;

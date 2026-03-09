@@ -27,5 +27,6 @@ bool AliceUI::running() const {
 void AliceUI::set_state(const std::string&) {}
 void AliceUI::set_status(const std::string&) {}
 void AliceUI::add_message(const std::string&, const std::string&) {}
+void AliceUI::set_face_target(float, float, bool, int) {}
 
 }  // namespace alice

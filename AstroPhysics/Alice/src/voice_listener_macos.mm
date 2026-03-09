@@ -5,6 +5,7 @@
 #include "alice/string_utils.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <thread>
 
 namespace alice {
@@ -79,7 +80,11 @@ VoiceListener::VoiceListener() : impl_(new Impl()) {
             return;
         }
 
-        NSLocale* locale = [NSLocale localeWithLocaleIdentifier:@"en-US"];
+        NSString* localeId = @"en-US";
+        if (const char* envLocale = std::getenv("ALICE_STT_LOCALE"); envLocale != nullptr && envLocale[0] != '\\0') {
+            localeId = [NSString stringWithUTF8String:envLocale];
+        }
+        NSLocale* locale = [NSLocale localeWithLocaleIdentifier:localeId];
         impl_->recognizer = [[SFSpeechRecognizer alloc] initWithLocale:locale];
         if (impl_->recognizer == nil) {
             impl_->error = "Unable to initialize speech recognizer.";
@@ -119,7 +124,16 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
     @try {
         AVAudioEngine* engine = [[AVAudioEngine alloc] init];
         SFSpeechAudioBufferRecognitionRequest* request = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
-        request.shouldReportPartialResults = YES;
+        request.shouldReportPartialResults = NO;
+        request.taskHint = SFSpeechRecognitionTaskHintDictation;
+        if ([request respondsToSelector:@selector(setRequiresOnDeviceRecognition:)]) {
+            if (const char* raw = std::getenv("ALICE_STT_ON_DEVICE"); raw != nullptr && raw[0] != '\\0') {
+                const std::string value = to_lower(trim(raw));
+                if (value == "1" || value == "true" || value == "yes" || value == "on") {
+                    request.requiresOnDeviceRecognition = YES;
+                }
+            }
+        }
 
         __block NSString* best_text = nil;
         __block bool done = false;
@@ -158,7 +172,7 @@ std::optional<std::string> VoiceListener::listen(double timeout_seconds, double 
 
         AVAudioFormat* format = [input_node outputFormatForBus:0];
         [input_node installTapOnBus:0
-                         bufferSize:1024
+                         bufferSize:2048
                              format:format
                               block:^(AVAudioPCMBuffer* buffer, AVAudioTime* when) {
                                 (void)when;
