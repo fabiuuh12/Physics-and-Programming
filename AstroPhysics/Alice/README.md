@@ -25,7 +25,9 @@ cmake --build build -j
 clang++ -std=c++20 -O2 -fobjc-arc -Iinclude \
   src/main.cpp src/string_utils.cpp src/config.cpp src/intent.cpp \
   src/memory_store.cpp src/executor.cpp src/llm_client.cpp src/brain.cpp src/ui_macos.mm src/voice_listener_macos.mm \
-  -framework AppKit -framework AVFoundation -framework Speech -o build/alice
+  -framework AppKit -framework AVFoundation -framework Speech \
+  -Wl,-sectcreate,__TEXT,__info_plist,resources/AliceInfo.plist \
+  -o build/alice
 ```
 
 ## Run

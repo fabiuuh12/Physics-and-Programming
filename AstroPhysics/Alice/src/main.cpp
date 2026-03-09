@@ -18,6 +18,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <memory>
 #include <sys/select.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -469,7 +470,10 @@ int run(int argc, char** argv) {
     MemoryStore memory_store(memory_path);
     AliceExecutor executor(config.allowed_roots, config.log_dir, config.max_runtime_seconds);
     AliceBrain brain;
-    VoiceListener voice_listener;
+    std::unique_ptr<VoiceListener> voice_listener;
+    if (voice_mode) {
+        voice_listener = std::make_unique<VoiceListener>();
+    }
 
     AliceUI ui;
     if (args.ui) {
@@ -487,10 +491,11 @@ int run(int argc, char** argv) {
 
     std::cout << "[Alice] STT backend: ";
     if (voice_mode) {
-        if (voice_listener.available()) {
-            std::cout << voice_listener.backend_name() << std::endl;
+        if (voice_listener != nullptr && voice_listener->available()) {
+            std::cout << voice_listener->backend_name() << std::endl;
         } else {
-            std::cout << "none (" << voice_listener.last_error() << ")" << std::endl;
+            std::cout << "none (" << (voice_listener ? voice_listener->last_error() : "voice listener unavailable")
+                      << ")" << std::endl;
             std::cout << "[Alice] Voice mode unavailable. Falling back to text input." << std::endl;
         }
     } else {
@@ -527,9 +532,9 @@ int run(int argc, char** argv) {
                 g_ui->set_status(voice_mode ? "Listening to microphone..." : "Listening...");
             }
 
-            if (voice_mode && voice_listener.available()) {
+            if (voice_mode && voice_listener != nullptr && voice_listener->available()) {
                 std::cout << "You (voice)> " << std::flush;
-                const bool captured = read_voice_with_ui(voice_listener, utterance, 6.0, 8.0);
+                const bool captured = read_voice_with_ui(*voice_listener, utterance, 6.0, 8.0);
                 if (!captured) {
                     std::cout << "[no speech]" << std::endl;
                     if (args.once) {
@@ -552,7 +557,7 @@ int run(int argc, char** argv) {
             }
             keep_running =
                 handle_utterance(utterance, args.wake_word, args.require_wake, executor, brain, memory_store,
-                                 voice_mode, &voice_listener);
+                                 voice_mode, voice_listener.get());
         }
 
         if (args.once || args.command.has_value()) {
