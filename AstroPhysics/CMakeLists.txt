@@ -30,6 +30,9 @@ target_link_libraries(blackhole_realism_viz_cpp PRIVATE raylib)
 add_executable(black_hole_accretion_beaming_viz_cpp "gravity/black_hole_accretion_beaming_viz.cpp")
 target_link_libraries(black_hole_accretion_beaming_viz_cpp PRIVATE raylib)
 
+add_executable(black_hole_particle_field_viz_cpp "gravity/black_hole_particle_field_viz.cpp")
+target_link_libraries(black_hole_particle_field_viz_cpp PRIVATE raylib)
+
 add_executable(collision_bh_viz_cpp "gravity/collision_bh_viz.cpp")
 target_link_libraries(collision_bh_viz_cpp PRIVATE raylib)
 
@@ -59,6 +62,9 @@ target_link_libraries(electric_charges_interaction_cpp PRIVATE raylib)
 
 add_executable(electric_field_cpp "electromagnetism/electric field.cpp")
 target_link_libraries(electric_field_cpp PRIVATE raylib)
+
+add_executable(magnetosphere_solar_wind_viz_cpp "electromagnetism/magnetosphere_solar_wind_viz.cpp")
+target_link_libraries(magnetosphere_solar_wind_viz_cpp PRIVATE raylib)
 
 add_executable(enthropy_viz_cpp "thermodynamics/enthropy_viz.cpp")
 target_link_libraries(enthropy_viz_cpp PRIVATE raylib)
@@ -117,6 +123,9 @@ target_link_libraries(newton_laws_viz_cpp PRIVATE raylib)
 add_executable(particle_acc_viz_cpp "particle_physics/particle_acc_viz.cpp")
 target_link_libraries(particle_acc_viz_cpp PRIVATE raylib)
 
+add_executable(tokamak_confinement_viz_cpp "plasma/tokamak_confinement_viz.cpp")
+target_link_libraries(tokamak_confinement_viz_cpp PRIVATE raylib)
+
 add_executable(particle_entang_viz_cpp "particle_physics/particle_entang_viz.cpp")
 target_link_libraries(particle_entang_viz_cpp PRIVATE raylib)
 
@@ -165,6 +174,9 @@ target_link_libraries(galaxy_merger_nbody_viz_cpp PRIVATE raylib)
 add_executable(solar_system_spacetime_viz_cpp "gravity/solar_system_spacetime_viz.cpp")
 target_link_libraries(solar_system_spacetime_viz_cpp PRIVATE raylib)
 
+add_executable(solar_system_solar_wind_viz_cpp "astronomy/solar_system_solar_wind_viz.cpp")
+target_link_libraries(solar_system_solar_wind_viz_cpp PRIVATE raylib)
+
 add_executable(thermodynamics_laws_viz_cpp "thermodynamics/thermodynamics_laws_viz.cpp")
 target_link_libraries(thermodynamics_laws_viz_cpp PRIVATE raylib)
 
@@ -190,6 +202,12 @@ add_executable(vision_two_hands_scene_cpp "vision/two_hands_scene.cpp")
 target_link_libraries(vision_two_hands_scene_cpp PRIVATE raylib)
 if (WIN32)
     target_link_libraries(vision_two_hands_scene_cpp PRIVATE ws2_32)
+endif()
+
+add_executable(body_exosuit_scene_cpp "vision/body_exosuit_scene.cpp")
+target_link_libraries(body_exosuit_scene_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(body_exosuit_scene_cpp PRIVATE ws2_32)
 endif()
 
 add_executable(gravitational_microlensing_viz_cpp "gravity/gravitational_microlensing_viz.cpp")
