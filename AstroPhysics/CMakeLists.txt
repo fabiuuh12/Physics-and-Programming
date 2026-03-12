@@ -204,12 +204,6 @@ if (WIN32)
     target_link_libraries(vision_two_hands_scene_cpp PRIVATE ws2_32)
 endif()
 
-add_executable(body_exosuit_scene_cpp "vision/body_exosuit_scene.cpp")
-target_link_libraries(body_exosuit_scene_cpp PRIVATE raylib)
-if (WIN32)
-    target_link_libraries(body_exosuit_scene_cpp PRIVATE ws2_32)
-endif()
-
 add_executable(gravitational_microlensing_viz_cpp "gravity/gravitational_microlensing_viz.cpp")
 target_link_libraries(gravitational_microlensing_viz_cpp PRIVATE raylib)
 
