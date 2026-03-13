@@ -36,6 +36,9 @@ target_link_libraries(quasar_core_viz_cpp PRIVATE raylib)
 add_executable(black_hole_particle_field_viz_cpp "gravity/black_hole_particle_field_viz.cpp")
 target_link_libraries(black_hole_particle_field_viz_cpp PRIVATE raylib)
 
+add_executable(dual_black_white_hole_viz_cpp "gravity/dual_black_white_hole_viz.cpp")
+target_link_libraries(dual_black_white_hole_viz_cpp PRIVATE raylib)
+
 add_executable(collision_bh_viz_cpp "gravity/collision_bh_viz.cpp")
 target_link_libraries(collision_bh_viz_cpp PRIVATE raylib)
 
@@ -161,6 +164,9 @@ target_link_libraries(quantum_wave_viz_cpp PRIVATE raylib)
 
 add_executable(relativistic_time_dilation_viz_cpp "relativity/relativistic_time_dilation_viz.cpp")
 target_link_libraries(relativistic_time_dilation_viz_cpp PRIVATE raylib)
+
+add_executable(penrose_diagram_3d_viz_cpp "relativity/penrose_diagram_3d_viz.cpp")
+target_link_libraries(penrose_diagram_3d_viz_cpp PRIVATE raylib)
 
 add_executable(schrodinger_cat_viz_cpp "quantum/schrodinger_cat_viz.cpp")
 target_link_libraries(schrodinger_cat_viz_cpp PRIVATE raylib)
