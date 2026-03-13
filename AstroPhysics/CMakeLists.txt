@@ -30,6 +30,9 @@ target_link_libraries(blackhole_realism_viz_cpp PRIVATE raylib)
 add_executable(black_hole_accretion_beaming_viz_cpp "gravity/black_hole_accretion_beaming_viz.cpp")
 target_link_libraries(black_hole_accretion_beaming_viz_cpp PRIVATE raylib)
 
+add_executable(quasar_core_viz_cpp "gravity/quasar_core_viz.cpp")
+target_link_libraries(quasar_core_viz_cpp PRIVATE raylib)
+
 add_executable(black_hole_particle_field_viz_cpp "gravity/black_hole_particle_field_viz.cpp")
 target_link_libraries(black_hole_particle_field_viz_cpp PRIVATE raylib)
 
@@ -89,6 +92,9 @@ target_link_libraries(gravitational_lensing_playground_viz_cpp PRIVATE raylib)
 
 add_executable(gravity_lagrange_viz_cpp "gravity/gravity_lagrange_viz.cpp")
 target_link_libraries(gravity_lagrange_viz_cpp PRIVATE raylib)
+
+add_executable(holographic_principle_viz_cpp "gravity/holographic_principle_viz.cpp")
+target_link_libraries(holographic_principle_viz_cpp PRIVATE raylib)
 
 add_executable(higgs_field_viz_cpp "particle_physics/higgs_field_viz.cpp")
 target_link_libraries(higgs_field_viz_cpp PRIVATE raylib)
@@ -191,6 +197,9 @@ target_link_libraries(uncertainty_wavepacket_viz_cpp PRIVATE raylib)
 
 add_executable(wormhole_viz_cpp "gravity/wormhole_viz.cpp")
 target_link_libraries(wormhole_viz_cpp PRIVATE raylib)
+
+add_executable(wormhole_gateway_viz_cpp "gravity/wormhole_gateway_viz.cpp")
+target_link_libraries(wormhole_gateway_viz_cpp PRIVATE raylib)
 
 add_executable(defensive_sys_3d_cpp "DefensiveSys/defensive_sys_3d.cpp")
 target_link_libraries(defensive_sys_3d_cpp PRIVATE raylib)
