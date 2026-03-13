@@ -93,9 +93,6 @@ target_link_libraries(gravitational_lensing_playground_viz_cpp PRIVATE raylib)
 add_executable(gravity_lagrange_viz_cpp "gravity/gravity_lagrange_viz.cpp")
 target_link_libraries(gravity_lagrange_viz_cpp PRIVATE raylib)
 
-add_executable(holographic_principle_viz_cpp "gravity/holographic_principle_viz.cpp")
-target_link_libraries(holographic_principle_viz_cpp PRIVATE raylib)
-
 add_executable(higgs_field_viz_cpp "particle_physics/higgs_field_viz.cpp")
 target_link_libraries(higgs_field_viz_cpp PRIVATE raylib)
 
