@@ -30,6 +30,7 @@ constexpr int kFrameUdpPort = 50516;
 constexpr float kLinkTimeout = 0.75f;
 constexpr float kTrackedDepthPalmRef = 0.155f;
 constexpr float kTrackedDepthRange = 5.4f;
+constexpr float kTrackedHandModelScale = 0.18f;
 constexpr float kBoneSides = 10.0f;
 constexpr float kJointSphereScale = 1.18f;
 
@@ -358,6 +359,10 @@ inline float EstimateTrackedDepthShift(const TrackedHandPacket& packet) {
     return -relative * kTrackedDepthRange;
 }
 
+inline float HandVisualScale(const HandGeometry& g) {
+    return std::max(0.14f, g.radii[0] / 0.34f);
+}
+
 inline HandGeometry BuildTrackedGeometry(const TrackedHandPacket& packet, bool rightHand) {
     HandGeometry g{};
     constexpr std::array<float, 21> kRadii = {
@@ -383,8 +388,8 @@ inline HandGeometry BuildTrackedGeometry(const TrackedHandPacket& packet, bool r
         rightHand ? 0.45f : -0.45f,
     };
 
-    const float xyScale = 3.8f / palm;
-    const float zScale = 5.2f / palm;
+    const float xyScale = (3.8f / palm) * kTrackedHandModelScale;
+    const float zScale = (5.2f / palm) * kTrackedHandModelScale;
 
     for (size_t i = 0; i < g.landmarks.size(); ++i) {
         const Vector3 rel = Vector3Subtract(packet.landmarks[i], rootAnchorNorm);
@@ -394,15 +399,15 @@ inline HandGeometry BuildTrackedGeometry(const TrackedHandPacket& packet, bool r
             -rel.z * zScale,
         };
         g.landmarks[i] = Vector3Add(origin, local);
-        g.radii[i] = kRadii[i];
+        g.radii[i] = kRadii[i] * kTrackedHandModelScale;
     }
 
     const Vector3 across = Vector3Subtract(g.landmarks[17], g.landmarks[5]);
     const Vector3 wristAxis = SafeNormalize(across, {1.0f, 0.0f, 0.0f});
     const Vector3 forearmDir = SafeNormalize(Vector3Subtract(g.landmarks[0], Average({g.landmarks[5], g.landmarks[9], g.landmarks[13], g.landmarks[17]})), {0.0f, -1.0f, 0.0f});
 
-    g.wristLeft = Vector3Add(Vector3Add(g.landmarks[0], Vector3Scale(wristAxis, -0.88f)), Vector3Scale(forearmDir, 0.18f));
-    g.wristRight = Vector3Add(Vector3Add(g.landmarks[0], Vector3Scale(wristAxis, 0.88f)), Vector3Scale(forearmDir, 0.18f));
+    g.wristLeft = Vector3Add(Vector3Add(g.landmarks[0], Vector3Scale(wristAxis, -0.88f * kTrackedHandModelScale)), Vector3Scale(forearmDir, 0.18f * kTrackedHandModelScale));
+    g.wristRight = Vector3Add(Vector3Add(g.landmarks[0], Vector3Scale(wristAxis, 0.88f * kTrackedHandModelScale)), Vector3Scale(forearmDir, 0.18f * kTrackedHandModelScale));
     g.palmRim = {
         g.wristLeft,
         g.landmarks[1],
@@ -489,12 +494,13 @@ inline void DrawTendonLines(const HandGeometry& g, Color color) {
 }
 
 inline void DrawForearm(const HandGeometry& g, const HandVisualStyle& style) {
+    const float s = HandVisualScale(g);
     const Vector3 wristMid = Vector3Scale(Vector3Add(g.wristLeft, g.wristRight), 0.5f);
     const Vector3 knuckleMid = Average({g.landmarks[5], g.landmarks[9], g.landmarks[13], g.landmarks[17]});
     const Vector3 dir = SafeNormalize(Vector3Subtract(wristMid, knuckleMid), {0.0f, -1.0f, 0.0f});
-    const Vector3 forearmEnd = Vector3Add(wristMid, Vector3Scale(dir, 1.55f));
-    DrawBone(wristMid, forearmEnd, 0.48f, 0.34f, Fade(style.bone, 0.82f));
-    DrawSphere(forearmEnd, 0.34f, Fade(style.palm, 0.78f));
+    const Vector3 forearmEnd = Vector3Add(wristMid, Vector3Scale(dir, 1.55f * s));
+    DrawBone(wristMid, forearmEnd, 0.48f * s, 0.34f * s, Fade(style.bone, 0.82f));
+    DrawSphere(forearmEnd, 0.34f * s, Fade(style.palm, 0.78f));
 }
 
 inline void DrawKnuckleBridge(const HandGeometry& g, const HandVisualStyle& style) {
@@ -504,34 +510,38 @@ inline void DrawKnuckleBridge(const HandGeometry& g, const HandVisualStyle& styl
 }
 
 inline void DrawPinchCue(const HandGeometry& g, const HandVisualStyle& style) {
+    const float s = HandVisualScale(g);
     const Vector3 thumb = g.landmarks[4];
     const Vector3 index = g.landmarks[8];
     const Vector3 center = Vector3Scale(Vector3Add(thumb, index), 0.5f);
     DrawLine3D(thumb, index, style.accent);
-    DrawSphere(center, 0.16f, Fade(style.accent, 0.92f));
-    DrawSphere(thumb, 0.10f, style.accent);
-    DrawSphere(index, 0.10f, style.accent);
+    DrawSphere(center, 0.16f * s, Fade(style.accent, 0.92f));
+    DrawSphere(thumb, 0.10f * s, style.accent);
+    DrawSphere(index, 0.10f * s, style.accent);
 }
 
 inline void DrawPalmNormalCue(const HandGeometry& g, const HandVisualStyle& style) {
+    const float s = HandVisualScale(g);
     const Vector3 across = Vector3Subtract(g.landmarks[17], g.landmarks[5]);
     const Vector3 fingers = Vector3Subtract(Average({g.landmarks[5], g.landmarks[9], g.landmarks[13], g.landmarks[17]}), g.landmarks[0]);
     Vector3 normal = SafeNormalize(Vector3CrossProduct(across, fingers), {0.0f, 0.0f, 1.0f});
     if (normal.z < 0.0f) normal = Vector3Scale(normal, -1.0f);
-    const Vector3 tip = Vector3Add(g.palmCenter, Vector3Scale(normal, 0.72f));
+    const Vector3 tip = Vector3Add(g.palmCenter, Vector3Scale(normal, 0.72f * s));
     DrawLine3D(g.palmCenter, tip, style.accent);
-    DrawSphere(tip, 0.10f, style.accent);
+    DrawSphere(tip, 0.10f * s, style.accent);
 }
 
 inline void DrawHandShadow(const HandGeometry& g, const HandVisualStyle& style) {
+    const float s = HandVisualScale(g);
     for (const Vector3& point : g.palmRim) {
         const Vector3 shadow = {point.x, 0.021f, point.z};
-        DrawSphere(shadow, 0.18f, Fade(style.shadow, 0.25f));
+        DrawSphere(shadow, 0.18f * s, Fade(style.shadow, 0.25f));
     }
 }
 
 inline void DrawHandModel(const HandGeometry& g, bool rightHand, bool showLandmarks, bool pinched) {
     const HandVisualStyle style = StyleForHand(rightHand);
+    const float s = HandVisualScale(g);
     DrawHandShadow(g, style);
     DrawForearm(g, style);
     DrawPalmSurface(g, style.palm, style.tip);
@@ -550,8 +560,8 @@ inline void DrawHandModel(const HandGeometry& g, bool rightHand, bool showLandma
     }
 
     const std::array<int, 4> metacarpalTargets = {5, 9, 13, 17};
-    for (int idx : metacarpalTargets) DrawBone(g.landmarks[0], g.landmarks[idx], 0.14f, g.radii[idx] * 0.90f, Fade(style.bone, 0.75f));
-    DrawBone(g.landmarks[0], g.landmarks[1], 0.16f, g.radii[1] * 0.95f, Fade(style.bone, 0.72f));
+    for (int idx : metacarpalTargets) DrawBone(g.landmarks[0], g.landmarks[idx], 0.14f * s, g.radii[idx] * 0.90f, Fade(style.bone, 0.75f));
+    DrawBone(g.landmarks[0], g.landmarks[1], 0.16f * s, g.radii[1] * 0.95f, Fade(style.bone, 0.72f));
 
     DrawTendonLines(g, style.tendon);
     DrawPalmLines(g, Fade(style.tendon, 0.65f));
@@ -562,8 +572,8 @@ inline void DrawHandModel(const HandGeometry& g, bool rightHand, bool showLandma
         DrawSphere(g.landmarks[i], g.radii[i] * kJointSphereScale, tip ? style.tip : style.palm);
     }
 
-    DrawSphere(g.palmCenter, 0.33f, Fade(style.palm, 0.85f));
-    DrawSphere(g.landmarks[1], 0.18f, Fade(style.accent, 0.30f));
+    DrawSphere(g.palmCenter, 0.33f * s, Fade(style.palm, 0.85f));
+    DrawSphere(g.landmarks[1], 0.18f * s, Fade(style.accent, 0.30f));
     DrawPalmNormalCue(g, style);
     if (pinched) DrawPinchCue(g, style);
 

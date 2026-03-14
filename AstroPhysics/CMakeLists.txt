@@ -84,6 +84,12 @@ target_link_libraries(enthropy_viz_cpp PRIVATE raylib)
 add_executable(exoplanet_transit_lab_viz_cpp "astronomy/exoplanet_transit_lab_viz.cpp")
 target_link_libraries(exoplanet_transit_lab_viz_cpp PRIVATE raylib)
 
+add_executable(orbital_construction_hand_lab_viz_cpp "astronomy/orbital_construction_hand_lab_viz.cpp")
+target_link_libraries(orbital_construction_hand_lab_viz_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(orbital_construction_hand_lab_viz_cpp PRIVATE ws2_32)
+endif()
+
 add_executable(fission_fusion_viz_cpp "nuclear/fission_fusion_viz.cpp")
 target_link_libraries(fission_fusion_viz_cpp PRIVATE raylib)
 
@@ -209,6 +215,12 @@ target_link_libraries(wormhole_viz_cpp PRIVATE raylib)
 
 add_executable(wormhole_gateway_viz_cpp "gravity/wormhole_gateway_viz.cpp")
 target_link_libraries(wormhole_gateway_viz_cpp PRIVATE raylib)
+
+add_executable(wormhole_hand_lab_viz_cpp "gravity/wormhole_hand_lab_viz.cpp")
+target_link_libraries(wormhole_hand_lab_viz_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(wormhole_hand_lab_viz_cpp PRIVATE ws2_32)
+endif()
 
 add_executable(defensive_sys_3d_cpp "DefensiveSys/defensive_sys_3d.cpp")
 target_link_libraries(defensive_sys_3d_cpp PRIVATE raylib)

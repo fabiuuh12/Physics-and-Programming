@@ -45,8 +45,8 @@ CAPTURE_H = 720
 SMOOTH_ALPHA_MIN = 0.18
 SMOOTH_ALPHA_MAX = 0.52
 ANCHOR_SMOOTH_ALPHA = 0.18
-PINCH_CLOSE_RATIO = 0.36
-PINCH_RELEASE_RATIO = 0.48
+PINCH_CLOSE_RATIO = 0.40
+PINCH_RELEASE_RATIO = 0.52
 HAND_STALE_S = 0.45
 PREVIEW_SEND_HZ = 30.0
 PREVIEW_W = 320
@@ -477,7 +477,7 @@ def main() -> int:
     tracked: Dict[str, TrackedHand] = {}
     smoother = MultiLandmarkSmoother()
     anchor_stabilizer = PalmAnchorStabilizer()
-    pinch_latched: Dict[str, bool] = {"left": False, "right": False}
+    pinch_latched: Dict[str, bool] = {slot: False for slot in SLOT_KEYS}
     last_t = time.perf_counter()
     fps = 60.0
     last_preview_send_ts = 0.0
@@ -524,13 +524,12 @@ def main() -> int:
                 pose = smoother.smooth(key, hand.landmarks)
                 pose = anchor_stabilizer.stabilize(key, pose)
                 ratio = _pinch_ratio(pose)
-                label_key = hand.label.lower()
-                if label_key in pinch_latched:
-                    if pinch_latched[label_key]:
+                if key in pinch_latched:
+                    if pinch_latched[key]:
                         pinch = ratio < PINCH_RELEASE_RATIO
                     else:
                         pinch = ratio < PINCH_CLOSE_RATIO
-                    pinch_latched[label_key] = pinch
+                    pinch_latched[key] = pinch
                 else:
                     pinch = ratio < PINCH_CLOSE_RATIO
 
@@ -568,7 +567,7 @@ def main() -> int:
                 tracked.clear()
                 smoother.reset()
                 anchor_stabilizer.reset()
-                pinch_latched = {"left": False, "right": False}
+                pinch_latched = {slot: False for slot in SLOT_KEYS}
     finally:
         if tracker_solution is not None:
             tracker_solution.close()
