@@ -15,6 +15,12 @@ target_link_libraries(angular_momentum_viz_cpp PRIVATE raylib)
 add_executable(aerodynamics_viz_cpp "mechanics/aerodynamics_viz.cpp")
 target_link_libraries(aerodynamics_viz_cpp PRIVATE raylib)
 
+add_executable(hand_biomechanics_viz_cpp "mechanics/hand_biomechanics_viz.cpp")
+target_link_libraries(hand_biomechanics_viz_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(hand_biomechanics_viz_cpp PRIVATE ws2_32)
+endif()
+
 add_executable(atom_viz_cpp "quantum/atom_viz.cpp")
 target_link_libraries(atom_viz_cpp PRIVATE raylib)
 
