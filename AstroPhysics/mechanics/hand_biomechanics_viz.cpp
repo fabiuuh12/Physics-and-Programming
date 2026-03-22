@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "../vision/hand_tracking_scene_shared.h"
 
 #include <algorithm>
 #include <array>
@@ -1013,6 +1014,30 @@ void DrawLandmarkLabels(const HandGeometry& g, const Camera3D& camera) {
     }
 }
 
+void DrawStarfieldBackdrop(int count, unsigned int seed, float drift, Color baseColor) {
+    for (int i = 0; i < count; ++i) {
+        const float sx = static_cast<float>((seed * 1103515245u + static_cast<unsigned int>(i * 7919)) % 10000) / 10000.0f;
+        const float sy = static_cast<float>((seed * 214013u + static_cast<unsigned int>(i * 4051)) % 10000) / 10000.0f;
+        const float twinkle = 0.55f + 0.45f * std::sin(drift * (0.8f + 0.05f * static_cast<float>(i)) + 9.0f * sx);
+        const float radius = 0.8f + 1.9f * sx;
+        const int px = static_cast<int>(sx * static_cast<float>(GetScreenWidth()));
+        const int py = static_cast<int>(sy * static_cast<float>(GetScreenHeight()));
+        DrawCircle(px, py, radius, Fade(baseColor, 0.35f + 0.55f * twinkle));
+    }
+}
+
+void DrawSpaceBackdrop(float t) {
+    ClearBackground(Color{4, 6, 14, 255});
+    DrawCircleGradient(GetScreenWidth() / 2, GetScreenHeight() / 2, 360.0f,
+                       Fade(Color{34, 58, 112, 255}, 0.10f), Fade(BLACK, 0.0f));
+    DrawCircleGradient(static_cast<int>(GetScreenWidth() * 0.24f), static_cast<int>(GetScreenHeight() * 0.18f), 220.0f,
+                       Fade(Color{76, 116, 214, 255}, 0.08f), Fade(BLACK, 0.0f));
+    DrawCircleGradient(static_cast<int>(GetScreenWidth() * 0.78f), static_cast<int>(GetScreenHeight() * 0.28f), 180.0f,
+                       Fade(Color{198, 112, 146, 255}, 0.05f), Fade(BLACK, 0.0f));
+    DrawStarfieldBackdrop(180, 0xA31F42u, t * 0.6f, Color{188, 216, 255, 255});
+    DrawStarfieldBackdrop(120, 0x51C8E7u, t * 0.9f, Color{255, 232, 196, 255});
+}
+
 }  // namespace
 
 int main() {
@@ -1037,21 +1062,10 @@ int main() {
     HandControls manual = PresetControls(HandPreset::Relaxed);
     float demoTime = 0.0f;
 
-    UdpHandReceiver receiver;
-    const bool receiverOk = receiver.Start(static_cast<uint16_t>(kUdpPort));
-    UdpFrameReceiver frameReceiver;
-    const bool frameReceiverOk = frameReceiver.Start(static_cast<uint16_t>(kFrameUdpPort));
-    TrackingPacket tracking{};
-    float lastPacketWallClock = -100.0f;
-    float lastFramePacketWallClock = -100.0f;
-    std::array<HandGeometry, 2> liveGeometry{};
-    std::array<bool, 2> liveGeometryInit = {false, false};
+    astro_hand::HandSceneBridge bridge;
+    bridge.Start();
     std::array<HandKinematics, 2> handState{};
-    std::array<Vector3, 2> prevHandAnchor = {Vector3{0.0f, 0.0f, 0.0f}, Vector3{0.0f, 0.0f, 0.0f}};
-    std::array<bool, 2> prevHandAnchorValid = {false, false};
     BallState ball{};
-    std::vector<unsigned char> previewFrameBytes;
-    Texture2D webcamTexture{};
 
     while (!WindowShouldClose()) {
         const float dt = std::max(GetFrameTime(), 1.0e-4f);
@@ -1144,50 +1158,26 @@ int main() {
         }
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
+        bridge.Update(camera, now, dt);
 
-        int packetsRead = 0;
-        if (receiver.Poll(tracking, packetsRead)) {
-            lastPacketWallClock = now;
-        }
-        int framePacketsRead = 0;
-        if (frameReceiver.Poll(previewFrameBytes, framePacketsRead)) {
-            lastFramePacketWallClock = now;
-            UpdatePreviewTexture(webcamTexture, previewFrameBytes);
-        }
-
-        const bool linkLive = receiver.ready() && ((now - lastPacketWallClock) < kLinkTimeout);
-        const bool previewLive = frameReceiver.ready() && webcamTexture.id > 0 && ((now - lastFramePacketWallClock) < kLinkTimeout);
-        const bool leftTracked = linkLive && tracking.left.valid;
-        const bool rightTracked = linkLive && tracking.right.valid;
-        const bool anyTracked = leftTracked || rightTracked;
+        const bool leftTracked = bridge.LeftTracked();
+        const bool rightTracked = bridge.RightTracked();
+        const bool anyTracked = bridge.AnyTracked();
 
         if (autoDemo && !anyTracked) demoTime += dt;
         const HandControls pose = autoDemo ? DemoControls(demoTime) : manual;
-        const float liveBlend = 1.0f - std::exp(-12.0f * dt);
-        Vector3 depthAxis = Vector3Subtract(camera.position, camera.target);
-        depthAxis.y *= 0.16f;
-        depthAxis = SafeNormalize(depthAxis, {0.72f, 0.08f, 0.69f});
-
-        if (leftTracked) {
-            HandGeometry target = BuildTrackedGeometry(tracking.left, false);
-            target = OffsetGeometry(target, Vector3Scale(depthAxis, EstimateTrackedDepthShift(tracking.left)));
-            liveGeometry[0] = liveGeometryInit[0] ? BlendGeometry(liveGeometry[0], target, liveBlend) : target;
-            liveGeometryInit[0] = true;
-        } else {
-            liveGeometryInit[0] = false;
-        }
-
-        if (rightTracked) {
-            HandGeometry target = BuildTrackedGeometry(tracking.right, true);
-            target = OffsetGeometry(target, Vector3Scale(depthAxis, EstimateTrackedDepthShift(tracking.right)));
-            liveGeometry[1] = liveGeometryInit[1] ? BlendGeometry(liveGeometry[1], target, liveBlend) : target;
-            liveGeometryInit[1] = true;
-        } else {
-            liveGeometryInit[1] = false;
-        }
-
-        UpdateHandKinematics(handState[0], liveGeometry[0], leftTracked && liveGeometryInit[0], tracking.left.pinched, &prevHandAnchor[0], &prevHandAnchorValid[0], dt);
-        UpdateHandKinematics(handState[1], liveGeometry[1], rightTracked && liveGeometryInit[1], tracking.right.pinched, &prevHandAnchor[1], &prevHandAnchorValid[1], dt);
+        const auto syncHandState = [&](size_t idx, bool rightHand) {
+            const astro_hand::HandControlState& control = bridge.Control(rightHand);
+            handState[idx].active = control.active;
+            handState[idx].pinched = control.pinched;
+            handState[idx].palm = control.palm;
+            handState[idx].indexTip = control.indexTip;
+            handState[idx].thumbTip = control.thumbTip;
+            handState[idx].grabPoint = control.pinchPoint;
+            handState[idx].velocity = control.velocity;
+        };
+        syncHandState(0, false);
+        syncHandState(1, true);
         UpdateBall(ball, handState, dt);
 
         const HandGeometry demoRight = BuildHandGeometry(pose, {4.5f, 0.65f, 0.0f}, true);
@@ -1195,16 +1185,13 @@ int main() {
         const bool demoPinch = pose.pinch > 0.65f;
 
         BeginDrawing();
-        ClearBackground(Color{7, 10, 18, 255});
+        DrawSpaceBackdrop(now);
 
         BeginMode3D(camera);
-        DrawCube({0.0f, -0.05f, 0.0f}, 10.5f, 0.08f, 9.0f, Color{34, 44, 62, 255});
-        DrawCube({0.0f, 0.02f, 0.0f}, 4.2f, 0.05f, 3.2f, Color{46, 58, 78, 255});
         DrawBall(ball);
 
         if (anyTracked) {
-            if (leftTracked) DrawHandModel(liveGeometry[0], StyleForHand(false, true), showLandmarks, tracking.left.pinched);
-            if (rightTracked) DrawHandModel(liveGeometry[1], StyleForHand(true, true), showLandmarks, tracking.right.pinched);
+            bridge.DrawHands(showLandmarks);
         } else {
             if (showMirrorDemo) DrawHandModel(demoLeft, StyleForHand(false, false), showLandmarks, demoPinch);
             DrawHandModel(demoRight, StyleForHand(true, false), showLandmarks, demoPinch);
@@ -1223,17 +1210,12 @@ int main() {
         DrawText(hud.c_str(), 20, 114, 20, Color{126, 224, 255, 255});
         DrawText(
             anyTracked
-                ? "Live webcam tracking is driving the full two-hand 21-point rig with palm-oriented 3D reconstruction."
+                ? "Live biomechanics bridge is driving the same shared tracked-hand rig used by wormhole hand lab."
                 : "Demo mode now renders both hands and the same 21-point rig used by the webcam bridge.",
             20, 142, 18, Color{194, 205, 223, 255});
         DrawText("Ball: pinch near it to grab, or tap/push it with fingertips or palm.", 20, 168, 18, Color{194, 205, 223, 255});
 
-        const char* bridgeStatus =
-            !receiverOk ? "bridge: UDP receiver failed to start"
-            : anyTracked ? "bridge: tracking live on udp:50515"
-            : linkLive ? "bridge: packets arriving, waiting for valid left/right hands"
-            : "bridge: idle on udp:50515  run AstroPhysics/vision/hand_biomechanics_bridge.py";
-        DrawText(bridgeStatus, 20, 194, 18, anyTracked ? Color{142, 255, 190, 255} : Color{188, 198, 220, 255});
+        astro_hand::DrawBridgeStatus(bridge, 20, 194);
 
         if (anyTracked) {
             std::ostringstream liveOs;
@@ -1241,35 +1223,18 @@ int main() {
                    << (leftTracked ? " L" : "")
                    << (rightTracked ? " R" : "")
                    << "  pinch:"
-                   << (tracking.left.pinched ? " L" : "")
-                   << (tracking.right.pinched ? " R" : "")
+                   << (bridge.Control(false).pinched ? " L" : "")
+                   << (bridge.Control(true).pinched ? " R" : "")
                    << "  ball:"
                    << (ball.grabbedBy == 0 ? " grabbed L" : ball.grabbedBy == 1 ? " grabbed R" : " free");
             DrawText(liveOs.str().c_str(), 20, 220, 18, Color{255, 224, 132, 255});
         }
         DrawFPS(20, 248);
 
-        const Rectangle previewPanel = {static_cast<float>(GetScreenWidth() - 392), 20.0f, 360.0f, 220.0f};
-        DrawRectangleRounded(previewPanel, 0.06f, 10, Fade(BLACK, 0.38f));
-        DrawRectangleLinesEx(previewPanel, 1.5f, Color{92, 110, 138, 255});
-        DrawText("Python Webcam Feed", static_cast<int>(previewPanel.x) + 14, static_cast<int>(previewPanel.y) + 12, 20, Color{222, 230, 244, 255});
-        if (previewLive) {
-            const Rectangle src = {0.0f, 0.0f, static_cast<float>(webcamTexture.width), static_cast<float>(webcamTexture.height)};
-            const Rectangle dst = {previewPanel.x + 12.0f, previewPanel.y + 42.0f, previewPanel.width - 24.0f, previewPanel.height - 54.0f};
-            DrawTexturePro(webcamTexture, src, dst, {0.0f, 0.0f}, 0.0f, WHITE);
-        } else {
-            DrawRectangle(static_cast<int>(previewPanel.x) + 12, static_cast<int>(previewPanel.y) + 42, static_cast<int>(previewPanel.width) - 24, static_cast<int>(previewPanel.height) - 54, Color{20, 24, 32, 255});
-            const char* previewStatus =
-                !frameReceiverOk ? "preview receiver failed"
-                : "waiting for webcam preview";
-            DrawText(previewStatus, static_cast<int>(previewPanel.x) + 24, static_cast<int>(previewPanel.y) + 122, 18, Color{180, 194, 214, 255});
-        }
+        bridge.DrawPreviewPanel({static_cast<float>(GetScreenWidth() - 392), 20.0f, 360.0f, 220.0f}, "Python Webcam Feed");
 
         if (showLandmarks) {
-            if (anyTracked) {
-                if (leftTracked) DrawLandmarkLabels(liveGeometry[0], camera);
-                if (rightTracked) DrawLandmarkLabels(liveGeometry[1], camera);
-            } else {
+            if (!anyTracked) {
                 if (showMirrorDemo) DrawLandmarkLabels(demoLeft, camera);
                 DrawLandmarkLabels(demoRight, camera);
             }
@@ -1278,9 +1243,6 @@ int main() {
         EndDrawing();
     }
 
-    if (webcamTexture.id > 0) {
-        UnloadTexture(webcamTexture);
-    }
     CloseWindow();
     return 0;
 }

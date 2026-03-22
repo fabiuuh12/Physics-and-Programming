@@ -93,6 +93,9 @@ endif()
 add_executable(fission_fusion_viz_cpp "nuclear/fission_fusion_viz.cpp")
 target_link_libraries(fission_fusion_viz_cpp PRIVATE raylib)
 
+add_executable(feynman_diagram_simulator_cpp "particle_physics/feynman_diagram_simulator.cpp")
+target_link_libraries(feynman_diagram_simulator_cpp PRIVATE raylib)
+
 add_executable(fluid_mechanics_channel_viz_cpp "fluids/fluid_mechanics_channel_viz.cpp")
 target_link_libraries(fluid_mechanics_channel_viz_cpp PRIVATE raylib)
 
