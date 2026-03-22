@@ -330,7 +330,6 @@ std::vector<FeynmanProcess> BuildProcesses() {
         {
             {180.0f, 430.0f},
             {520.0f, 430.0f},
-            {840.0f, 300.0f},
             {820.0f, 560.0f},
             {1180.0f, 250.0f},
             {1180.0f, 470.0f},
@@ -338,12 +337,12 @@ std::vector<FeynmanProcess> BuildProcesses() {
         },
         {
             {0, 1, "d", ParticleStyle::kFermion, Color{107, 208, 255, 255}, true, 0, {-8.0f, -34.0f}},
-            {1, 2, "u", ParticleStyle::kFermion, Color{112, 245, 193, 255}, true, 2, {-8.0f, -34.0f}},
-            {1, 3, "W-", ParticleStyle::kBoson, Color{255, 177, 94, 255}, true, 1, {-50.0f, 6.0f}},
-            {3, 5, "e-", ParticleStyle::kFermion, Color{130, 228, 255, 255}, true, 2, {18.0f, -18.0f}},
-            {3, 6, "anti-nu_e", ParticleStyle::kFermion, Color{220, 196, 255, 255}, false, 2, {-60.0f, -16.0f}},
+            {1, 3, "u", ParticleStyle::kFermion, Color{112, 245, 193, 255}, true, 2, {-8.0f, -34.0f}},
+            {1, 2, "W-", ParticleStyle::kBoson, Color{255, 177, 94, 255}, true, 1, {-50.0f, 6.0f}},
+            {2, 4, "e-", ParticleStyle::kFermion, Color{130, 228, 255, 255}, true, 2, {18.0f, -18.0f}},
+            {2, 5, "anti-nu_e", ParticleStyle::kFermion, Color{220, 196, 255, 255}, false, 2, {-60.0f, -16.0f}},
         },
-        {1, 3},
+        {1, 2},
         {
             {"charge", true},
             {"baryon number flow", true},
@@ -388,12 +387,6 @@ int main() {
     bool paused = false;
     bool autoReplay = true;
     bool showOverlay = true;
-
-    auto resetForProcess = [&]() {
-        const FeynmanProcess& process = processes[selectedProcess];
-        energyGeV = std::clamp(energyGeV, process.energyMin, process.energyMax);
-        simTime = 0.0f;
-    };
 
     auto selectProcess = [&](int index) {
         selectedProcess = (index + static_cast<int>(processes.size())) % static_cast<int>(processes.size());
