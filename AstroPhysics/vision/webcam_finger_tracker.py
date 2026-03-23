@@ -23,6 +23,7 @@ Press 'q' to quit.
 import math
 import os
 import shutil
+import socket
 import ssl
 import sys
 import tempfile
@@ -140,6 +141,12 @@ MODEL_URL = (
 )
 MODEL_PATH = Path(__file__).resolve().parent / "models" / "hand_landmarker.task"
 CONTROL_OUTPUT_PATH = Path(__file__).resolve().parent / "live_controls.txt"
+UDP_HOST = "127.0.0.1"
+FRAME_UDP_PORT = 50516
+PREVIEW_SEND_HZ = 30.0
+PREVIEW_W = 320
+PREVIEW_H = 180
+PREVIEW_JPEG_QUALITY = 55
 
 
 @dataclass
@@ -167,6 +174,7 @@ class CameraControlState:
     last_dual_toggle_ts: float = 0.0
     last_frame_ts: float = 0.0
     last_write_ts: float = 0.0
+    last_preview_ts: float = 0.0
     source_label: str = "Unknown"
     source_gesture: str = "none"
     source_pinch_ratio: float = 0.0
@@ -972,6 +980,29 @@ def _export_live_controls(control: CameraControlState, now: float) -> None:
         pass
 
 
+def _send_preview_frame(sock: socket.socket, frame: np.ndarray, state: CameraControlState, now: float) -> None:
+    interval = 1.0 / max(1.0, PREVIEW_SEND_HZ)
+    if now - state.last_preview_ts < interval:
+        return
+    state.last_preview_ts = now
+
+    preview = cv2.resize(frame, (PREVIEW_W, PREVIEW_H), interpolation=cv2.INTER_AREA)
+    ok, encoded = cv2.imencode(
+        ".jpg",
+        preview,
+        [int(cv2.IMWRITE_JPEG_QUALITY), PREVIEW_JPEG_QUALITY],
+    )
+    if not ok:
+        return
+    data = encoded.tobytes()
+    if len(data) >= 65000:
+        return
+    try:
+        sock.sendto(data, (UDP_HOST, FRAME_UDP_PORT))
+    except OSError:
+        return
+
+
 def _select_control_hand(candidates: Sequence[dict]) -> dict | None:
     if not candidates:
         return None
@@ -1505,6 +1536,8 @@ def run_with_solutions(cap) -> None:
     smoother = LandmarkSmoother()
     fps_counter = FPSCounter()
     control = CameraControlState()
+    preview_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    preview_sock.setblocking(False)
     window_name = "Webcam Finger Tracker"
     window_state = CameraWindowState()
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -1538,6 +1571,8 @@ def run_with_solutions(cap) -> None:
                 window_name,
             ):
                 break
+            _send_preview_frame(preview_sock, display_frame, control, time.perf_counter())
+    preview_sock.close()
 
 
 def run_with_tasks(cap) -> None:
@@ -1546,6 +1581,8 @@ def run_with_tasks(cap) -> None:
     smoother = LandmarkSmoother()
     fps_counter = FPSCounter()
     control = CameraControlState()
+    preview_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    preview_sock.setblocking(False)
     window_name = "Webcam Finger Tracker"
     window_state = CameraWindowState()
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -1592,6 +1629,8 @@ def run_with_tasks(cap) -> None:
                 window_name,
             ):
                 break
+            _send_preview_frame(preview_sock, display_frame, control, time.perf_counter())
+    preview_sock.close()
 
 
 def main() -> int:

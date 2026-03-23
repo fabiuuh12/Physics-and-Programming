@@ -75,6 +75,15 @@ target_link_libraries(electric_charges_interaction_cpp PRIVATE raylib)
 add_executable(electric_field_cpp "electromagnetism/electric field.cpp")
 target_link_libraries(electric_field_cpp PRIVATE raylib)
 
+add_executable(circuit_em_energy_flow_viz_cpp "electromagnetism/circuit_em_energy_flow_viz.cpp")
+target_link_libraries(circuit_em_energy_flow_viz_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(circuit_em_energy_flow_viz_cpp PRIVATE ws2_32)
+endif()
+
+add_executable(em_helical_poynting_viz_cpp "electromagnetism/em_helical_poynting_viz.cpp")
+target_link_libraries(em_helical_poynting_viz_cpp PRIVATE raylib)
+
 add_executable(magnetosphere_solar_wind_viz_cpp "electromagnetism/magnetosphere_solar_wind_viz.cpp")
 target_link_libraries(magnetosphere_solar_wind_viz_cpp PRIVATE raylib)
 
@@ -164,6 +173,9 @@ target_link_libraries(quantum_cpp PRIVATE raylib)
 
 add_executable(quantum_particle_viz_cpp "quantum/quantum_particle_viz.cpp")
 target_link_libraries(quantum_particle_viz_cpp PRIVATE raylib)
+
+add_executable(probability_field_wave_merge_viz_cpp "quantum/probability_field_wave_merge_viz.cpp")
+target_link_libraries(probability_field_wave_merge_viz_cpp PRIVATE raylib)
 
 add_executable(quantum_search_cpp "quantum/quantum_search.cpp")
 target_link_libraries(quantum_search_cpp PRIVATE raylib)
