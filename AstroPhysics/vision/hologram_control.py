@@ -47,6 +47,7 @@ MODEL_PATH = next((p for p in MODEL_CANDIDATES if p.exists()), MODEL_CANDIDATES[
 CAPTURE_W = 1280
 CAPTURE_H = 720
 HUD_MARGIN = 22
+MAX_TRACKED_HANDS = 4
 
 WRIST = 0
 THUMB_TIP = 4
@@ -573,7 +574,7 @@ def prepare_candidates(
     hands: List[HandObservation],
     smoother: MultiLandmarkSmoother,
 ) -> List[dict]:
-    ordered = sorted(hands, key=wrist_x)[:2]
+    ordered = sorted(hands, key=wrist_x)[:MAX_TRACKED_HANDS]
     active_keys: List[str] = []
     candidates: List[dict] = []
     for idx, hand in enumerate(ordered):
@@ -1869,7 +1870,7 @@ def main() -> int:
     if hasattr(mp, "solutions") and hasattr(mp.solutions, "hands"):
         tracker_solution = mp.solutions.hands.Hands(
             static_image_mode=False,
-            max_num_hands=2,
+            max_num_hands=MAX_TRACKED_HANDS,
             model_complexity=1,
             min_detection_confidence=0.55,
             min_tracking_confidence=0.55,
@@ -1888,7 +1889,7 @@ def main() -> int:
                 delegate=mp.tasks.BaseOptions.Delegate.CPU,
             ),
             running_mode=vision.RunningMode.VIDEO,
-            num_hands=2,
+            num_hands=MAX_TRACKED_HANDS,
             min_hand_detection_confidence=0.55,
             min_hand_presence_confidence=0.50,
             min_tracking_confidence=0.55,
