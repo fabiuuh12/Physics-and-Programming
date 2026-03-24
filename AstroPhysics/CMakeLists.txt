@@ -174,6 +174,9 @@ target_link_libraries(quantum_cpp PRIVATE raylib)
 add_executable(quantum_particle_viz_cpp "quantum/quantum_particle_viz.cpp")
 target_link_libraries(quantum_particle_viz_cpp PRIVATE raylib)
 
+add_executable(field_excitation_viz_cpp "quantum/field_excitation_viz.cpp")
+target_link_libraries(field_excitation_viz_cpp PRIVATE raylib)
+
 add_executable(probability_field_wave_merge_viz_cpp "quantum/probability_field_wave_merge_viz.cpp")
 target_link_libraries(probability_field_wave_merge_viz_cpp PRIVATE raylib)
 

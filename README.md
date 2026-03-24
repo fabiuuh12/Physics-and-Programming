@@ -34,6 +34,7 @@ Vision and bridge scripts in `AstroPhysics/vision`:
 
 - `hand_planet_overlay.py` (hand-tracked atom/neutron/star/blackhole interaction scene)
 - `floating_hand_avatar.py`
+- `hologram_control.py` (webcam multi-hologram controller with fist cycling plus one-hand/two-hand gestures)
 - `webcam_finger_tracker.py`
 - `two_hand_bridge.py` (UDP hand bridge)
 - `two_hands_scene.cpp` (C++ visual scene receiver)
@@ -111,6 +112,7 @@ Examples from repo root:
 ```bash
 python3 AstroPhysics/vision/hand_planet_overlay.py
 python3 AstroPhysics/vision/floating_hand_avatar.py
+python3 AstroPhysics/vision/hologram_control.py
 python3 AstroPhysics/vision/two_hand_bridge.py
 python3 AstroPhysics/DefensiveSys/hand_turret_sim.py
 python3 "CyberTools/network/Certificate Expiry Checker.py" --host example.com
