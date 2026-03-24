@@ -47,7 +47,7 @@ MODEL_PATH = next((p for p in MODEL_CANDIDATES if p.exists()), MODEL_CANDIDATES[
 CAPTURE_W = 1280
 CAPTURE_H = 720
 HUD_MARGIN = 22
-MAX_TRACKED_HANDS = 4
+MAX_TRACKED_HANDS = 2
 
 WRIST = 0
 THUMB_TIP = 4
@@ -66,7 +66,7 @@ PINKY_TIP = 20
 SMOOTH_ALPHA = 0.28
 PINCH_POSE_THRESHOLD = 0.36
 MIN_SHAPE_SIZE = 90.0
-MAX_SHAPE_SIZE = 360.0
+MAX_SHAPE_SIZE = 520.0
 DRAG_CATCH_MARGIN = 150.0
 DUAL_ROT_GAIN = 3.6
 DUAL_CENTER_GAIN = 3.4
@@ -95,15 +95,21 @@ PARAM_EDIT_GAIN_Y = 2.6
 POSITION_VEL_BLEND = 0.24
 DEPTH_VEL_BLEND = 0.22
 ROTATION_VEL_BLEND = 0.20
-TRANSLATION_DAMPING = 0.91
-DEPTH_DAMPING = 0.89
-ROTATION_DAMPING = 0.93
+TRANSLATION_DAMPING = 0.78
+DEPTH_DAMPING = 0.80
+ROTATION_DAMPING = 0.88
 BOUNDARY_SPRING_GAIN = 7.6
 ROTATION_SPRING_GAIN = 1.95
 WOBBLE_DAMPING = 0.82
 WOBBLE_TRANSLATION_GAIN = 0.0026
 WOBBLE_ROTATION_GAIN = 0.22
 WOBBLE_MAX_ANGLE = 0.26
+MAX_TRANSLATION_THROW = 520.0
+MAX_DEPTH_THROW = 1100.0
+MAX_ROTATION_THROW = 2.6
+TRANSLATION_STOP_SPEED = 26.0
+DEPTH_STOP_SPEED = 42.0
+ROTATION_STOP_SPEED = 0.16
 
 HOLOGRAM_NAMES: Tuple[str, ...] = (
     "Tesseract",
@@ -346,6 +352,16 @@ def update_secondary_dynamics(state: HologramState, dt: float, width: int, heigh
         state.vel_rot_yw = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_yw + ROTATION_VEL_BLEND * inst_rot_yw
         state.vel_rot_zw = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_zw + ROTATION_VEL_BLEND * inst_rot_zw
 
+    state.vel_x = clamp(state.vel_x, -MAX_TRANSLATION_THROW, MAX_TRANSLATION_THROW)
+    state.vel_y = clamp(state.vel_y, -MAX_TRANSLATION_THROW, MAX_TRANSLATION_THROW)
+    state.vel_depth = clamp(state.vel_depth, -MAX_DEPTH_THROW, MAX_DEPTH_THROW)
+    state.vel_rot_xy = clamp(state.vel_rot_xy, -MAX_ROTATION_THROW, MAX_ROTATION_THROW)
+    state.vel_rot_xz = clamp(state.vel_rot_xz, -MAX_ROTATION_THROW, MAX_ROTATION_THROW)
+    state.vel_rot_yz = clamp(state.vel_rot_yz, -MAX_ROTATION_THROW, MAX_ROTATION_THROW)
+    state.vel_rot_xw = clamp(state.vel_rot_xw, -MAX_ROTATION_THROW, MAX_ROTATION_THROW)
+    state.vel_rot_yw = clamp(state.vel_rot_yw, -MAX_ROTATION_THROW, MAX_ROTATION_THROW)
+    state.vel_rot_zw = clamp(state.vel_rot_zw, -MAX_ROTATION_THROW, MAX_ROTATION_THROW)
+
     wobble_drag = WOBBLE_DAMPING ** dt60
     state.wobble_xy = clamp(
         state.wobble_xy * wobble_drag + (-dx * WOBBLE_TRANSLATION_GAIN) + droll * WOBBLE_ROTATION_GAIN,
@@ -369,6 +385,12 @@ def update_secondary_dynamics(state: HologramState, dt: float, width: int, heigh
         state.vel_x *= trans_drag
         state.vel_y *= trans_drag
         state.vel_depth *= depth_drag
+        if abs(state.vel_x) < TRANSLATION_STOP_SPEED:
+            state.vel_x = 0.0
+        if abs(state.vel_y) < TRANSLATION_STOP_SPEED:
+            state.vel_y = 0.0
+        if abs(state.vel_depth) < DEPTH_STOP_SPEED:
+            state.vel_depth = 0.0
         state.center_x += state.vel_x * dt
         state.center_y += state.vel_y * dt
         state.depth_offset += state.vel_depth * dt
@@ -381,6 +403,18 @@ def update_secondary_dynamics(state: HologramState, dt: float, width: int, heigh
         state.vel_rot_xw *= rot_drag
         state.vel_rot_yw *= rot_drag
         state.vel_rot_zw *= rot_drag
+        if abs(state.vel_rot_xy) < ROTATION_STOP_SPEED:
+            state.vel_rot_xy = 0.0
+        if abs(state.vel_rot_xz) < ROTATION_STOP_SPEED:
+            state.vel_rot_xz = 0.0
+        if abs(state.vel_rot_yz) < ROTATION_STOP_SPEED:
+            state.vel_rot_yz = 0.0
+        if abs(state.vel_rot_xw) < ROTATION_STOP_SPEED:
+            state.vel_rot_xw = 0.0
+        if abs(state.vel_rot_yw) < ROTATION_STOP_SPEED:
+            state.vel_rot_yw = 0.0
+        if abs(state.vel_rot_zw) < ROTATION_STOP_SPEED:
+            state.vel_rot_zw = 0.0
 
         mode_name = HOLOGRAM_NAMES[state.mode_index]
         neutral_xy, neutral_xz, neutral_yz, neutral_xw, neutral_yw, neutral_zw = neutral_rotations_for_mode(mode_name)
@@ -689,9 +723,6 @@ def update_controls(
                     0.0,
                     1.0,
                 )
-                state.vel_depth = (1.0 - DEPTH_VEL_BLEND) * state.vel_depth + DEPTH_VEL_BLEND * (
-                    (state.depth_offset - prev_depth_offset) / max(dt, 1e-4)
-                )
                 return "edit"
 
             yaw_speed = axis_speed_from_offset(
@@ -721,17 +752,6 @@ def update_controls(
             state.rot_zw = state.dual_anchor_rot_zw + DUAL_ZW_GAIN * (
                 metric - state.dual_anchor_metric
             )
-            state.vel_depth = (1.0 - DEPTH_VEL_BLEND) * state.vel_depth + DEPTH_VEL_BLEND * (
-                (state.depth_offset - prev_depth_offset) / max(dt, 1e-4)
-            )
-            state.vel_rot_yw = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_yw + ROTATION_VEL_BLEND * yaw_speed
-            state.vel_rot_yz = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_yz + ROTATION_VEL_BLEND * (0.58 * yaw_speed)
-            state.vel_rot_xw = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_xw + ROTATION_VEL_BLEND * pitch_speed
-            state.vel_rot_xz = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_xz + ROTATION_VEL_BLEND * (0.54 * pitch_speed)
-            state.vel_rot_xy = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_xy + ROTATION_VEL_BLEND * roll_speed
-            state.vel_rot_zw = (1.0 - ROTATION_VEL_BLEND) * state.vel_rot_zw + ROTATION_VEL_BLEND * (
-                DUAL_ZW_GAIN * (metric - state.dual_anchor_metric) / max(dt, 1e-4)
-            )
         return "dual" if not edit_mode else "edit"
 
     state.dual_active = False
@@ -749,9 +769,6 @@ def update_controls(
                 state.drag_anchor_depth = hand["pair_depth"]
                 state.drag_anchor_depth_offset = state.depth_offset
         if state.dragging:
-            prev_center_x = state.center_x
-            prev_center_y = state.center_y
-            prev_depth_offset = state.depth_offset
             state.center_x = clamp(pinch_x + state.drag_offset_x, 130.0, width - 130.0)
             state.center_y = clamp(pinch_y + state.drag_offset_y, 185.0, height - 130.0)
             depth_delta = hand["pair_depth"] - state.drag_anchor_depth
@@ -760,16 +777,6 @@ def update_controls(
                 state.drag_anchor_depth_offset - depth_delta * DEPTH_CONTROL_GAIN,
                 -max_depth,
                 max_depth,
-            )
-            inv_dt = 1.0 / max(dt, 1e-4)
-            state.vel_x = (1.0 - POSITION_VEL_BLEND) * state.vel_x + POSITION_VEL_BLEND * (
-                (state.center_x - prev_center_x) * inv_dt
-            )
-            state.vel_y = (1.0 - POSITION_VEL_BLEND) * state.vel_y + POSITION_VEL_BLEND * (
-                (state.center_y - prev_center_y) * inv_dt
-            )
-            state.vel_depth = (1.0 - DEPTH_VEL_BLEND) * state.vel_depth + DEPTH_VEL_BLEND * (
-                (state.depth_offset - prev_depth_offset) * inv_dt
             )
             return "drag"
         return "single"
