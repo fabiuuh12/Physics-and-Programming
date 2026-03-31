@@ -21,6 +21,12 @@ if (WIN32)
     target_link_libraries(hand_biomechanics_viz_cpp PRIVATE ws2_32)
 endif()
 
+add_executable(hand_tesla_coil_viz_cpp "mechanics/hand_tesla_coil_viz.cpp")
+target_link_libraries(hand_tesla_coil_viz_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(hand_tesla_coil_viz_cpp PRIVATE ws2_32)
+endif()
+
 add_executable(atom_viz_cpp "quantum/atom_viz.cpp")
 target_link_libraries(atom_viz_cpp PRIVATE raylib)
 

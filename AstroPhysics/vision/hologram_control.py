@@ -282,6 +282,31 @@ def detail_value(state: HologramState, low: int, medium: int, high: int) -> int:
     return (low, medium, high)[int(clamp(state.detail_level, 0, 2))]
 
 
+def current_window_size(default_w: int, default_h: int) -> Tuple[int, int]:
+    try:
+        _, _, width, height = cv2.getWindowImageRect(WINDOW_NAME)
+    except cv2.error:
+        return default_w, default_h
+    if width <= 0 or height <= 0:
+        return default_w, default_h
+    return width, height
+
+
+def resize_cover(image: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
+    src_h, src_w = image.shape[:2]
+    if src_w <= 0 or src_h <= 0:
+        return image
+    target_w = max(1, int(target_w))
+    target_h = max(1, int(target_h))
+    scale = max(target_w / src_w, target_h / src_h)
+    resized_w = max(1, int(math.ceil(src_w * scale)))
+    resized_h = max(1, int(math.ceil(src_h * scale)))
+    resized = cv2.resize(image, (resized_w, resized_h), interpolation=cv2.INTER_LINEAR)
+    x0 = max(0, (resized_w - target_w) // 2)
+    y0 = max(0, (resized_h - target_h) // 2)
+    return resized[y0 : y0 + target_h, x0 : x0 + target_w].copy()
+
+
 def neutral_rotations_for_mode(mode_name: str) -> Tuple[float, float, float, float, float, float]:
     if mode_name == "Tesseract":
         return 0.25, 0.85, -0.35, 0.55, -0.28, 0.40
@@ -1914,7 +1939,15 @@ def main() -> int:
     last_t = time.perf_counter()
     fps = 60.0
 
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+    window_flags = cv2.WINDOW_NORMAL | cv2.WINDOW_FREERATIO
+    if hasattr(cv2, "WINDOW_GUI_NORMAL"):
+        window_flags |= cv2.WINDOW_GUI_NORMAL
+    cv2.namedWindow(WINDOW_NAME, window_flags)
+    try:
+        cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_ASPECT_RATIO, cv2.WINDOW_FREERATIO)
+    except cv2.error:
+        pass
+    cv2.resizeWindow(WINDOW_NAME, CAPTURE_W, CAPTURE_H)
 
     try:
         while True:
@@ -1925,7 +1958,8 @@ def main() -> int:
 
             if mirror:
                 frame = cv2.flip(frame, 1)
-            frame = cv2.resize(frame, (CAPTURE_W, CAPTURE_H), interpolation=cv2.INTER_LINEAR)
+            display_w, display_h = current_window_size(CAPTURE_W, CAPTURE_H)
+            frame = resize_cover(frame, display_w, display_h)
 
             now = time.perf_counter()
             dt = max(1e-4, min(0.05, now - last_t))

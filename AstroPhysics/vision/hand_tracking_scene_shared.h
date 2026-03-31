@@ -31,8 +31,9 @@ constexpr float kLinkTimeout = 0.75f;
 constexpr float kTrackedDepthPalmRef = 0.155f;
 constexpr float kTrackedDepthRange = 5.4f;
 constexpr float kTrackedHandModelScale = 0.18f;
-constexpr float kBoneSides = 10.0f;
+constexpr float kBoneSides = 8.0f;
 constexpr float kJointSphereScale = 1.18f;
+constexpr float kPreviewUpdateInterval = 1.0f / 24.0f;
 
 struct TrackedHandPacket {
     bool valid = false;
@@ -624,7 +625,14 @@ class HandSceneBridge {
         int framePacketsRead = 0;
         if (frameReceiver_.Poll(previewFrameBytes_, framePacketsRead)) {
             lastFramePacketWallClock_ = now;
-            UpdatePreviewTexture(webcamTexture_, previewFrameBytes_);
+            previewDirty_ = true;
+        }
+        if (previewDirty_ && !previewFrameBytes_.empty() &&
+            (webcamTexture_.id == 0 || (now - lastPreviewTextureUpdateWallClock_) >= kPreviewUpdateInterval)) {
+            if (UpdatePreviewTexture(webcamTexture_, previewFrameBytes_)) {
+                lastPreviewTextureUpdateWallClock_ = now;
+                previewDirty_ = false;
+            }
         }
 
         linkLive_ = receiver_.ready() && ((now - lastPacketWallClock_) < kLinkTimeout);
@@ -738,12 +746,14 @@ class HandSceneBridge {
     bool rightTracked_ = false;
     float lastPacketWallClock_ = -100.0f;
     float lastFramePacketWallClock_ = -100.0f;
+    float lastPreviewTextureUpdateWallClock_ = -100.0f;
     TrackingPacket tracking_{};
     std::array<HandGeometry, 2> liveGeometry_{};
     std::array<bool, 2> liveGeometryInit_ = {false, false};
     std::array<HandControlState, 2> control_{};
     std::array<Vector3, 2> prevAnchor_ = {Vector3{0.0f, 0.0f, 0.0f}, Vector3{0.0f, 0.0f, 0.0f}};
     std::array<bool, 2> prevValid_ = {false, false};
+    bool previewDirty_ = false;
     std::vector<unsigned char> previewFrameBytes_{};
     Texture2D webcamTexture_{};
 };
