@@ -147,6 +147,9 @@ target_link_libraries(hr_diagram_evolution_viz_cpp PRIVATE raylib)
 add_executable(interferometer_gw_viz_cpp "gravity/interferometer_gw_viz.cpp")
 target_link_libraries(interferometer_gw_viz_cpp PRIVATE raylib)
 
+add_executable(three_body_problem_viz_cpp "gravity/three_body_problem_viz.cpp")
+target_link_libraries(three_body_problem_viz_cpp PRIVATE raylib)
+
 add_executable(maxwell_equations_viz_cpp "electromagnetism/maxwell_equations_viz.cpp")
 target_link_libraries(maxwell_equations_viz_cpp PRIVATE raylib)
 
