@@ -286,10 +286,10 @@ def _bench_source_direction(hand: SceneHand) -> np.ndarray:
     if not hand.valid:
         return np.asarray([1.0, 0.0], dtype=np.float32)
 
-    # Treat an upright hand as the neutral pose, then bias emission to the right
-    # and damp the steering response so large wrist rotation is not required.
+    # Treat an upright hand as the neutral pose, but keep the steering gain high
+    # enough that small wrist turns visibly redirect the beam.
     relative_angle = _wrap_angle(hand.angle_rad + 0.5 * math.pi)
-    beam_angle = _clamp(relative_angle * 0.55, -0.90, 0.90)
+    beam_angle = _clamp(relative_angle * 0.92, -1.18, 1.18)
     return _normalize(np.asarray([math.cos(beam_angle), math.sin(beam_angle)], dtype=np.float32))
 
 

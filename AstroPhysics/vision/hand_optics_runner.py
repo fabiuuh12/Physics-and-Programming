@@ -48,11 +48,13 @@ FIST_ON_SCORE = 0.60
 SCENE_CENTER_ALPHA = 0.24
 SCENE_CENTER_ALPHA_BENCH = 0.16
 SCENE_ANGLE_ALPHA = 0.20
-SCENE_ANGLE_ALPHA_BENCH = 0.12
+SCENE_ANGLE_ALPHA_BENCH = 0.22
 SCENE_DECAY_ALPHA = 0.08
 SCENE_PINCH_ALPHA = 0.24
 SCENE_SPAN_ALPHA = 0.22
 SCENE_PRESENCE_ALPHA = 0.26
+HAND_ANGLE_GAIN = 1.28
+HAND_ANGLE_LIMIT_RAD = math.radians(82.0)
 
 WRIST = 0
 THUMB_TIP = 4
@@ -340,6 +342,40 @@ def _blend_angle(prev: float, target: float, alpha: float) -> float:
     return prev + _wrap_angle(target - prev) * alpha
 
 
+def _normalize_xy(vec: np.ndarray, fallback: tuple[float, float] = (0.0, -1.0)) -> np.ndarray:
+    norm = float(np.linalg.norm(vec))
+    if norm < 1e-6:
+        return np.asarray(fallback, dtype=np.float32)
+    return (vec / norm).astype(np.float32)
+
+
+def _steer_from_upright(angle: float, gain: float, limit_rad: float) -> float:
+    relative = _wrap_angle(angle + 0.5 * math.pi)
+    steered = float(np.clip(relative * gain, -limit_rad, limit_rad))
+    return _wrap_angle(steered - 0.5 * math.pi)
+
+
+def _estimate_hand_angle(points: np.ndarray) -> float:
+    wrist = points[WRIST, :2]
+    knuckle_center = (
+        points[INDEX_MCP, :2] * 0.30
+        + points[MIDDLE_MCP, :2] * 0.45
+        + points[PINKY_MCP, :2] * 0.25
+    )
+    fingertip_center = (
+        points[INDEX_TIP, :2]
+        + points[MIDDLE_TIP, :2]
+        + points[RING_TIP, :2]
+        + points[PINKY_TIP, :2]
+    ) * 0.25
+
+    # Mix knuckle and fingertip direction so smaller palm turns produce a clearer response.
+    forward = (knuckle_center - wrist) * 0.58 + (fingertip_center - wrist) * 0.42
+    forward = _normalize_xy(forward)
+    raw_angle = float(np.arctan2(forward[1], forward[0]))
+    return _steer_from_upright(raw_angle, HAND_ANGLE_GAIN, HAND_ANGLE_LIMIT_RAD)
+
+
 def _default_filter_state(side: str) -> FilteredSceneHandState:
     default = _default_scene_hand(side)
     return FilteredSceneHandState(
@@ -362,8 +398,7 @@ def _tracked_to_scene_hand(tracked: TrackedHand | None, side: str) -> SceneHand:
         + points[MIDDLE_MCP, :2] * 0.18
         + points[PINKY_MCP, :2] * 0.24
     ).astype(np.float32)
-    hand_dir = points[MIDDLE_MCP, :2] - points[WRIST, :2]
-    angle = float(np.arctan2(hand_dir[1], hand_dir[0]))
+    angle = _estimate_hand_angle(points)
     span_norm = float(np.clip(_palm_size(points) * 1.20, 0.05, 0.24))
     pinch_ratio = _pinch_ratio(points)
     pinch_strength = float(np.clip((PINCH_CLOSE_RATIO - pinch_ratio) / max(0.12, PINCH_CLOSE_RATIO), 0.0, 1.0))

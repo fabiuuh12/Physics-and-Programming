@@ -269,3 +269,6 @@ target_link_libraries(pulsar_beam_timing_viz_cpp PRIVATE raylib)
 
 add_executable(supernova_remnant_expansion_viz_cpp "astronomy/supernova_remnant_expansion_viz.cpp")
 target_link_libraries(supernova_remnant_expansion_viz_cpp PRIVATE raylib)
+
+add_executable(planet_magnetosphere_compare_viz_cpp "astronomy/planet_magnetosphere_compare_viz.cpp")
+target_link_libraries(planet_magnetosphere_compare_viz_cpp PRIVATE raylib)
