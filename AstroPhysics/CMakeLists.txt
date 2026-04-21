@@ -15,6 +15,9 @@ target_link_libraries(angular_momentum_viz_cpp PRIVATE raylib)
 add_executable(aerodynamics_viz_cpp "mechanics/aerodynamics_viz.cpp")
 target_link_libraries(aerodynamics_viz_cpp PRIVATE raylib)
 
+add_executable(artemis_voyager_missions_viz_cpp "astronomy/artemis_voyager_missions_viz.cpp")
+target_link_libraries(artemis_voyager_missions_viz_cpp PRIVATE raylib)
+
 add_executable(hand_biomechanics_viz_cpp "mechanics/hand_biomechanics_viz.cpp")
 target_link_libraries(hand_biomechanics_viz_cpp PRIVATE raylib)
 if (WIN32)
