@@ -14,8 +14,9 @@ Mixed repository of interactive physics/astrophysics simulations and practical c
 - `AstroPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `dimensions`
 - `AstroPhysics/vision`
 - `AstroPhysics/DefensiveSys`
+- `AstroPhysics/mathematics`
 - `AstroPhysics/tests`
-- `AstroPhysics/docs`
+- `AstroPhysics/mathematics/docs`
 - `AstroPhysics/third_party` (vendored Raylib source/headers)
 - `CyberTools/auth`, `file_ops`, `forensics`, `integrity_hashing`, `network`, `osint`, `web`
 

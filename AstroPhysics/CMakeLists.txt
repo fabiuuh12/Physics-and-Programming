@@ -275,3 +275,6 @@ target_link_libraries(supernova_remnant_expansion_viz_cpp PRIVATE raylib)
 
 add_executable(planet_magnetosphere_compare_viz_cpp "astronomy/planet_magnetosphere_compare_viz.cpp")
 target_link_libraries(planet_magnetosphere_compare_viz_cpp PRIVATE raylib)
+
+add_executable(observable_universe_scale_viz_cpp "astronomy/observable_universe_scale_viz.cpp")
+target_link_libraries(observable_universe_scale_viz_cpp PRIVATE raylib)
