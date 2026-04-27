@@ -123,6 +123,9 @@ target_link_libraries(fluid_vortex_viz_cpp PRIVATE raylib)
 add_executable(gravitational_lensing_viz_cpp "gravity/gravitational_lensing_viz.cpp")
 target_link_libraries(gravitational_lensing_viz_cpp PRIVATE raylib)
 
+add_executable(gravitational_lensing_animation_viz_cpp "gravity/gravitational_lensing_animation_viz.cpp")
+target_link_libraries(gravitational_lensing_animation_viz_cpp PRIVATE raylib)
+
 add_executable(gravitational_lensing_playground_viz_cpp "gravity/gravitational_lensing_playground_viz.cpp")
 target_link_libraries(gravitational_lensing_playground_viz_cpp PRIVATE raylib)
 
