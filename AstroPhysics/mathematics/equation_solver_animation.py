@@ -42,17 +42,17 @@ from PIL import Image, ImageDraw, ImageFont
 WINDOW_NAME = "Equation Solver Animation"
 WIDTH = 1400
 HEIGHT = 860
-BG = (0, 0, 0)
-TEXT = (255, 255, 255)
-MUTED = (215, 215, 215)
-ACCENT = (255, 255, 255)
-STEP_COLOR = (90, 90, 255)
-ERROR = (255, 120, 120)
-INPUT_BORDER = (255, 255, 255)
-PANEL = (16, 16, 16)
-PANEL_EDGE = (58, 58, 58)
-GRID = (54, 54, 54)
-SOFT = (150, 150, 150)
+BG = (33, 28, 24)
+TEXT = (238, 238, 232)
+MUTED = (204, 196, 184)
+ACCENT = (156, 222, 255)
+STEP_COLOR = (128, 190, 255)
+ERROR = (118, 132, 255)
+INPUT_BORDER = (146, 128, 105)
+PANEL = (48, 42, 36)
+PANEL_EDGE = (92, 78, 62)
+GRID = (72, 62, 52)
+SOFT = (166, 154, 138)
 FONT = cv2.FONT_HERSHEY_DUPLEX
 TITLE_SCALE = 0.95
 INFO_SCALE = 0.62
@@ -73,6 +73,13 @@ INTEGRAL_FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/STIXTwoMath.otf",
     "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf",
 ]
+MATH_FONT_CANDIDATES = [
+    "/System/Library/Fonts/Supplemental/STIXTwoMath.otf",
+    "/System/Library/Fonts/Supplemental/STIXGeneral.ttf",
+    "/System/Library/Fonts/Supplemental/STIXGeneralBol.ttf",
+    "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+]
 
 
 class TextSprite(NamedTuple):
@@ -85,6 +92,7 @@ class TextSprite(NamedTuple):
 
 TEXT_CACHE: dict[tuple[str, tuple[int, int, int], float], TextSprite] = {}
 INTEGRAL_FONT_PATH: str | None = None
+LAST_CLICK: tuple[int, int] | None = None
 
 
 @dataclass
@@ -133,10 +141,410 @@ class ProblemSpec:
 
 
 @dataclass(frozen=True)
+class FormulaDerivation:
+    title: str
+    formula: str
+    steps: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class Button:
+    rect: tuple[int, int, int, int]
+    label: str
+    value: str
+
+
+@dataclass(frozen=True)
 class SymbolicTerm:
     basis: str
     coeff: Fraction
     power: int | None = None
+
+
+def formula(title: str, final: str, steps: list[tuple[str, str]]) -> FormulaDerivation:
+    return FormulaDerivation(title=title, formula=final, steps=tuple(steps))
+
+
+FORMULA_LIBRARY: dict[str, dict[str, dict[str, FormulaDerivation]]] = {
+    "Classical Physics": {
+        "Mechanics": {
+            "Velocity": formula("Velocity", "v = dx / dt", [
+                ("Start with displacement", "Delta x = x_f - x_i"),
+                ("Measure elapsed time", "Delta t = t_f - t_i"),
+                ("Average rate of change", "v_avg = Delta x / Delta t"),
+                ("Instantaneous limit", "v = dx / dt"),
+            ]),
+            "Acceleration": formula("Acceleration", "a = dv / dt", [
+                ("Velocity changes", "Delta v = v_f - v_i"),
+                ("Compare to elapsed time", "a_avg = Delta v / Delta t"),
+                ("Shrink the time interval", "a = lim Delta t -> 0  Delta v / Delta t"),
+                ("Derivative form", "a = dv / dt"),
+            ]),
+            "Constant acceleration velocity": formula("Constant acceleration velocity", "v = v0 + a t", [
+                ("Begin with acceleration", "a = dv / dt"),
+                ("Constant a means", "dv = a dt"),
+                ("Integrate both sides", "int dv = int a dt"),
+                ("Apply initial velocity", "v - v0 = a t"),
+                ("Solve for final velocity", "v = v0 + a t"),
+            ]),
+            "Constant acceleration position": formula("Constant acceleration position", "x = x0 + v0 t + 1/2 a t^2", [
+                ("Velocity during motion", "v = v0 + a t"),
+                ("Velocity is position rate", "dx / dt = v0 + a t"),
+                ("Multiply by dt", "dx = (v0 + a t) dt"),
+                ("Integrate", "x - x0 = v0 t + 1/2 a t^2"),
+                ("Position equation", "x = x0 + v0 t + 1/2 a t^2"),
+            ]),
+            "Newton's second law": formula("Newton's second law", "F_net = m a", [
+                ("Momentum definition", "p = m v"),
+                ("Force changes momentum", "F_net = dp / dt"),
+                ("Mass is constant", "dp / dt = m dv / dt"),
+                ("Use acceleration", "dv / dt = a"),
+                ("Newton's second law", "F_net = m a"),
+            ]),
+            "Momentum": formula("Momentum", "p = m v", [
+                ("Motion depends on mass", "larger m is harder to stop"),
+                ("Motion depends on velocity", "larger v is harder to stop"),
+                ("Linear measure", "p proportional to m and v"),
+                ("Choose SI definition", "p = m v"),
+            ]),
+            "Impulse": formula("Impulse", "J = Delta p = F Delta t", [
+                ("Force is momentum rate", "F = dp / dt"),
+                ("Multiply by dt", "F dt = dp"),
+                ("Integrate over collision", "int F dt = int dp"),
+                ("Constant average force", "F Delta t = Delta p"),
+                ("Impulse definition", "J = Delta p = F Delta t"),
+            ]),
+            "Work": formula("Work", "W = F d cos(theta)", [
+                ("Only parallel force matters", "F_parallel = F cos(theta)"),
+                ("Work adds force along path", "W = F_parallel d"),
+                ("Substitute component", "W = F d cos(theta)"),
+            ]),
+            "Kinetic energy": formula("Kinetic energy", "K = 1/2 m v^2", [
+                ("Work-energy start", "W = int F dx"),
+                ("Use Newton's law", "F = m dv / dt"),
+                ("Use dx / dt = v", "F dx = m v dv"),
+                ("Integrate from rest", "K = int_0^v m v dv"),
+                ("Kinetic energy", "K = 1/2 m v^2"),
+            ]),
+            "Centripetal acceleration": formula("Centripetal acceleration", "a_c = v^2 / r", [
+                ("Circular direction changes", "Delta v / v = Delta s / r"),
+                ("Arc length", "Delta s = v Delta t"),
+                ("Acceleration magnitude", "a = Delta v / Delta t"),
+                ("Substitute arc relation", "a_c = v^2 / r"),
+            ]),
+            "Spring force": formula("Hooke's law", "F = -k x", [
+                ("Small stretch response", "F proportional to displacement"),
+                ("Restoring direction", "F points opposite x"),
+                ("Stiffness constant", "k sets spring strength"),
+                ("Hooke's law", "F = -k x"),
+            ]),
+            "Spring energy": formula("Spring energy", "U = 1/2 k x^2", [
+                ("Spring force magnitude", "F = k x"),
+                ("Energy stored is work", "U = int_0^x F dx"),
+                ("Substitute force", "U = int_0^x k x dx"),
+                ("Integrate", "U = 1/2 k x^2"),
+            ]),
+        },
+        "Electromagnetism": {
+            "Coulomb force": formula("Coulomb force", "F = k q1 q2 / r^2", [
+                ("Point charge field spreads", "area = 4 pi r^2"),
+                ("Field weakens by inverse square", "E proportional to q / r^2"),
+                ("Force on test charge", "F = q2 E"),
+                ("Choose constant k", "F = k q1 q2 / r^2"),
+            ]),
+            "Electric field": formula("Electric field", "E = F / q", [
+                ("A charge feels force", "F depends on test charge q"),
+                ("Remove test charge size", "field = force per charge"),
+                ("Electric field definition", "E = F / q"),
+            ]),
+            "Electric potential": formula("Electric potential", "V = U / q", [
+                ("Potential energy depends on q", "U proportional to q"),
+                ("Normalize per unit charge", "V = U / q"),
+                ("Voltage is energy per charge", "V = J / C"),
+            ]),
+            "Ohm's law": formula("Ohm's law", "V = I R", [
+                ("Resistance opposes current", "R = V / I"),
+                ("Multiply both sides by I", "R I = V"),
+                ("Ohm's law", "V = I R"),
+            ]),
+            "Electric power": formula("Electric power", "P = I V", [
+                ("Power is energy rate", "P = dU / dt"),
+                ("Voltage is energy per charge", "V = dU / dq"),
+                ("Current is charge rate", "I = dq / dt"),
+                ("Chain rates", "P = (dU/dq)(dq/dt)"),
+                ("Electric power", "P = V I"),
+            ]),
+            "Capacitance": formula("Capacitance", "C = Q / V", [
+                ("A capacitor stores charge", "Q proportional to V"),
+                ("Define proportionality", "Q = C V"),
+                ("Solve for capacitance", "C = Q / V"),
+            ]),
+            "Magnetic force": formula("Magnetic force", "F = q v B sin(theta)", [
+                ("Magnetic force needs motion", "F proportional to q v"),
+                ("Only perpendicular field acts", "B_perp = B sin(theta)"),
+                ("Combine factors", "F = q v B sin(theta)"),
+            ]),
+            "Faraday's law": formula("Faraday's law", "emf = - dPhi_B / dt", [
+                ("Magnetic flux", "Phi_B = int B dot dA"),
+                ("Changing flux drives emf", "emf proportional to rate of flux change"),
+                ("Lenz direction opposes change", "minus sign"),
+                ("Faraday's law", "emf = - dPhi_B / dt"),
+            ]),
+            "Wave speed from Maxwell": formula("EM wave speed", "c = 1 / sqrt(mu0 epsilon0)", [
+                ("Maxwell equations couple fields", "changing E creates B"),
+                ("Changing B creates E", "curl E = - dB/dt"),
+                ("Wave equation emerges", "d2E/dx2 = mu0 epsilon0 d2E/dt2"),
+                ("Compare to wave equation", "d2E/dx2 = (1/c^2) d2E/dt2"),
+                ("Speed of light", "c = 1 / sqrt(mu0 epsilon0)"),
+            ]),
+        },
+        "Thermodynamics": {
+            "Ideal gas law": formula("Ideal gas law", "P V = n R T", [
+                ("Boyle's law", "P proportional to 1 / V"),
+                ("Charles's law", "V proportional to T"),
+                ("Avogadro's law", "V proportional to n"),
+                ("Combine proportionalities", "V proportional to n T / P"),
+                ("Introduce gas constant", "P V = n R T"),
+            ]),
+            "First law": formula("First law of thermodynamics", "Delta U = Q - W", [
+                ("Energy is conserved", "change in internal energy = energy in - energy out"),
+                ("Heat adds energy", "Q increases U"),
+                ("Work done by gas removes energy", "W decreases U"),
+                ("First law", "Delta U = Q - W"),
+            ]),
+            "Heat capacity": formula("Heat capacity", "Q = m c Delta T", [
+                ("More mass needs more heat", "Q proportional to m"),
+                ("Bigger temperature change needs more heat", "Q proportional to Delta T"),
+                ("Material sets proportionality", "c = specific heat"),
+                ("Heat equation", "Q = m c Delta T"),
+            ]),
+            "Entropy": formula("Entropy", "Delta S = Q_rev / T", [
+                ("Entropy tracks heat dispersal", "Delta S proportional to reversible heat"),
+                ("Same heat matters less at high T", "Delta S proportional to 1 / T"),
+                ("Thermodynamic definition", "Delta S = Q_rev / T"),
+            ]),
+            "Carnot efficiency": formula("Carnot efficiency", "eta = 1 - T_c / T_h", [
+                ("Efficiency", "eta = W / Q_h"),
+                ("Energy balance", "W = Q_h - Q_c"),
+                ("So", "eta = 1 - Q_c / Q_h"),
+                ("Reversible engine relation", "Q_c / Q_h = T_c / T_h"),
+                ("Carnot limit", "eta = 1 - T_c / T_h"),
+            ]),
+            "Stefan-Boltzmann law": formula("Thermal radiation", "P = sigma A T^4", [
+                ("Hot bodies radiate", "power proportional to area"),
+                ("Blackbody spectrum integrated", "energy flux proportional to T^4"),
+                ("Add Stefan constant", "P / A = sigma T^4"),
+                ("Total power", "P = sigma A T^4"),
+            ]),
+        },
+        "Fluid Mechanics": {
+            "Density": formula("Density", "rho = m / V", [
+                ("Mass fills volume", "density is mass per volume"),
+                ("Definition", "rho = m / V"),
+            ]),
+            "Pressure": formula("Pressure", "P = F / A", [
+                ("Spread force over area", "larger area lowers effect"),
+                ("Pressure definition", "P = F / A"),
+            ]),
+            "Hydrostatic pressure": formula("Hydrostatic pressure", "P = P0 + rho g h", [
+                ("Fluid column weight", "F = m g"),
+                ("Mass of column", "m = rho A h"),
+                ("Pressure from column", "Delta P = F / A"),
+                ("Substitute", "Delta P = rho g h"),
+                ("Total pressure", "P = P0 + rho g h"),
+            ]),
+            "Continuity equation": formula("Continuity equation", "A1 v1 = A2 v2", [
+                ("Incompressible flow conserves volume", "flow in = flow out"),
+                ("Volume flow rate", "Q = A v"),
+                ("Same pipe stream", "Q1 = Q2"),
+                ("Continuity", "A1 v1 = A2 v2"),
+            ]),
+            "Bernoulli equation": formula("Bernoulli equation", "P + 1/2 rho v^2 + rho g h = constant", [
+                ("Energy per volume from pressure", "P"),
+                ("Kinetic energy per volume", "1/2 rho v^2"),
+                ("Gravitational energy per volume", "rho g h"),
+                ("Ideal steady flow conserves sum", "P + 1/2 rho v^2 + rho g h = constant"),
+            ]),
+            "Buoyant force": formula("Buoyant force", "F_b = rho_fluid V_displaced g", [
+                ("Pressure larger at bottom", "Delta P = rho g h"),
+                ("Net upward force equals displaced fluid weight", "F_b = m_fluid g"),
+                ("Displaced mass", "m_fluid = rho_fluid V_displaced"),
+                ("Archimedes principle", "F_b = rho_fluid V_displaced g"),
+            ]),
+        },
+        "Waves and Optics": {
+            "Wave speed": formula("Wave speed", "v = f lambda", [
+                ("One cycle travels one wavelength", "distance = lambda"),
+                ("Cycles per second", "frequency = f"),
+                ("Distance per second", "v = f lambda"),
+            ]),
+            "Snell's law": formula("Snell's law", "n1 sin(theta1) = n2 sin(theta2)", [
+                ("Light phase matches at boundary", "parallel wave spacing is continuous"),
+                ("Wavelength changes in media", "lambda = lambda0 / n"),
+                ("Geometry gives", "sin(theta) proportional to lambda"),
+                ("Combine media", "n1 sin(theta1) = n2 sin(theta2)"),
+            ]),
+            "Lens equation": formula("Thin lens equation", "1/f = 1/do + 1/di", [
+                ("Similar triangles before lens", "height ratios use do"),
+                ("Similar triangles after lens", "height ratios use di"),
+                ("Focal geometry connects both", "1/f = 1/do + 1/di"),
+            ]),
+            "Double slit maxima": formula("Double slit maxima", "d sin(theta) = m lambda", [
+                ("Two paths interfere", "path difference = d sin(theta)"),
+                ("Bright fringe condition", "path difference = m lambda"),
+                ("Maxima", "d sin(theta) = m lambda"),
+            ]),
+        },
+        "Astro and Gravity": {
+            "Newton gravity": formula("Newton's law of gravitation", "F = G m1 m2 / r^2", [
+                ("Spherical influence spreads", "area = 4 pi r^2"),
+                ("Force weakens as inverse square", "F proportional to 1 / r^2"),
+                ("Force grows with both masses", "F proportional to m1 m2"),
+                ("Add gravitational constant", "F = G m1 m2 / r^2"),
+            ]),
+            "Gravitational field": formula("Gravitational field", "g = G M / r^2", [
+                ("Gravity force on mass m", "F = G M m / r^2"),
+                ("Field is force per mass", "g = F / m"),
+                ("Cancel test mass", "g = G M / r^2"),
+            ]),
+            "Orbital speed": formula("Circular orbital speed", "v = sqrt(G M / r)", [
+                ("Gravity supplies centripetal force", "G M m / r^2 = m v^2 / r"),
+                ("Cancel m", "G M / r^2 = v^2 / r"),
+                ("Multiply by r", "v^2 = G M / r"),
+                ("Orbital speed", "v = sqrt(G M / r)"),
+            ]),
+            "Escape velocity": formula("Escape velocity", "v_esc = sqrt(2 G M / r)", [
+                ("Escape when total energy is zero", "K + U = 0"),
+                ("Use energies", "1/2 m v^2 - G M m / r = 0"),
+                ("Solve for v squared", "v^2 = 2 G M / r"),
+                ("Escape velocity", "v_esc = sqrt(2 G M / r)"),
+            ]),
+            "Schwarzschild radius": formula("Schwarzschild radius", "r_s = 2 G M / c^2", [
+                ("Set escape speed to light", "c = sqrt(2 G M / r)"),
+                ("Square both sides", "c^2 = 2 G M / r"),
+                ("Solve for radius", "r = 2 G M / c^2"),
+                ("Black hole radius", "r_s = 2 G M / c^2"),
+            ]),
+            "Hubble law": formula("Hubble law", "v = H0 d", [
+                ("Space expands uniformly", "farther galaxies gain more recession speed"),
+                ("Linear approximation", "v proportional to d"),
+                ("Hubble constant sets slope", "v = H0 d"),
+            ]),
+        },
+    },
+    "Modern Physics": {
+        "Relativity": {
+            "Lorentz factor": formula("Lorentz factor", "gamma = 1 / sqrt(1 - v^2/c^2)", [
+                ("Speed of light stays fixed", "c is same for inertial observers"),
+                ("Space and time must mix", "x' = gamma (x - v t)"),
+                ("Preserve light cone", "c^2 t^2 - x^2 = c^2 t'^2 - x'^2"),
+                ("Solve for scale factor", "gamma = 1 / sqrt(1 - v^2/c^2)"),
+            ]),
+            "Time dilation": formula("Time dilation", "Delta t = gamma Delta tau", [
+                ("Proper time is clock rest time", "Delta tau"),
+                ("Moving clock path through spacetime is tilted", "time interval increases"),
+                ("Lorentz transformation gives", "Delta t = gamma Delta tau"),
+            ]),
+            "Mass-energy": formula("Mass-energy equivalence", "E = m c^2", [
+                ("Relativistic energy", "E^2 = p^2 c^2 + m^2 c^4"),
+                ("Object at rest", "p = 0"),
+                ("Rest energy squared", "E^2 = m^2 c^4"),
+                ("Positive energy", "E = m c^2"),
+            ]),
+            "Relativistic momentum": formula("Relativistic momentum", "p = gamma m v", [
+                ("Classical momentum fails near c", "p = m v is incomplete"),
+                ("Lorentz factor corrects motion", "gamma = 1 / sqrt(1 - v^2/c^2)"),
+                ("Relativistic momentum", "p = gamma m v"),
+            ]),
+            "Energy-momentum relation": formula("Energy-momentum relation", "E^2 = p^2 c^2 + m^2 c^4", [
+                ("Four-momentum invariant", "P dot P = m^2 c^2"),
+                ("Components", "P = (E/c, p)"),
+                ("Invariant form", "(E/c)^2 - p^2 = m^2 c^2"),
+                ("Multiply by c^2", "E^2 = p^2 c^2 + m^2 c^4"),
+            ]),
+        },
+        "Quantum": {
+            "Photon energy": formula("Photon energy", "E = h f", [
+                ("Light energy comes in quanta", "E proportional to frequency"),
+                ("Planck constant sets scale", "h"),
+                ("Photon energy", "E = h f"),
+            ]),
+            "de Broglie wavelength": formula("de Broglie wavelength", "lambda = h / p", [
+                ("Photons obey", "p = h / lambda"),
+                ("Matter also has wave behavior", "p linked to wavelength"),
+                ("Solve for wavelength", "lambda = h / p"),
+            ]),
+            "Uncertainty principle": formula("Uncertainty principle", "Delta x Delta p >= hbar / 2", [
+                ("A localized wave needs many wavelengths", "small Delta x means broad wave mix"),
+                ("Broad wave mix means broad momentum", "large Delta p"),
+                ("Fourier limit", "Delta x Delta k >= 1/2"),
+                ("Use p = hbar k", "Delta x Delta p >= hbar / 2"),
+            ]),
+            "Schrodinger equation": formula("Time dependent Schrodinger equation", "i hbar dpsi/dt = H psi", [
+                ("Energy acts as time evolution", "E -> i hbar d/dt"),
+                ("Total energy operator", "H"),
+                ("Apply to wavefunction", "E psi = H psi"),
+                ("Quantum evolution", "i hbar dpsi/dt = H psi"),
+            ]),
+            "Particle in a box": formula("Particle in a box energy", "E_n = n^2 h^2 / (8 m L^2)", [
+                ("Standing wave in box", "L = n lambda / 2"),
+                ("Wavelength", "lambda = 2 L / n"),
+                ("Momentum", "p = h / lambda = n h / (2 L)"),
+                ("Kinetic energy", "E = p^2 / (2m)"),
+                ("Energy levels", "E_n = n^2 h^2 / (8 m L^2)"),
+            ]),
+            "Compton shift": formula("Compton shift", "Delta lambda = h/(m c) (1 - cos theta)", [
+                ("Photon scatters from electron", "conserve energy and momentum"),
+                ("Photon momentum", "p = h / lambda"),
+                ("Relativistic electron recoil", "E^2 = p^2 c^2 + m^2 c^4"),
+                ("Eliminate recoil variables", "Delta lambda = h/(m c) (1 - cos theta)"),
+            ]),
+        },
+        "Nuclear and Particle": {
+            "Radioactive decay": formula("Radioactive decay", "N = N0 e^(-lambda t)", [
+                ("Decay rate proportional to atoms left", "dN/dt = -lambda N"),
+                ("Separate variables", "dN/N = -lambda dt"),
+                ("Integrate", "ln(N/N0) = -lambda t"),
+                ("Exponentiate", "N = N0 e^(-lambda t)"),
+            ]),
+            "Half life": formula("Half life", "t_1/2 = ln(2) / lambda", [
+                ("Half-life condition", "N = N0 / 2"),
+                ("Use decay law", "N0/2 = N0 e^(-lambda t)"),
+                ("Cancel N0", "1/2 = e^(-lambda t)"),
+                ("Take log", "ln(2) = lambda t"),
+                ("Half life", "t_1/2 = ln(2) / lambda"),
+            ]),
+            "Binding energy": formula("Binding energy", "E_b = Delta m c^2", [
+                ("Bound nucleus has less mass", "Delta m = mass_parts - mass_nucleus"),
+                ("Missing mass becomes energy", "E = m c^2"),
+                ("Binding energy", "E_b = Delta m c^2"),
+            ]),
+            "Q value": formula("Nuclear reaction Q value", "Q = (m_initial - m_final) c^2", [
+                ("Compare rest masses", "Delta m = m_initial - m_final"),
+                ("Mass difference becomes energy", "E = Delta m c^2"),
+                ("Reaction energy", "Q = (m_initial - m_final) c^2"),
+            ]),
+        },
+        "Statistical Physics": {
+            "Boltzmann factor": formula("Boltzmann factor", "P(E) proportional to e^(-E/kT)", [
+                ("Thermal states favor low energy", "higher E is less likely"),
+                ("Temperature controls penalty", "energy scale = k T"),
+                ("Exponential weighting", "P(E) proportional to e^(-E/kT)"),
+            ]),
+            "Entropy microstates": formula("Boltzmann entropy", "S = k ln W", [
+                ("More microstates means more entropy", "S grows with W"),
+                ("Independent systems multiply states", "W_total = W1 W2"),
+                ("Entropy should add", "S_total = S1 + S2"),
+                ("Log turns multiply into add", "S = k ln W"),
+            ]),
+            "Equipartition": formula("Equipartition theorem", "E_avg = 1/2 k T per quadratic mode", [
+                ("Thermal probability", "P(E) proportional to e^(-E/kT)"),
+                ("Quadratic energy mode", "E = a x^2"),
+                ("Average over Boltzmann distribution", "<E> = 1/2 k T"),
+            ]),
+        },
+    },
+}
 
 
 def clean_number(value: float) -> str:
@@ -1417,6 +1825,22 @@ def token_size(token: str) -> tuple[int, int]:
     return sprite.width, sprite.height
 
 
+def token_line_width(tokens: list[str], scale: float, gap: int) -> int:
+    if not tokens:
+        return 0
+    widths = [get_text_sprite(token, TEXT, scale).width for token in tokens]
+    return sum(widths) + gap * max(0, len(tokens) - 1)
+
+
+def fit_token_style(tokens: list[str], max_width: int, preferred_scale: float, preferred_gap: int, min_scale: float = 0.58) -> tuple[float, int]:
+    scale = preferred_scale
+    gap = preferred_gap
+    while scale > min_scale and token_line_width(tokens, scale, gap) > max_width:
+        scale -= 0.05
+        gap = max(7, int(gap * 0.94))
+    return max(min_scale, scale), gap
+
+
 def layout_tokens(tokens: list[str], y: int | None = None) -> list[tuple[int, int]]:
     widths = [token_size(token)[0] for token in tokens]
     total_width = sum(widths) + TOKEN_GAP * max(0, len(tokens) - 1)
@@ -1440,6 +1864,11 @@ def layout_tokens_scaled(tokens: list[str], y: int, scale: float, gap: int) -> l
     return positions
 
 
+def layout_tokens_fit(tokens: list[str], y: int, max_width: int, preferred_scale: float, preferred_gap: int, min_scale: float = 0.58) -> tuple[list[tuple[int, int]], float, int]:
+    scale, gap = fit_token_style(tokens, max_width, preferred_scale, preferred_gap, min_scale)
+    return layout_tokens_scaled(tokens, y, scale, gap), scale, gap
+
+
 def layout_tokens_left(tokens: list[str], x: int, y: int, scale: float, gap: int) -> list[tuple[int, int]]:
     positions: list[tuple[int, int]] = []
     cursor_x = x
@@ -1448,6 +1877,18 @@ def layout_tokens_left(tokens: list[str], x: int, y: int, scale: float, gap: int
         positions.append((cursor_x, y))
         cursor_x += sprite.width + gap
     return positions
+
+
+def layout_tokens_left_fit(tokens: list[str], x: int, y: int, max_width: int, preferred_scale: float, preferred_gap: int) -> tuple[list[tuple[int, int]], float, int]:
+    scale, gap = fit_token_style(tokens, max_width, preferred_scale, preferred_gap, min_scale=0.40)
+    return layout_tokens_left(tokens, x, y, scale, gap), scale, gap
+
+
+def abbreviate_middle(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    keep = max(8, (max_chars - 3) // 2)
+    return f"{text[:keep]}...{text[-keep:]}"
 
 
 def match_tokens(old_tokens: list[str], new_tokens: list[str]) -> tuple[dict[int, int], set[int], set[int]]:
@@ -1483,6 +1924,12 @@ def get_text_sprite(text: str, color: tuple[int, int, int], scale: float) -> Tex
         TEXT_CACHE[key] = sprite
         return sprite
 
+    if any(ord(ch) > 126 for ch in text):
+        sprite = create_pillow_glyph_sprite(text, color, max(14, int(scale * 30)), MATH_FONT_CANDIDATES, padding_x=4, padding_y=4)
+        if sprite is not None:
+            TEXT_CACHE[key] = sprite
+            return sprite
+
     (w, h), baseline = cv2.getTextSize(text, FONT, scale, THICKNESS)
     width = max(1, w + 4)
     height = max(1, h + baseline + 4)
@@ -1497,6 +1944,11 @@ def get_text_sprite(text: str, color: tuple[int, int, int], scale: float) -> Tex
 
 
 def create_plain_text_sprite(text: str, color: tuple[int, int, int], scale: float) -> TextSprite:
+    if any(ord(ch) > 126 for ch in text):
+        sprite = create_pillow_glyph_sprite(text, color, max(14, int(scale * 30)), MATH_FONT_CANDIDATES, padding_x=4, padding_y=4)
+        if sprite is not None:
+            return sprite
+
     (w, h), baseline = cv2.getTextSize(text, FONT, scale, THICKNESS)
     width = max(1, w + 4)
     height = max(1, h + baseline + 4)
@@ -1723,6 +2175,117 @@ def draw_text_alpha(image: np.ndarray, text: str, position: tuple[int, int], col
     blit_sprite(image, sprite, x0, y0, alpha)
 
 
+def put_text_fit(
+    image: np.ndarray,
+    text: str,
+    x: int,
+    y: int,
+    max_width: int,
+    color: tuple[int, int, int],
+    scale: float,
+    thickness: int = 1,
+    min_scale: float = 0.38,
+) -> None:
+    draw_scale = scale
+    size = cv2.getTextSize(text, FONT, draw_scale, thickness)[0]
+    while size[0] > max_width and draw_scale > min_scale:
+        draw_scale -= 0.03
+        size = cv2.getTextSize(text, FONT, draw_scale, thickness)[0]
+    if size[0] > max_width:
+        approx_chars = max(8, int(len(text) * max_width / max(1, size[0])) - 3)
+        text = abbreviate_middle(text, approx_chars)
+    cv2.putText(image, text, (x, y), FONT, draw_scale, color, thickness, cv2.LINE_AA)
+
+
+def prettify_formula_text(text: str) -> str:
+    replacements = [
+        ("Delta", "Δ"),
+        ("delta", "δ"),
+        ("gamma", "γ"),
+        ("lambda", "λ"),
+        ("theta", "θ"),
+        ("Phi", "Φ"),
+        ("phi", "φ"),
+        ("psi", "ψ"),
+        ("hbar", "ℏ"),
+        ("rho", "ρ"),
+        ("sigma", "σ"),
+        ("mu0", "μ₀"),
+        ("epsilon0", "ε₀"),
+        ("pi", "π"),
+        ("proportional to", "∝"),
+        ("int_", "∫_"),
+        ("int", "∫"),
+        ("lim", "lim"),
+        ("sum", "Σ"),
+        ("sqrt", "√"),
+        ("infinity", "∞"),
+        ("inf", "∞"),
+        ("->", "→"),
+        ("=>", "⇒"),
+        (">=", "≥"),
+        ("<=", "≤"),
+    ]
+    pretty = text
+    for old, new in replacements:
+        pretty = pretty.replace(old, new)
+    pretty = re.sub(r"\btau\b", "τ", pretty)
+    pretty = re.sub(r"\beta\b", "β", pretty)
+    pretty = re.sub(r"\balpha\b", "α", pretty)
+    pretty = re.sub(r"\bomega\b", "ω", pretty)
+    pretty = re.sub(r"\bpartial\b", "∂", pretty)
+    pretty = pretty.replace("1/2", "½")
+    pretty = pretty.replace("1 / 2", "½")
+
+    subscript_map = str.maketrans({
+        "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
+        "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉",
+        "a": "ₐ", "c": "꜀", "f": "բ", "h": "ₕ", "i": "ᵢ",
+        "n": "ₙ", "x": "ₓ",
+    })
+
+    def subscript_repl(match: re.Match[str]) -> str:
+        return match.group(1) + match.group(2).translate(subscript_map)
+
+    pretty = re.sub(r"\b([A-Za-zγλθΦφψρσμδετβω])_([0-9acfhinx]+)\b", subscript_repl, pretty)
+    pretty = re.sub(r"\b([vxmTrHQ])([012])\b", subscript_repl, pretty)
+    return pretty
+
+
+def formula_tokens(text: str) -> list[str]:
+    text = prettify_formula_text(text)
+    spaced = (
+        text.replace("→", " → ")
+        .replace("⇒", " ⇒ ")
+        .replace("≥", " ≥ ")
+        .replace("≤", " ≤ ")
+        .replace("=", " = ")
+        .replace("+", " + ")
+        .replace("-", " - ")
+        .replace("*", " * ")
+        .replace("/", " / ")
+        .replace("(", " ( ")
+        .replace(")", " ) ")
+        .replace(",", " , ")
+    )
+    tokens = [token for token in spaced.split() if token]
+    compact: list[str] = []
+    idx = 0
+    while idx < len(tokens):
+        if tokens[idx] == "-" and idx + 1 < len(tokens) and tokens[idx + 1] != ">":
+            compact.append("-" + tokens[idx + 1])
+            idx += 2
+        else:
+            compact.append(tokens[idx])
+            idx += 1
+    return compact or [text]
+
+
+def formula_to_problem(path: tuple[str, str, str], derivation: FormulaDerivation) -> ProblemSpec:
+    steps = [SolveStep(label, formula_tokens(expr)) for label, expr in derivation.steps]
+    return ProblemSpec(steps, " > ".join(path), prettify_formula_text(derivation.formula))
+
+
 def ease_in_out(t: float) -> float:
     t = np.clip(t, 0.0, 1.0)
     return 0.5 - 0.5 * math.cos(math.pi * t)
@@ -1743,14 +2306,19 @@ def draw_chrome(image: np.ndarray, label: str, equation_text: str, formula_text:
     cv2.rectangle(image, (72, 46), (WIDTH - 72, 128), PANEL_EDGE, 1)
     cv2.putText(image, "Equation Solver Animation", (WIDTH // 2 - 220, 84), FONT, TITLE_SCALE, TEXT, 1, cv2.LINE_AA)
     cv2.line(image, (WIDTH // 2 - 160, 96), (WIDTH // 2 + 160, 96), GRID, 1, cv2.LINE_AA)
-    cv2.putText(image, formula_text, (WIDTH // 2 - min(360, 6 * len(formula_text)), 116), FONT, 0.56, MUTED, 1, cv2.LINE_AA)
+    formula_sprite = get_text_sprite(formula_text, MUTED, 0.56)
+    if formula_sprite.width > WIDTH - 220:
+        formula_sprite = rescale_sprite(formula_sprite, (WIDTH - 220) / formula_sprite.width)
+    blit_sprite(image, formula_sprite, (WIDTH - formula_sprite.width) // 2, 102, 1.0)
     cv2.putText(image, label, (120, 164), FONT, 0.78, STEP_COLOR, 1, cv2.LINE_AA)
     cv2.rectangle(image, (72, HEIGHT - 122), (WIDTH - 72, HEIGHT - 38), PANEL, -1)
     cv2.rectangle(image, (72, HEIGHT - 122), (WIDTH - 72, HEIGHT - 38), PANEL_EDGE, 1)
-    cv2.putText(image, equation_text, (104, HEIGHT - 88), FONT, 0.64, MUTED, 1, cv2.LINE_AA)
+    put_text_fit(image, equation_text, 104, HEIGHT - 88, WIDTH - 208, MUTED, 0.64)
     speed_pct = int(round(DEFAULT_FRAMES_PER_STEP / max(1, frames_per_step) * 100))
     cv2.putText(image, f"speed {speed_pct}%   [ slower ] faster", (104, HEIGHT - 58), FONT, INFO_SCALE, MUTED, 1, cv2.LINE_AA)
-    cv2.putText(image, "q quit   p pause   r restart   n new", (WIDTH - 340, HEIGHT - 58), FONT, INFO_SCALE, MUTED, 1, cv2.LINE_AA)
+    controls = "q quit   p pause   r restart   n new"
+    controls_w = cv2.getTextSize(controls, FONT, INFO_SCALE, 1)[0][0]
+    cv2.putText(image, controls, (WIDTH - 104 - controls_w, HEIGHT - 58), FONT, INFO_SCALE, MUTED, 1, cv2.LINE_AA)
     cv2.putText(image, "PAUSED" if paused else "RUNNING", (WIDTH - 176, 84), FONT, INFO_SCALE, STEP_COLOR if paused else ACCENT, 1, cv2.LINE_AA)
 
 
@@ -1776,7 +2344,14 @@ def draw_step_history(image: np.ndarray, steps: list[SolveStep], upto_index: int
         y = base_y + idx * row_gap
         draw_text_alpha(image, f"{step.label}:", (panel_x0 + 20, y), STEP_COLOR, alpha, scale=label_scale)
         token_y = y + 28
-        positions = layout_tokens_left(step.tokens, panel_x0 + 20, token_y, token_scale, max(9, int(TOKEN_GAP * 0.5)))
+        positions, token_scale, _ = layout_tokens_left_fit(
+            step.tokens,
+            panel_x0 + 20,
+            token_y,
+            panel_x1 - panel_x0 - 42,
+            token_scale,
+            max(9, int(TOKEN_GAP * 0.5)),
+        )
         for token, pos in zip(step.tokens, positions):
             draw_text_alpha(image, token, pos, SOFT, alpha, scale=token_scale)
 
@@ -1792,7 +2367,7 @@ def draw_graph_panel(image: np.ndarray, graph_spec: GraphSpec, progress: float) 
     for idx, curve in enumerate(graph_spec.curves[:4]):
         lx = legend_x + idx * 125
         cv2.circle(image, (lx, legend_y), 5, curve.color, -1, cv2.LINE_AA)
-        cv2.putText(image, curve.expression_text, (lx + 14, legend_y + 5), FONT, 0.44, MUTED, 1, cv2.LINE_AA)
+        put_text_fit(image, curve.expression_text, lx + 14, legend_y + 5, 104, MUTED, 0.44, min_scale=0.30)
 
     plot_x0, plot_y0 = x0 + 26, y0 + 50
     plot_x1, plot_y1 = x1 - 24, y1 - 60
@@ -1848,7 +2423,7 @@ def draw_transition(
     frames_per_step: int,
     graph_spec: GraphSpec | None = None,
 ) -> np.ndarray:
-    image = np.full((HEIGHT, WIDTH, 3), BG, dtype=np.uint8)
+    image = blank_canvas()
     draw_chrome(image, new_step.label, equation_text, formula_text, paused, frames_per_step)
     draw_step_history(image, all_steps, step_index, graph_spec is not None)
     phase = stage_phase(frame_index, hold_frames, frames_per_step)
@@ -1860,13 +2435,19 @@ def draw_transition(
     if graph_spec is not None:
         token_scale = 1.08
         gap = 12
+        old_scale, old_gap = fit_token_style(old_step.tokens, WIDTH - 160, token_scale, gap, min_scale=0.58)
+        new_scale, new_gap = fit_token_style(new_step.tokens, WIDTH - 160, token_scale, gap, min_scale=0.58)
+        token_scale = min(old_scale, new_scale)
+        gap = min(old_gap, new_gap)
         old_pos = layout_tokens_scaled(old_step.tokens, equation_y, token_scale, gap)
         new_pos = layout_tokens_scaled(new_step.tokens, equation_y, token_scale, gap)
     else:
-        token_scale = EQUATION_SCALE
-        gap = TOKEN_GAP
-        old_pos = layout_tokens(old_step.tokens, y=equation_y)
-        new_pos = layout_tokens(new_step.tokens, y=equation_y)
+        old_scale, old_gap = fit_token_style(old_step.tokens, WIDTH - 170, EQUATION_SCALE, TOKEN_GAP, min_scale=0.64)
+        new_scale, new_gap = fit_token_style(new_step.tokens, WIDTH - 170, EQUATION_SCALE, TOKEN_GAP, min_scale=0.64)
+        token_scale = min(old_scale, new_scale)
+        gap = min(old_gap, new_gap)
+        old_pos = layout_tokens_scaled(old_step.tokens, equation_y, token_scale, gap)
+        new_pos = layout_tokens_scaled(new_step.tokens, equation_y, token_scale, gap)
     matches, old_only, new_only = match_tokens(old_step.tokens, new_step.tokens)
 
     for old_i, new_i in matches.items():
@@ -1900,7 +2481,7 @@ def draw_static_step(
     frames_per_step: int,
     graph_spec: GraphSpec | None = None,
 ) -> np.ndarray:
-    image = np.full((HEIGHT, WIDTH, 3), BG, dtype=np.uint8)
+    image = blank_canvas()
     draw_chrome(image, step.label, equation_text, formula_text, paused, frames_per_step)
     draw_step_history(image, all_steps, step_index, graph_spec is not None)
     if graph_spec is not None:
@@ -1909,40 +2490,121 @@ def draw_static_step(
     equation_y = 204 if graph_spec is not None else 588
     if graph_spec is not None:
         token_scale = 1.08
-        positions = layout_tokens_scaled(step.tokens, equation_y, token_scale, 12)
+        positions, token_scale, _ = layout_tokens_fit(step.tokens, equation_y, WIDTH - 160, token_scale, 12, min_scale=0.58)
     else:
-        token_scale = EQUATION_SCALE
-        positions = layout_tokens(step.tokens, y=equation_y)
+        positions, token_scale, _ = layout_tokens_fit(step.tokens, equation_y, WIDTH - 170, EQUATION_SCALE, TOKEN_GAP, min_scale=0.64)
     for token, pos in zip(step.tokens, positions):
         draw_text_alpha(image, token, pos, TEXT, 1.0, scale=token_scale)
     return image
 
 
 def draw_editor(equation_text: str, cursor_index: int, message: str | None = None) -> np.ndarray:
-    image = np.full((HEIGHT, WIDTH, 3), BG, dtype=np.uint8)
+    image = blank_canvas()
     cv2.rectangle(image, (72, 46), (WIDTH - 72, 136), PANEL, -1)
     cv2.rectangle(image, (72, 46), (WIDTH - 72, 136), PANEL_EDGE, 1)
     cv2.putText(image, "Equation Solver Animation", (WIDTH // 2 - 220, 92), FONT, TITLE_SCALE, TEXT, 1, cv2.LINE_AA)
     cv2.line(image, (WIDTH // 2 - 180, 106), (WIDTH // 2 + 180, 106), GRID, 1, cv2.LINE_AA)
-    cv2.putText(image, "Type equations, calculus, limits, sums, and graphs in one place", (WIDTH // 2 - 430, 170), FONT, 0.66, STEP_COLOR, 1, cv2.LINE_AA)
+    put_text_fit(image, "Type equations, calculus, limits, sums, and graphs in one place", WIDTH // 2 - 430, 170, 860, STEP_COLOR, 0.66)
     cv2.rectangle(image, (150, HEIGHT // 2 - 74), (WIDTH - 150, HEIGHT // 2 + 42), PANEL, -1)
     cv2.rectangle(image, (150, HEIGHT // 2 - 74), (WIDTH - 150, HEIGHT // 2 + 42), INPUT_BORDER, 1)
-    cv2.putText(image, equation_text or " ", (182, HEIGHT // 2 + 4), FONT, 1.1, TEXT, 2, cv2.LINE_AA)
+    visible_text = equation_text
+    input_width = WIDTH - 364
+    while cv2.getTextSize(visible_text, FONT, 1.1, 2)[0][0] > input_width and len(visible_text) > 4:
+        visible_text = visible_text[1:]
+    cv2.putText(image, visible_text or " ", (182, HEIGHT // 2 + 4), FONT, 1.1, TEXT, 2, cv2.LINE_AA)
 
     cursor_prefix = equation_text[:cursor_index]
+    if len(visible_text) < len(equation_text):
+        hidden_count = len(equation_text) - len(visible_text)
+        cursor_prefix = equation_text[max(hidden_count, 0) : cursor_index]
     cursor_x = 182 + cv2.getTextSize(cursor_prefix, FONT, 1.1, 2)[0][0] + 6
+    cursor_x = min(WIDTH - 166, max(182, cursor_x))
     cv2.line(image, (cursor_x, HEIGHT // 2 - 42), (cursor_x, HEIGHT // 2 + 12), ACCENT, 2, cv2.LINE_AA)
 
     cv2.rectangle(image, (150, HEIGHT // 2 + 88), (WIDTH - 150, HEIGHT // 2 + 206), PANEL, -1)
     cv2.rectangle(image, (150, HEIGHT // 2 + 88), (WIDTH - 150, HEIGHT // 2 + 206), PANEL_EDGE, 1)
-    cv2.putText(image, "Examples", (176, HEIGHT // 2 + 118), FONT, 0.58, MUTED, 1, cv2.LINE_AA)
-    cv2.putText(image, "solve 2x+3=11     x^2+5x+6=0     diff x^3+2x     int[0,1] x^2", (176, HEIGHT // 2 + 152), FONT, 0.50, SOFT, 1, cv2.LINE_AA)
-    cv2.putText(image, "lim[x->0] sin(x)/x     sum[i=1,4] i^2     graph y=x^2, x+1, sin(x)", (176, HEIGHT // 2 + 184), FONT, 0.54, SOFT, 1, cv2.LINE_AA)
-    cv2.putText(image, "Enter solve   arrows move cursor   Backspace delete   q or Esc quit", (WIDTH // 2 - 310, HEIGHT - 52), FONT, INFO_SCALE, MUTED, 1, cv2.LINE_AA)
-    cv2.putText(image, "Press n for a fresh blank editor", (WIDTH // 2 - 145, HEIGHT - 80), FONT, INFO_SCALE, MUTED, 1, cv2.LINE_AA)
+    cv2.putText(image, "Formula Derivation Library", (176, HEIGHT // 2 + 118), FONT, 0.58, MUTED, 1, cv2.LINE_AA)
+    draw_button(image, (176, HEIGHT // 2 + 138, 355, HEIGHT // 2 + 188), "Classical Physics")
+    draw_button(image, (384, HEIGHT // 2 + 138, 563, HEIGHT // 2 + 188), "Modern Physics")
+    put_text_fit(image, "Or type: solve 2x+3=11   diff x^3+2x   int[0,1] x^2   graph y=x^2, sin(x)", 594, HEIGHT // 2 + 168, WIDTH - 770, SOFT, 0.45, min_scale=0.32)
+    put_text_fit(image, "Enter solve   arrows move cursor   Backspace delete   q or Esc quit", WIDTH // 2 - 310, HEIGHT - 52, 700, MUTED, INFO_SCALE)
+    put_text_fit(image, "Press n for a fresh blank editor", WIDTH // 2 - 145, HEIGHT - 80, 380, MUTED, INFO_SCALE)
     if message:
         cv2.putText(image, message, (WIDTH // 2 - min(420, 7 * len(message)), HEIGHT // 2 + 252), FONT, 0.64, ERROR, 1, cv2.LINE_AA)
     return image
+
+
+def draw_button(image: np.ndarray, rect: tuple[int, int, int, int], label: str, selected: bool = False) -> None:
+    x0, y0, x1, y1 = rect
+    fill = (28, 34, 54) if selected else PANEL
+    edge = STEP_COLOR if selected else PANEL_EDGE
+    cv2.rectangle(image, (x0, y0), (x1, y1), fill, -1)
+    cv2.rectangle(image, (x0, y0), (x1, y1), edge, 1)
+    scale = 0.54
+    text_size = cv2.getTextSize(label, FONT, scale, 1)[0]
+    while text_size[0] > (x1 - x0 - 24) and scale > 0.38:
+        scale -= 0.03
+        text_size = cv2.getTextSize(label, FONT, scale, 1)[0]
+    tx = x0 + max(12, (x1 - x0 - text_size[0]) // 2)
+    ty = y0 + (y1 - y0 + text_size[1]) // 2
+    cv2.putText(image, label, (tx, ty), FONT, scale, TEXT, 1, cv2.LINE_AA)
+
+
+def blank_canvas() -> np.ndarray:
+    image = np.full((HEIGHT, WIDTH, 3), BG, dtype=np.uint8)
+    cv2.circle(image, (140, 150), 180, (42, 36, 30), -1, cv2.LINE_AA)
+    cv2.circle(image, (WIDTH - 110, HEIGHT - 80), 220, (48, 39, 32), -1, cv2.LINE_AA)
+    return image
+
+
+def make_buttons(labels: list[str], start_y: int, value_prefix: str = "") -> list[Button]:
+    buttons: list[Button] = []
+    cols = 3
+    gap_x = 24
+    gap_y = 18
+    button_w = 360
+    button_h = 54
+    start_x = (WIDTH - (cols * button_w + (cols - 1) * gap_x)) // 2
+    for idx, label in enumerate(labels):
+        col = idx % cols
+        row = idx // cols
+        x0 = start_x + col * (button_w + gap_x)
+        y0 = start_y + row * (button_h + gap_y)
+        buttons.append(Button((x0, y0, x0 + button_w, y0 + button_h), label, f"{value_prefix}{label}"))
+    return buttons
+
+
+def draw_library_screen(title: str, subtitle: str, buttons: list[Button], footer: str) -> np.ndarray:
+    image = blank_canvas()
+    cv2.rectangle(image, (72, 46), (WIDTH - 72, 140), PANEL, -1)
+    cv2.rectangle(image, (72, 46), (WIDTH - 72, 140), PANEL_EDGE, 1)
+    put_text_fit(image, title, 120, 86, WIDTH - 240, TEXT, TITLE_SCALE)
+    put_text_fit(image, subtitle, 120, 120, WIDTH - 240, MUTED, 0.56)
+    for button in buttons:
+        draw_button(image, button.rect, button.label)
+    cv2.rectangle(image, (72, HEIGHT - 92), (WIDTH - 72, HEIGHT - 38), PANEL, -1)
+    cv2.rectangle(image, (72, HEIGHT - 92), (WIDTH - 72, HEIGHT - 38), PANEL_EDGE, 1)
+    put_text_fit(image, footer, 104, HEIGHT - 58, WIDTH - 208, MUTED, INFO_SCALE)
+    return image
+
+
+def point_in_rect(point: tuple[int, int], rect: tuple[int, int, int, int]) -> bool:
+    x, y = point
+    x0, y0, x1, y1 = rect
+    return x0 <= x <= x1 and y0 <= y <= y1
+
+
+def consume_click() -> tuple[int, int] | None:
+    global LAST_CLICK
+    point = LAST_CLICK
+    LAST_CLICK = None
+    return point
+
+
+def on_mouse(event: int, x: int, y: int, flags: int, param: object) -> None:
+    global LAST_CLICK
+    if event == cv2.EVENT_LBUTTONDOWN:
+        LAST_CLICK = (x, y)
 
 
 def normalize_key(key: int) -> str:
@@ -1976,6 +2638,7 @@ def normalize_key(key: int) -> str:
 def main() -> None:
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, WIDTH, HEIGHT)
+    cv2.setMouseCallback(WINDOW_NAME, on_mouse)
 
     equation_text = DEFAULT_EQUATION
     error_message: str | None = None
@@ -1989,10 +2652,38 @@ def main() -> None:
     cursor_index = len(equation_text)
     formula_text = ""
     graph_spec: GraphSpec | None = None
+    selected_branch = ""
+    selected_category = ""
 
     while True:
+        click = consume_click()
         if mode == "edit":
             frame = draw_editor(equation_text, cursor_index, error_message)
+        elif mode == "library_branch":
+            branch_buttons = make_buttons(list(FORMULA_LIBRARY.keys()), 250)
+            frame = draw_library_screen(
+                "Physics Formula Derivation Library",
+                "Choose a branch, then a topic, then a formula to animate.",
+                branch_buttons,
+                "click a branch   n editor   q quit",
+            )
+        elif mode == "library_category":
+            category_buttons = make_buttons(list(FORMULA_LIBRARY[selected_branch].keys()), 226)
+            frame = draw_library_screen(
+                selected_branch,
+                "Pick the physics area you want to derive formulas from.",
+                category_buttons,
+                "click a category   b back   n editor   q quit",
+            )
+        elif mode == "library_formula":
+            derivations = FORMULA_LIBRARY[selected_branch][selected_category]
+            formula_buttons = make_buttons([item.title for item in derivations.values()], 186)
+            frame = draw_library_screen(
+                f"{selected_branch} / {selected_category}",
+                "Pick a formula. The animation will show where it comes from.",
+                formula_buttons,
+                "click a formula   b back   n editor   q quit",
+            )
         elif step_index >= len(steps) - 1:
             frame = draw_static_step(steps, max(0, len(steps) - 1), steps[-1], equation_text, formula_text, paused, frames_per_step, graph_spec)
         else:
@@ -2005,7 +2696,71 @@ def main() -> None:
             cv2.destroyAllWindows()
             return
 
+        if mode == "library_branch":
+            branch_buttons = make_buttons(list(FORMULA_LIBRARY.keys()), 250)
+            if click:
+                for button in branch_buttons:
+                    if point_in_rect(click, button.rect):
+                        selected_branch = button.value
+                        mode = "library_category"
+                        break
+            if key == "n":
+                mode = "edit"
+                error_message = None
+            continue
+
+        if mode == "library_category":
+            category_buttons = make_buttons(list(FORMULA_LIBRARY[selected_branch].keys()), 226)
+            if click:
+                for button in category_buttons:
+                    if point_in_rect(click, button.rect):
+                        selected_category = button.value
+                        mode = "library_formula"
+                        break
+            if key == "b":
+                mode = "library_branch"
+            elif key == "n":
+                mode = "edit"
+                error_message = None
+            continue
+
+        if mode == "library_formula":
+            derivations = FORMULA_LIBRARY[selected_branch][selected_category]
+            formula_items = list(derivations.values())
+            formula_buttons = make_buttons([item.title for item in formula_items], 186)
+            if click:
+                for idx, button in enumerate(formula_buttons):
+                    if point_in_rect(click, button.rect):
+                        derivation = formula_items[idx]
+                        problem = formula_to_problem((selected_branch, selected_category, derivation.title), derivation)
+                        steps = problem.steps
+                        equation_text = problem.display_text
+                        formula_text = problem.formula_text
+                        graph_spec = problem.graph_spec
+                        mode = "play"
+                        paused = False
+                        step_index = 0
+                        frame_index = 0
+                        break
+            if key == "b":
+                mode = "library_category"
+            elif key == "n":
+                mode = "edit"
+                error_message = None
+            continue
+
         if mode == "edit":
+            if click:
+                if point_in_rect(click, (176, HEIGHT // 2 + 138, 355, HEIGHT // 2 + 188)):
+                    selected_branch = "Classical Physics"
+                    mode = "library_category"
+                    error_message = None
+                    continue
+                if point_in_rect(click, (384, HEIGHT // 2 + 138, 563, HEIGHT // 2 + 188)):
+                    selected_branch = "Modern Physics"
+                    mode = "library_category"
+                    error_message = None
+                    continue
             if key == "":
                 continue
             if key == "ENTER":
