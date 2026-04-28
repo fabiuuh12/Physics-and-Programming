@@ -147,6 +147,9 @@ target_link_libraries(hawkin_s_rad_viz_cpp PRIVATE raylib)
 add_executable(hydrogen_bomb_viz_cpp "nuclear/hydrogen_bomb_viz.cpp")
 target_link_libraries(hydrogen_bomb_viz_cpp PRIVATE raylib)
 
+add_executable(nuclear_power_plant_viz_cpp "nuclear/nuclear_power_plant_viz.cpp")
+target_link_libraries(nuclear_power_plant_viz_cpp PRIVATE raylib)
+
 add_executable(hr_diagram_evolution_viz_cpp "astronomy/hr_diagram_evolution_viz.cpp")
 target_link_libraries(hr_diagram_evolution_viz_cpp PRIVATE raylib)
 
