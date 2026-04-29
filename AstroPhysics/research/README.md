@@ -42,6 +42,14 @@ PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scr
   --config AstroPhysics/research/experiments/parameter_scan/config.json
 ```
 
+Analyze the parameter scan:
+
+```bash
+PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scripts/analyze_parameter_scan.py \
+  --summary AstroPhysics/research/results/parameter_scan/parameter_scan_summary.csv \
+  --out AstroPhysics/research/results/parameter_scan/analysis
+```
+
 ## C++ quick start
 
 ```bash
@@ -63,4 +71,5 @@ TEXMFVAR=/private/tmp/asf_texmf_var PATH="$HOME/Library/TinyTeX/bin/universal-da
 TEXMFVAR=/private/tmp/asf_texmf_var PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" pdflatex main.tex
 ```
 
-Replace `main` with `equation_explainer` to compile the explainer paper.
+Replace `main` with `equation_explainer` or `formula_deep_dive` to compile the
+supporting explanation papers.

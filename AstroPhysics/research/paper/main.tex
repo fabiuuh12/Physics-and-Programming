@@ -141,12 +141,67 @@ missed measurements, bad geometry, lighting loss, and combined stress. The
 main diagnostics are RMS position error, maximum position error, final velocity
 error, covariance growth, maximum risk score, and missed-measurement fraction.
 
+\section{Preliminary Results}
+
+The first implemented parameter scan used a combined-stress scenario with
+missed measurements, lighting degradation, and weak geometry. The scan varied
+$\alpha$, $\beta$, and $w_g$ over 81 filter summaries. These results are
+preliminary; their purpose is to test whether the simulation and comparison
+pipeline can expose useful estimator behavior.
+
+The fixed-noise baseline EKF produced an RMS position error of approximately
+$1.24$ nondimensional distance units in the combined-stress scan. The best
+adaptive measurement-noise case used $\beta=0.6$ and $w_g=0.5$, reducing RMS
+position error to approximately $0.589$, a $52.5\%$ improvement over the
+same-run baseline. However, more aggressive settings were not uniformly
+beneficial. For example, $\beta=1.0$ with $w_g=0.3$ increased RMS position
+error to approximately $1.48$ and raised maximum position error to
+approximately $9.42$. This confirms that risk-aware adaptation requires
+parameter discipline; it is not automatically superior to a standard EKF.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{figures/combined_stress_diagnostics.png}
+  \caption{Combined-stress run showing trajectory, position error, navigation
+  risk, and stress-driver histories.}
+  \label{fig:combined-stress}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{figures/best_filters.png}
+  \caption{Best parameter-scan cases ranked by RMS position error. The best
+  early cases use adaptive measurement-noise inflation rather than the fixed
+  baseline.}
+  \label{fig:best-filters}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.78\linewidth]{figures/adaptive_R_improvement_heatmap.png}
+  \caption{Adaptive measurement-noise RMS improvement relative to the baseline
+  EKF. Green cells indicate improvement; red cells indicate degradation.}
+  \label{fig:adaptive-r-heatmap}
+\end{figure}
+
+The raw risk score can become very large when the geometry-strength term
+$\GammaGeom$ approaches a weak-information regime. This is expected from the
+reciprocal form $1/(\GammaGeom+\epsilon)$, but it also means that raw risk
+values should be interpreted as diagnostic signals, not direct noise multipliers.
+The implemented filters use $\mathrm{clip}(\Rnav,0,R_{\max})$ before adapting
+$\Qmat$ or $\Rmat$. The next research step is therefore not simply to maximize
+risk response, but to study clipped risk, geometry normalization, and
+failure-mode-specific tuning.
+
 \section{Limitations}
 
 This is a v1 computational model. It uses planar CR3BP rather than full
 ephemeris dynamics, simplified observers, and simplified visibility penalties.
 The purpose is to test estimator behavior under controlled assumptions, not to
-claim flight-ready navigation performance.
+claim flight-ready navigation performance. The current result also shows that
+the risk equation can be over-sensitive to weak geometry unless its scale and
+clipping are treated carefully. This sensitivity is not a reason to discard the
+approach; it is a core research target for the next experiments.
 
 \section{Conclusion}
 

@@ -1,0 +1,270 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\input{macros}
+
+\title{Detailed Explanation of the Navigation Risk Equation}
+\author{Fabio Facin}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note explains each part of the proposed navigation risk score for
+autonomous cislunar spacecraft navigation. The goal is twofold: first, to state
+the equation in a technically precise way for aerospace and estimation
+discussion; second, to give a plain-language explanation that can be understood
+without advanced mathematics. The equation is not a new law of physics. It is
+an engineering risk metric that tells an Extended Kalman Filter when the
+spacecraft's navigation estimate should be treated with more caution.
+\end{abstract}
+
+\section{The Full Equation}
+
+The proposed navigation risk score is
+\begin{equation}
+\boxed{
+\Rnav(t)
+=
+w_r \frac{\sigmar(t)}{r_0}
++
+w_v \frac{\sigmav(t)}{v_0}
++
+w_g \frac{1}{\GammaGeom(t)+\epsilon}
++
+w_m M(t)
++
+w_l L(t)
+}.
+\end{equation}
+It combines five kinds of warning signals:
+\begin{enumerate}
+  \item position uncertainty,
+  \item velocity uncertainty,
+  \item weak measurement geometry,
+  \item missed measurements,
+  \item poor lighting or visibility.
+\end{enumerate}
+The output $\Rnav(t)$ is dimensionless. Larger values mean that the navigation
+solution is less trustworthy.
+
+\section{Where the Equation Comes From}
+
+The Extended Kalman Filter estimates a spacecraft state vector,
+\begin{equation}
+  \xstate = [x,\ y,\ \dot{x},\ \dot{y}]^T,
+\end{equation}
+and also maintains an uncertainty matrix,
+\begin{equation}
+  \Pmat =
+  \begin{bmatrix}
+    \Pmat_{rr} & \Pmat_{rv}\\
+    \Pmat_{vr} & \Pmat_{vv}
+  \end{bmatrix}.
+\end{equation}
+The upper-left block $\Pmat_{rr}$ describes position uncertainty, and the
+lower-right block $\Pmat_{vv}$ describes velocity uncertainty. The risk
+equation starts from the idea that the filter should react not only to the
+current state estimate, but also to the conditions under which that estimate
+was produced. A navigation estimate made with small covariance, good viewing
+geometry, and consistent measurements should be treated differently from an
+estimate made during sensor dropouts and poor visibility.
+
+\section{Position-Uncertainty Term}
+
+The first term is
+\begin{equation}
+  w_r \frac{\sigmar(t)}{r_0},
+  \qquad
+  \sigmar(t)=\sqrt{\mathrm{tr}(\Pmat_{rr}(t))}.
+\end{equation}
+The trace of $\Pmat_{rr}$ adds the variances in the two position directions.
+Taking the square root converts variance-like units into position-like units.
+Thus, $\sigmar$ behaves like a one-number summary of position uncertainty.
+
+The scale $r_0$ makes the term dimensionless. If $r_0$ is chosen as the
+position-error scale that is considered operationally meaningful, then
+$\sigmar/r_0$ says how large the filter's position uncertainty is compared with
+that reference level.
+
+\subsection*{Plain-language version}
+
+This part asks: ``How unsure are we about where the spacecraft is?'' If the
+spacecraft could be in a wide region of space, this term gets bigger. If the
+spacecraft's position is tightly known, this term stays small.
+
+\section{Velocity-Uncertainty Term}
+
+The second term is
+\begin{equation}
+  w_v \frac{\sigmav(t)}{v_0},
+  \qquad
+  \sigmav(t)=\sqrt{\mathrm{tr}(\Pmat_{vv}(t))}.
+\end{equation}
+Velocity matters because a small velocity error can become a large future
+position error. In cislunar space, where trajectories can be dynamically
+sensitive, knowing where the spacecraft is now is not enough; the estimator
+must also know how confidently it understands the spacecraft's motion.
+
+\subsection*{Plain-language version}
+
+This part asks: ``How unsure are we about how fast and in what direction the
+spacecraft is moving?'' If velocity is uncertain, the future path becomes
+uncertain too.
+
+\section{Measurement-Geometry Term}
+
+The third term is
+\begin{equation}
+  w_g \frac{1}{\GammaGeom(t)+\epsilon}.
+\end{equation}
+The quantity $\GammaGeom(t)$ is a geometry-strength score. In estimation,
+measurements are more useful when they constrain the unknown state from
+informative directions. Measurements are less useful when the viewing geometry
+is weak, nearly degenerate, or poorly conditioned.
+
+The reciprocal form is intentional. When geometry is strong, $\GammaGeom$ is
+larger and the risk contribution is smaller. When geometry is weak,
+$\GammaGeom$ is smaller and the risk contribution grows. The small constant
+$\epsilon$ prevents division by zero and sets a maximum sensitivity scale for
+extremely poor geometry.
+
+\subsection*{Plain-language version}
+
+This part asks: ``Are the sensors looking from a useful angle?'' Imagine trying
+to locate an object using only a bad viewing angle. The measurement may exist,
+but it does not help as much. Bad geometry makes navigation riskier.
+
+\section{Missed-Measurement Term}
+
+The fourth term is
+\begin{equation}
+  w_m M(t).
+\end{equation}
+Here $M(t)$ is a missed-measurement indicator. In the simplest version,
+\begin{equation}
+M(t)=
+\begin{cases}
+1, & \text{if a scheduled measurement is unavailable},\\
+0, & \text{otherwise}.
+\end{cases}
+\end{equation}
+This term represents sensor outages, tracking interruptions, rejected
+measurements, communication gaps, or any time step where the filter cannot use
+new observation data.
+
+\subsection*{Plain-language version}
+
+This part asks: ``Did the spacecraft miss a sensor update?'' If the spacecraft
+does not get new information, its estimate can drift. Missing data increases
+risk.
+
+\section{Lighting and Visibility Term}
+
+The fifth term is
+\begin{equation}
+  w_l L(t).
+\end{equation}
+The penalty $L(t)$ describes visibility conditions. In cislunar navigation,
+optical measurements can be affected by lunar lighting, eclipse, glare, target
+contrast, and unfavorable Sun-target-spacecraft geometry. This term does not
+try to model a full camera or star tracker. It is a controlled penalty that
+lets the simulation test whether a filter reacts sensibly when optical
+navigation conditions degrade.
+
+\subsection*{Plain-language version}
+
+This part asks: ``Can the spacecraft actually see what it needs to see?''
+Bright glare, shadow, or poor contrast can make optical navigation less
+reliable.
+
+\section{The Weights}
+
+The constants
+\begin{equation}
+  w_r,\quad w_v,\quad w_g,\quad w_m,\quad w_l
+\end{equation}
+control the importance of each warning signal. They are not physical constants.
+They are tuning parameters. A serious research version of this project must
+not choose them arbitrarily and then claim success. Instead, it should scan
+the weights, identify stable regions, reject unstable regions, and report
+failure cases.
+
+\subsection*{Plain-language version}
+
+The weights decide how much each warning light matters. For example, if missed
+measurements are the most dangerous problem in a scenario, $w_m$ should matter
+more. If bad viewing angle is the main issue, $w_g$ should matter more.
+
+\section{How the Risk Score Changes the EKF}
+
+The score can adapt measurement noise:
+\begin{equation}
+  \Rmat(t)
+  =
+  \Rmat_0
+  \left[
+  1+\beta\,\mathrm{clip}(\Rnav(t),0,R_{\max})
+  \right],
+\end{equation}
+or process noise:
+\begin{equation}
+  \Qmat(t)
+  =
+  \Qmat_0
+  \left[
+  1+\alpha\,\mathrm{clip}(\Rnav(t),0,R_{\max})
+  \right].
+\end{equation}
+Increasing $\Rmat$ tells the filter to trust measurements less. Increasing
+$\Qmat$ tells the filter to admit that its dynamics prediction may be less
+reliable. The clipping operation prevents the risk score from inflating the
+noise matrices without limit.
+
+\subsection*{Plain-language version}
+
+The risk score tells the navigation computer how cautious to be. If the risk
+is low, the filter behaves normally. If the risk is high, the filter becomes
+more conservative about what it trusts.
+
+\section{What Would Make the Formula Successful?}
+
+The formula is useful only if simulations show that it improves estimator
+behavior under stress. Good evidence would include:
+\begin{itemize}
+  \item lower RMS position error during missed measurements,
+  \item reduced divergence during bad geometry,
+  \item reasonable covariance growth rather than overconfidence,
+  \item no major damage in clean measurement cases,
+  \item clear failure boundaries when weights are too aggressive.
+\end{itemize}
+This is why the project uses parameter scans and controlled stress scenarios.
+The goal is not to prove that the equation is always right. The goal is to
+find where it helps, where it fails, and whether the idea is worth improving.
+
+\section{One-Minute Explanation for Anyone}
+
+A spacecraft does not truly know exactly where it is. It has a best estimate
+and a measure of how uncertain that estimate is. The proposed formula is like a
+navigation confidence meter. It looks at five things: how uncertain the
+spacecraft is about its position, how uncertain it is about its velocity, how
+good the sensor viewing angle is, whether measurements were missed, and
+whether visibility is poor. If those warning signs get worse, the risk score
+goes up. Then the Kalman filter can become more cautious instead of blindly
+trusting bad information.
+
+\section{Short Professor-Facing Summary}
+
+This project proposes an interpretable risk metric for adaptive EKF tuning in
+a planar CR3BP cislunar navigation simulation. The contribution is not a new
+dynamics model and not a new physical law. The contribution is a testable
+estimator architecture: use covariance, geometry, dropout, and visibility
+signals to adapt process or measurement noise, then compare against a fixed
+EKF under controlled stress cases.
+
+\end{document}
