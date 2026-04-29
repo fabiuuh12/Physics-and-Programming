@@ -2,14 +2,14 @@
 
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,bm}
-\usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage[numbers]{natbib}
 
 \input{macros}
 
-\title{A Phenomenological Astrophysical Structure Field Model for Dwarf-Galaxy Halo Diversity}
+\title{Risk-Aware Adaptive Extended Kalman Filtering for Autonomous Cislunar Spacecraft Navigation}
 \author{Fabio Facin}
 \date{\today}
 
@@ -17,138 +17,143 @@
 \maketitle
 
 \begin{abstract}
-We introduce the Astrophysical Structure Field (ASF), a phenomenological
-subgrid/effective-potential model designed to test whether unresolved baryonic
-organization can produce measurable corrections in dwarf-galaxy simulations.
-The model preserves the Newtonian Poisson limit while adding a dimensionless
-structure field, $\SA$, built from density contrast, magnetic support,
-vorticity, and thermal gradients. The central claim is not that ASF is a new
-law of gravity, but that unresolved structure may be represented as a compact
-closure whose gradients alter effective accelerations. We describe the
-mathematical form, dimensional consistency, controlled numerical experiments,
-diagnostics, and failure criteria required to assess the model.
+Autonomous spacecraft navigation in cislunar space is an active aerospace
+problem because spacecraft cannot always rely on continuous ground support or
+Earth-orbit navigation infrastructure. This paper proposes a laptop-scale
+computational study of a risk-aware adaptive Extended Kalman Filter (EKF) for
+planar Earth-Moon cislunar navigation. The spacecraft dynamics are modeled with
+the circular restricted three-body problem (CR3BP), and range-plus-bearing
+measurements are simulated under clean and stressed conditions. The proposed
+navigation risk score combines covariance growth, measurement geometry,
+missed-measurement events, and lighting/visibility penalties. The score adapts
+process or measurement noise and is compared with a fixed-noise baseline EKF.
 \end{abstract}
 
 \section{Introduction}
 
-Dwarf galaxies are sensitive laboratories for dark-matter halo structure
-because their shallow potentials amplify the impact of baryonic feedback,
-turbulence, gas outflows, magnetic fields, cosmic rays, and star-formation
-history. The core-cusp and halo-diversity problems motivate models that can
-separate mass-density effects from unresolved baryonic organization.
+Cislunar navigation is becoming increasingly important as lunar and
+Earth-Moon-space missions expand. Current research explores autonomous onboard
+navigation, optical navigation, cooperative ranging, and robust filtering for
+spacecraft operating beyond ordinary GPS coverage
+\citep{AerospaceNASA2025Cislunar,NASA2024OpticalNavigation,OguriCislunarAutonomy}.
 
-This paper develops ASF as a methods framework. The model is intentionally
-phenomenological: it asks whether a dimensionless structure field can serve as
-a controlled closure for unresolved organization in galaxy-scale simulations.
+This project asks a focused computational question: can an interpretable
+navigation risk score improve EKF robustness during missed measurements, poor
+measurement geometry, and lighting or visibility degradation?
 
-\section{Related Work}
+\section{CR3BP Dynamics}
 
-Large cosmological simulations already use subgrid prescriptions for
-unresolved galaxy-formation physics \citep{Pillepich2018IllustrisTNG}.
-Baryonic feedback can alter central dark-matter profiles
-\citep{BenitezLlambay2019EAGLECores}, and recent work continues to investigate
-rotation-curve diversity, black holes, cosmic rays, and feedback in dwarf
-systems \citep{Williams2025DARKexp,Gurvich2025FIRE,Thiele2025CosmicRaySubgrid}.
-ASF is positioned within this computational closure tradition.
-
-\section{Model Definition}
-
-The Newtonian potential satisfies
+The planar CR3BP state is
 \begin{equation}
-  \laplacian \PhiN = 4\pi G\rho.
+  \xstate = [x, y, \dot{x}, \dot{y}]^T.
 \end{equation}
-
-ASF introduces an effective potential
+Using the Earth-Moon mass parameter $\mu$, the nondimensional rotating-frame
+equations are
+\begin{align}
+  \ddot{x} &= 2\dot{y} + x
+  - \frac{(1-\mu)(x+\mu)}{r_1^3}
+  - \frac{\mu(x-1+\mu)}{r_2^3},\\
+  \ddot{y} &= -2\dot{x} + y
+  - \frac{(1-\mu)y}{r_1^3}
+  - \frac{\mu y}{r_2^3},
+\end{align}
+where
 \begin{equation}
-  \laplacian \Phieff = 4\pi G\rho + \lambdaA \laplacian \SA,
-  \label{eq:asf_poisson}
+  r_1 = \sqrt{(x+\mu)^2+y^2},\qquad
+  r_2 = \sqrt{(x-1+\mu)^2+y^2}.
 \end{equation}
-which implies, under compatible boundary conditions,
+The simulator propagates truth and EKF predictions with fourth-order
+Runge-Kutta integration.
+
+\section{Measurement Model}
+
+The first measurement model uses range and bearing from a reference observer:
 \begin{equation}
-  \Phieff \approx \PhiN + \lambdaA \SA.
-  \label{eq:effective_potential}
+  \bm{z} =
+  \begin{bmatrix}
+  \rho\\
+  \theta
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+  \sqrt{(x-x_o)^2+(y-y_o)^2}\\
+  \tan^{-1}\left((y-y_o)/(x-x_o)\right)
+  \end{bmatrix}
+  + \bm{\eta}.
 \end{equation}
+The measurement Jacobian is analytic and the measurement noise covariance is
+$\Rmat$.
 
-The v1 structure field is
+\section{Baseline EKF}
+
+The EKF prediction is
+\begin{align}
+  \hat{\xstate}_{k|k-1} &= f(\hat{\xstate}_{k-1|k-1}),\\
+  \Pmat_{k|k-1} &= \Phimat_k \Pmat_{k-1|k-1}\Phimat_k^T + \Qmat.
+\end{align}
+The measurement update is
+\begin{align}
+  \Kmat_k &= \Pmat_{k|k-1}\Hmat_k^T
+  (\Hmat_k\Pmat_{k|k-1}\Hmat_k^T+\Rmat)^{-1},\\
+  \hat{\xstate}_{k|k} &= \hat{\xstate}_{k|k-1}
+  + \Kmat_k(\bm{z}_k-\zhat_k),\\
+  \Pmat_{k|k} &= (\Imat-\Kmat_k\Hmat_k)\Pmat_{k|k-1}
+  (\Imat-\Kmat_k\Hmat_k)^T + \Kmat_k\Rmat\Kmat_k^T.
+\end{align}
+
+\section{Navigation Risk Score}
+
+The proposed risk score is
 \begin{equation}
-  \SA =
-  \ln\left(\frac{\rho}{\rho_0}\right)
-  + \chi_B \frac{B^2}{2\mu_0 P_{\mathrm{gas}}}
-  + \chi_\omega \frac{|\grad \times \bm{v}|^2}{\Omega_0^2}
-  + \chi_T \frac{L_0^2 |\grad T|^2}{T_0^2}.
-  \label{eq:structure_field}
+\boxed{
+\Rnav(t)
+=
+w_r \frac{\sigmar(t)}{r_0}
++
+w_v \frac{\sigmav(t)}{v_0}
++
+w_g \frac{1}{\GammaGeom(t)+\epsilon}
++
+w_m M(t)
++
+w_l L(t)
+}
 \end{equation}
-Each term is dimensionless. The coefficients $\chis$ control the relative
-importance of magnetic, vortical, and thermal structure.
+where $\sigmar=\sqrt{\mathrm{tr}(\Pmat_{rr})}$,
+$\sigmav=\sqrt{\mathrm{tr}(\Pmat_{vv})}$, $\GammaGeom$ is a measurement
+geometry strength score, $M$ is a missed-measurement flag, and $L$ is a
+lighting/visibility penalty.
 
-\section{Dimensional Analysis and Limits}
+\section{Adaptive EKF Rules}
 
-Since $\SA$ is dimensionless, $\lambdaA$ must have units of squared velocity:
-\begin{equation}
-  [\lambdaA] = L^2T^{-2}, \qquad \lambdaA = \epsilon_A v_c^2.
-\end{equation}
-The acceleration is
-\begin{equation}
-  \bm{a}_{\mathrm{eff}} = -\grad \Phieff
-  = -\grad \PhiN - \lambdaA \grad \SA.
-  \label{eq:acceleration}
-\end{equation}
-If $\lambdaA=0$ or $\grad \SA = 0$, the correction vanishes. If $\SA$ is weak
-or intentionally disabled, Equation~\ref{eq:asf_poisson} recovers the standard
-Poisson equation.
+The risk score is used in two adaptive filters:
+\begin{align}
+  \Rmat(t) &= \Rmat_0\left[1+\beta\,\mathrm{clip}(\Rnav,0,R_{\max})\right],\\
+  \Qmat(t) &= \Qmat_0\left[1+\alpha\,\mathrm{clip}(\Rnav,0,R_{\max})\right].
+\end{align}
+The clipping prevents unbounded noise inflation.
 
-The correction can also be written as an effective source density,
-\begin{equation}
-  \rhoStruct = \frac{\lambdaA}{4\pi G}\laplacian \SA,
-\end{equation}
-but $\rhoStruct$ is not literal matter. It is a closure representation of
-unresolved structure.
+\section{Experiments}
 
-\section{Numerical Method}
+The planned experiments compare a baseline EKF, a risk-adaptive measurement
+EKF, and a risk-adaptive process EKF across clean and stressed cases:
+missed measurements, bad geometry, lighting loss, and combined stress. The
+main diagnostics are RMS position error, maximum position error, final velocity
+error, covariance growth, maximum risk score, and missed-measurement fraction.
 
-The first experiments use a two-dimensional grid, finite differences, and a
-Jacobi or Gauss-Seidel Poisson solver. The numerical pipeline is:
-\begin{enumerate}
-  \item initialize $\rho$, $P_{\mathrm{gas}}$, $\bm{B}$, $\bm{v}$, and $T$;
-  \item compute $\SA$ from Equation~\ref{eq:structure_field};
-  \item solve $\laplacian \PhiN = 4\pi G\rho$;
-  \item compute $\Phieff = \PhiN + \lambdaA \SA$;
-  \item compute $\bm{a}_{\mathrm{eff}} = -\grad\Phieff$;
-  \item evolve test particles or compute rotation-curve diagnostics.
-\end{enumerate}
+\section{Limitations}
 
-\section{Controlled Experiments}
-
-The core experiment holds $\rho$ fixed while varying $\SA$. This tests whether
-two systems with the same mass density but different unresolved organization
-produce measurable differences in potential maps, acceleration maps, particle
-orbits, and circular velocity diagnostics.
-
-\section{Diagnostics}
-
-For approximate axisymmetric diagnostics, the circular velocity profile is
-\begin{equation}
-  \vc(r) = \sqrt{r\frac{d\Phieff}{dr}}.
-\end{equation}
-Additional diagnostics include potential residuals, orbit divergence, energy
-drift, central acceleration changes, and the parameter region in which the ASF
-correction is small but measurable.
-
-\section{Limitations and Failure Criteria}
-
-ASF must be rejected or revised if it requires unphysically large $\lambdaA$,
-is numerically unstable, worsens rotation-curve agreement, double-counts
-resolved hydrodynamic/MHD effects, violates conservation behavior, or depends
-strongly on arbitrary boundary conditions. The form of $\SA$ is not unique and
-must eventually be derived from a coarse-graining, turbulence-closure, or
-effective-theory argument.
+This is a v1 computational model. It uses planar CR3BP rather than full
+ephemeris dynamics, simplified observers, and simplified visibility penalties.
+The purpose is to test estimator behavior under controlled assumptions, not to
+claim flight-ready navigation performance.
 
 \section{Conclusion}
 
-ASF provides a structured way to test whether unresolved baryonic organization
-can alter effective-potential diagnostics in dwarf-galaxy simulations. The
-model is useful only if it remains constrained, falsifiable, and distinguishable
-from existing baryonic feedback prescriptions.
+Risk-aware adaptive filtering is a defensible aerospace research direction
+because it connects estimator uncertainty to operational stressors. The value
+of this project depends on reproducible tests showing when the risk score helps,
+when it fails, and whether it improves robustness over a fixed-noise EKF.
 
 \bibliographystyle{plainnat}
 \bibliography{references}

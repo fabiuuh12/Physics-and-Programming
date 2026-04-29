@@ -1,39 +1,30 @@
-# ASF Derivation Notes
+# Derivation Notes
 
-## Current status
+## Dynamics
 
-The ASF equation is currently a phenomenological closure:
+The planar CR3BP equations are used because they are standard, cislunar
+relevant, and feasible on a laptop. They model a massless spacecraft under the
+gravity of Earth and Moon in a rotating nondimensional frame.
 
-```text
-laplacian(Phi_eff) = 4 pi G rho + lambda_A laplacian(S_A)
-Phi_eff ~= Phi_N + lambda_A S_A
-```
+## EKF
 
-This is dimensionally consistent, but not yet derived from first principles.
-That is acceptable for the first methods-paper scaffold only if the paper is
-honest about the model status.
+The EKF propagates a nonlinear state model and uses a local linearization for
+covariance prediction and measurement update. V1 uses finite-difference
+Jacobians for the dynamics and analytic Jacobians for range/bearing.
 
-## Derivation paths to pursue
+## Risk score
 
-1. Coarse-grained fluid/MHD stress:
-   derive an effective force from unresolved pressure, magnetic, and Reynolds
-   stress terms, then ask when it can be represented as `-lambda_A grad(S_A)`.
+The risk score combines:
 
-2. Jeans-equation closure:
-   connect unresolved velocity dispersion or anisotropic support to an
-   effective acceleration in collisionless halo response.
+- covariance size,
+- measurement geometry,
+- missed measurements,
+- lighting/visibility loss.
 
-3. Effective potential fitting:
-   define ASF as the lowest-order scalar closure that maps unresolved
-   structural diagnostics to potential corrections.
+The score is dimensionless after scaling by `r0`, `v0`, and dimensionless
+weights.
 
-4. Dynamic field extension:
-   replace instantaneous `S_A` with
-   `partial_t S_A + v dot grad S_A = sources - damping + diffusion`.
+## Adaptation rule
 
-## Must-not-overclaim rules
-
-- Do not say ASF modifies fundamental gravity.
-- Do not say magnetic fields create mass.
-- Do not claim the formula is true before controlled simulations.
-- Do not fit rotation curves without a mass-only control and parameter penalty.
+The risk score adapts either process noise or measurement noise. The adaptation
+is clipped to prevent runaway covariance inflation.

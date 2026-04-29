@@ -1,0 +1,27 @@
+{
+  "experiment_name": "combined_stress_case",
+  "seed": 46,
+  "dynamics": {"mu": 0.0121505856, "dt": 0.01, "steps": 420},
+  "initial": {
+    "true_state": [0.84, 0.0, 0.0, 0.24],
+    "estimate_state": [0.843, -0.003, 0.0015, 0.237]
+  },
+  "sensors": {
+    "observers": [[-0.0121505856, 0.0]],
+    "missed_windows": [[100, 145], [260, 310]],
+    "lighting_windows": [[170, 260]],
+    "lighting_severity": 1.0
+  },
+  "filter": {
+    "P0_diag": [2.0e-5, 2.0e-5, 2.0e-6, 2.0e-6],
+    "Q0_diag": [2.0e-10, 2.0e-10, 2.0e-9, 2.0e-9],
+    "R0_diag": [2.0e-6, 5.0e-7],
+    "alpha": 0.7,
+    "beta": 1.0
+  },
+  "risk": {
+    "w_r": 0.25, "w_v": 0.15, "w_g": 0.30, "w_m": 0.20, "w_l": 0.10,
+    "r0": 0.01, "v0": 0.01, "epsilon": 0.05, "risk_max": 8.0
+  },
+  "output": {"directory": "AstroPhysics/research/results/combined_stress"}
+}

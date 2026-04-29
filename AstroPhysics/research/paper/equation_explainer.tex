@@ -1,376 +1,91 @@
 \documentclass[11pt]{article}
-
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,bm}
 \usepackage{booktabs}
 \usepackage{hyperref}
-\usepackage[numbers]{natbib}
-
 \input{macros}
-
-\title{The Astrophysical Structure Field Equation: Detailed Derivation, Term-by-Term Meaning, and Plain-Language Explanation}
+\title{Explaining the Cislunar Navigation Risk Equation}
 \author{Fabio Facin}
 \date{\today}
-
 \begin{document}
 \maketitle
 
-\begin{abstract}
-This companion note explains the Astrophysical Structure Field (ASF) equation in
-two parallel languages: a mathematical language suitable for a computational
-astrophysics paper, and a plain-language version suitable for explaining the
-idea to a non-specialist. The central equation is not presented as a new
-fundamental law of gravity. It is a phenomenological subgrid/effective-potential
-model: a way to test whether unresolved baryonic structure can be encoded as a
-dimensionless field whose spatial gradients produce measurable corrections in
-dwarf-galaxy simulations.
-\end{abstract}
+\section{The Idea}
 
-\section{The Core Idea in One Paragraph}
+The spacecraft always has an estimate of where it is, but that estimate can be
+more or less trustworthy. The navigation risk equation turns several warning
+signals into one score.
 
-Gravity in a galaxy simulation is usually computed from mass density. The ASF
-idea asks whether mass density alone misses something important: the way gas,
-magnetic fields, turbulence, and temperature structure are organized below the
-simulation's resolution. The model collects those unresolved features into a
-dimensionless scalar field, $\SA$. It then tests whether spatial changes in
-that field can create a small effective correction to the potential used by
-particles in a simulation.
-
-\paragraph{Plain-language version.}
-Imagine two rooms with the same amount of furniture. If one room is tidy and
-the other is full of barriers, hot spots, fans, and tangled wires, moving
-through them will feel different even though the total amount of stuff is the
-same. ASF asks a similar question for dwarf galaxies: can two galaxies with
-similar mass distributions behave differently because their gas and internal
-structure are organized differently?
-
-\section{Starting Point: The Newtonian Potential}
-
-The standard Newtonian gravitational potential, $\PhiN$, satisfies Poisson's
-equation:
 \begin{equation}
-  \laplacian \PhiN = 4\pi G\rho.
-  \label{eq:explainer_poisson}
+\Rnav(t)
+=
+w_r \frac{\sigmar(t)}{r_0}
++
+w_v \frac{\sigmav(t)}{v_0}
++
+w_g \frac{1}{\GammaGeom(t)+\epsilon}
++
+w_m M(t)
++
+w_l L(t).
 \end{equation}
-Here $\rho$ is mass density and $G$ is Newton's gravitational constant. The
-operator $\laplacian$ measures how curved or locally bent the potential field
-is. In ordinary Newtonian gravity, mass density is the source of that curvature.
 
-\paragraph{Plain-language version.}
-Mass tells gravity how to shape the potential. The potential is like a
-landscape: particles roll downhill in it. Poisson's equation says that where
-there is mass, the landscape bends.
+In plain language: risk goes up when the spacecraft is uncertain about
+position, uncertain about velocity, has bad viewing geometry, misses sensor
+measurements, or has poor lighting/visibility.
 
-\section{Why Add a Structure Field?}
+\section{Position and Velocity Uncertainty}
 
-Large galaxy simulations cannot resolve every cloud, shock, magnetic filament,
-feedback bubble, turbulent eddy, or temperature gradient. These unresolved
-features can still influence gas motion and halo response through pressure
-support, turbulence, and feedback. Modern galaxy simulations already use
-subgrid prescriptions for unresolved physics \citep{Pillepich2018IllustrisTNG}.
-ASF follows that modeling philosophy, but focuses on whether unresolved
-structure can be represented as an effective-potential correction.
-
-The proposed ASF-modified equation is
+The EKF covariance matrix tells us how uncertain the filter is. The position
+block gives
 \begin{equation}
-  \laplacian \Phieff = 4\pi G\rho + \lambdaA \laplacian \SA.
-  \label{eq:explainer_asf_poisson}
+  \sigmar(t)=\sqrt{\mathrm{tr}(\Pmat_{rr}(t))},
 \end{equation}
-The normal mass-density term remains unchanged. The new term is
-$\lambdaA\laplacian\SA$, where $\SA$ is dimensionless and $\lambdaA$ has units
-of potential, or squared velocity.
-
-\paragraph{Plain-language version.}
-The model does not say gravity is wrong. It says: keep normal gravity, but add
-a controlled correction that represents unresolved structure. Then test whether
-that correction matters.
-
-\section{From the Poisson Form to the Effective Potential}
-
-Subtract Equation~\ref{eq:explainer_poisson} from
-Equation~\ref{eq:explainer_asf_poisson}:
+and the velocity block gives
 \begin{equation}
-  \laplacian(\Phieff - \PhiN) = \lambdaA \laplacian \SA.
+  \sigmav(t)=\sqrt{\mathrm{tr}(\Pmat_{vv}(t))}.
 \end{equation}
-If the two potentials are compared under compatible boundary conditions, this
-implies the approximate effective-potential form
+The scale constants $r_0$ and $v_0$ make these terms dimensionless.
+
+\section{Geometry Strength}
+
+The term $\GammaGeom(t)$ measures whether the sensor geometry is helpful. Good
+viewing geometry makes the spacecraft easier to locate. Poor geometry makes
+the same sensor noise more dangerous. Because the equation uses
+$1/(\GammaGeom+\epsilon)$, weak geometry increases risk.
+
+\section{Missed Measurements and Lighting}
+
+$M(t)$ is a missed-measurement penalty. $L(t)$ is a lighting or visibility
+penalty. These terms matter because optical navigation and ranging can degrade
+during outages, glare, eclipse, poor target contrast, or sensor interruptions.
+
+\section{How the Score Changes the EKF}
+
+The score can adapt measurement noise:
 \begin{equation}
-  \Phieff \approx \PhiN + \lambdaA \SA.
-  \label{eq:explainer_phi_eff}
+  \Rmat(t)=\Rmat_0[1+\beta\,\mathrm{clip}(\Rnav,0,R_{\max})],
 \end{equation}
-The word ``approximate'' matters. Poisson equations are sensitive to boundary
-conditions. The compact expression is a useful implementation form, but a
-serious paper must state which boundary conditions are used.
-
-\paragraph{Plain-language version.}
-The correction says: start with the normal gravity landscape, then add a small
-extra landscape shaped by the structure field. Where the structure field is
-flat, nothing changes. Where it changes sharply, particles feel an extra push.
-
-\section{The Acceleration Law}
-
-Particles respond to gradients of the potential:
+or process noise:
 \begin{equation}
-  \bm{a}_{\mathrm{eff}} = -\grad\Phieff.
+  \Qmat(t)=\Qmat_0[1+\alpha\,\mathrm{clip}(\Rnav,0,R_{\max})].
 \end{equation}
-Using Equation~\ref{eq:explainer_phi_eff},
-\begin{equation}
-  \bm{a}_{\mathrm{eff}}
-  = -\grad\PhiN - \lambdaA \grad\SA.
-  \label{eq:explainer_acceleration}
-\end{equation}
-This is one of the most important forms of the model. The ASF contribution is
-not controlled by the absolute value of $\SA$, but by its gradient. A uniform
-structure field produces no extra acceleration.
+This tells the filter to become more cautious when navigation conditions are
+bad. The clipping term prevents the adaptation from becoming unbounded.
 
-\paragraph{Plain-language version.}
-A perfectly flat road does not make a ball roll. A sloped road does. ASF works
-the same way: only changes in the structure field matter.
+\section{Normal-Person Explanation}
 
-\section{The Structure Field Definition}
+The formula is like a dashboard warning light for spacecraft navigation. If
+the spacecraft has good sensor data and low uncertainty, the warning stays low.
+If it loses measurements, has bad viewing angles, or flies through poor
+lighting conditions, the warning rises. The filter can then respond by trusting
+its sensors or dynamics less aggressively.
 
-The v1 ASF field is
-\begin{equation}
-  \SA =
-  \ln\left(\frac{\rho}{\rho_0}\right)
-  + \chi_B \frac{B^2}{2\mu_0 P_{\mathrm{gas}}}
-  + \chi_\omega \frac{|\grad \times \bm{v}|^2}{\Omega_0^2}
-  + \chi_T \frac{L_0^2 |\grad T|^2}{T_0^2}.
-  \label{eq:explainer_structure}
-\end{equation}
-This is a modeling ansatz, not a first-principles theorem. Each term is chosen
-because it represents a physically meaningful type of unresolved organization:
-density contrast, magnetic support, vortical/turbulent structure, and thermal
-structure.
+\section{Why This Is Research}
 
-\section{Term 1: Density Contrast}
-
-The density term is
-\begin{equation}
-  \SA^{(\rho)} = \ln\left(\frac{\rho}{\rho_0}\right).
-\end{equation}
-The ratio $\rho/\rho_0$ compares the local density to a reference density. The
-logarithm makes the term dimensionless and compresses large density contrasts.
-This is useful because astrophysical densities can vary by many orders of
-magnitude.
-
-\paragraph{Where it comes from.}
-Many physical models use logarithmic density contrast because it measures
-relative structure rather than absolute density. In the ASF model, this term
-asks whether density organization beyond the smooth mass profile contributes to
-the effective correction.
-
-\paragraph{Plain-language version.}
-This term asks: is this region unusually dense or unusually empty compared with
-the typical background? The logarithm keeps extreme values from dominating too
-easily.
-
-\section{Term 2: Magnetic Support}
-
-The magnetic term is
-\begin{equation}
-  \SA^{(B)} = \chi_B \frac{B^2}{2\mu_0 P_{\mathrm{gas}}}.
-\end{equation}
-The quantity $B^2/(2\mu_0)$ is magnetic pressure. Dividing by gas pressure,
-$P_{\mathrm{gas}}$, creates a dimensionless ratio comparing magnetic support
-to ordinary thermal pressure.
-
-\paragraph{Where it comes from.}
-In magnetohydrodynamics, magnetic fields contribute stresses and pressure-like
-support. The ASF model does not claim magnetic fields create gravity. Instead,
-it asks whether unresolved magnetic support can be represented as part of an
-effective structure correction when the simulation does not resolve those
-stresses directly.
-
-\paragraph{Plain-language version.}
-Gas pressure is like ordinary pushing from hot gas. Magnetic pressure is like
-extra stiffness from magnetic fields. This term asks whether magnetic stiffness
-is important compared with normal gas pressure.
-
-\section{Term 3: Vorticity and Turbulent Organization}
-
-The vortical term is
-\begin{equation}
-  \SA^{(\omega)} =
-  \chi_\omega \frac{|\grad \times \bm{v}|^2}{\Omega_0^2}.
-\end{equation}
-The curl of the velocity field, $\grad\times\bm{v}$, measures local rotation or
-swirl. Squaring its magnitude gives a positive scalar measure of vortical
-structure. Dividing by $\Omega_0^2$ makes the term dimensionless.
-
-\paragraph{Where it comes from.}
-Turbulence and feedback-driven motion are central uncertainties in dwarf-galaxy
-simulations. Vorticity is not the whole story of turbulence, but it is a
-compact scalar diagnostic for organized rotational motion. ASF uses it as a
-first testable proxy.
-
-\paragraph{Plain-language version.}
-This term measures how much the gas is swirling. A calm pond and a whirlpool
-can contain the same amount of water, but motion through them is different.
-
-\section{Term 4: Thermal Gradients}
-
-The thermal term is
-\begin{equation}
-  \SA^{(T)} =
-  \chi_T \frac{L_0^2 |\grad T|^2}{T_0^2}.
-\end{equation}
-The gradient $\grad T$ measures how rapidly temperature changes across space.
-Multiplying by $L_0^2$ and dividing by $T_0^2$ makes the term dimensionless.
-
-\paragraph{Where it comes from.}
-Strong temperature gradients can signal shocks, feedback bubbles, cooling
-fronts, or multiphase gas boundaries. These are precisely the types of
-structure that may be unresolved in a coarse simulation.
-
-\paragraph{Plain-language version.}
-This term asks whether the galaxy has sharp hot-cold boundaries. Sharp
-temperature changes can mark energetic feedback or disturbed gas.
-
-\section{What the Coefficients Mean}
-
-The parameters $\chi_B$, $\chi_\omega$, and $\chi_T$ are dimensionless weights.
-They do not have the same status as physical constants. They are modeling
-parameters that must be scanned, constrained, and possibly rejected.
-
-The coupling $\lambdaA$ controls the overall size of the potential correction:
-\begin{equation}
-  \lambdaA = \epsilon_A v_c^2.
-\end{equation}
-Here $v_c$ is a characteristic circular speed and $\epsilon_A$ is dimensionless.
-For a conservative first model, $\epsilon_A$ should usually be small unless
-there is strong evidence for a larger correction.
-
-\paragraph{Plain-language version.}
-The $\chi$ values decide which kind of structure matters most. The $\lambdaA$
-value decides how strongly structure affects motion at all. If these numbers
-can be chosen freely to fit anything, the model is weak. If only a narrow,
-physically reasonable range works, the model becomes more serious.
-
-\section{Effective-Density Interpretation}
-
-Equation~\ref{eq:explainer_asf_poisson} can be rewritten as
-\begin{equation}
-  \laplacian\Phieff = 4\pi G(\rho + \rhoStruct),
-\end{equation}
-where
-\begin{equation}
-  \rhoStruct = \frac{\lambdaA}{4\pi G}\laplacian\SA.
-  \label{eq:explainer_rho_struct}
-\end{equation}
-This is a useful diagnostic, but it must be interpreted carefully.
-$\rhoStruct$ is not literal new matter. It is the effective source that would
-produce the same potential correction in a Poisson equation.
-
-\paragraph{Plain-language version.}
-This is like saying, ``If I wanted to imitate the effect of structure using an
-extra fake density map, what fake density would I need?'' It is a diagnostic
-tool, not a claim that extra mass really exists.
-
-\section{Why This Is a Computational Astrophysics Model}
-
-The model belongs most naturally to computational astrophysics because its
-validity depends on simulations and diagnostics, not on elegance alone. The
-core tests are:
-\begin{enumerate}
-  \item Does $\lambdaA=0$ recover the Newtonian-only simulation?
-  \item Does uniform $\SA$ produce zero extra acceleration?
-  \item Does a structured $\SA$ produce measurable but controlled changes?
-  \item Are those changes stable under resolution, smoothing, and boundary
-  condition tests?
-  \item Does the correction improve any diagnostic without destroying others?
-\end{enumerate}
-
-\section{What Would Count as Evidence}
-
-ASF becomes more credible if the following are true:
-\begin{itemize}
-  \item small corrections alter central particle orbits without ruining outer
-  halo behavior;
-  \item similar mass maps but different structure maps produce measurably
-  different rotation-curve diagnostics;
-  \item useful behavior occurs only in a constrained parameter range;
-  \item the correction correlates with physical structure rather than arbitrary
-  curve fitting;
-  \item failure regions are reported honestly.
-\end{itemize}
-
-\section{What Would Count Against the Model}
-
-ASF should be rejected or revised if:
-\begin{itemize}
-  \item it requires unphysically large $\lambdaA$;
-  \item it is numerically unstable for reasonable fields;
-  \item it double-counts effects already resolved by hydrodynamic or MHD
-  equations;
-  \item results are dominated by boundary conditions or smoothing choices;
-  \item it can fit anything by changing too many parameters;
-  \item it worsens rotation curves, orbit behavior, or conservation diagnostics.
-\end{itemize}
-
-\section{The Most Honest Derivation Statement}
-
-The current derivation is a modeling derivation:
-\begin{enumerate}
-  \item begin with the accepted Newtonian Poisson equation;
-  \item introduce an effective potential for unresolved structure;
-  \item require the correction to vanish in smooth or disabled limits;
-  \item require the new field to be dimensionless;
-  \item choose physically motivated scalar diagnostics for density contrast,
-  magnetic support, vorticity, and thermal gradients;
-  \item test whether the resulting correction is stable, constrained, and
-  useful.
-\end{enumerate}
-This is not yet a first-principles derivation from the Einstein equations,
-full MHD, or a turbulence closure theory. A future stronger version should try
-to derive $\SA$ from coarse-grained stress terms, Jeans-equation corrections, or
-an effective action.
-
-\section{A Normal-Person Explanation}
-
-The ASF equation is a way to ask whether the hidden organization inside a dwarf
-galaxy matters. Normal gravity cares about mass. But real dwarf galaxies also
-contain gas, magnetic fields, hot and cold regions, and turbulent motion. A
-computer simulation cannot see every small detail. ASF makes a map of those
-hidden details and asks whether changes in that map cause small changes in how
-particles move.
-
-The idea is not, ``I discovered new gravity.'' The idea is, ``Maybe unresolved
-structure leaves a measurable fingerprint in the effective potential used by a
-simulation.'' The research project is to test that fingerprint carefully.
-
-\section{Glossary}
-
-\begin{center}
-\begin{tabular}{ll}
-\toprule
-Symbol & Meaning \\
-\midrule
-$\PhiN$ & Standard Newtonian gravitational potential \\
-$\Phieff$ & Effective potential including ASF correction \\
-$\rho$ & Mass density \\
-$\SA$ & Dimensionless Astrophysical Structure Field \\
-$\lambdaA$ & Coupling strength with units of squared velocity \\
-$B$ & Magnetic field magnitude \\
-$P_{\mathrm{gas}}$ & Gas pressure \\
-$\grad\times\bm{v}$ & Vorticity, or local swirling motion \\
-$T$ & Gas temperature \\
-$\chi_B,\chi_\omega,\chi_T$ & Dimensionless weights for structure terms \\
-$\rhoStruct$ & Effective source-density diagnostic, not literal matter \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\section{Conclusion}
-
-ASF is best understood as a disciplined computational question: can unresolved
-baryonic structure be compressed into a dimensionless scalar field that
-produces small, testable effective-potential corrections? The equation is
-plausible enough to simulate, but it earns scientific value only through
-derivation refinement, parameter discipline, stability tests, and honest
-failure criteria.
-
-\bibliographystyle{plainnat}
-\bibliography{references}
+The research question is not whether the formula looks nice. The question is
+whether it improves navigation in simulation compared with a normal EKF. If it
+helps during outages and bad geometry without making clean cases worse, it is
+useful. If it increases error or only works after arbitrary tuning, it fails.
 
 \end{document}

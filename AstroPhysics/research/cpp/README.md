@@ -1,35 +1,28 @@
-# ASF C++ Prototype
+# C++ Cislunar Navigation Core
 
-This C++ prototype mirrors the Python v1 model while avoiding external
-dependencies. It is intended for numerical checks and later Raylib integration.
-
-Compile the static-field runner:
-
-```bash
-c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
-  AstroPhysics/research/cpp/src/asf_sim.cpp \
-  AstroPhysics/research/cpp/src/run_static_field.cpp \
-  -o /tmp/asf_static
-```
-
-Run:
-
-```bash
-/tmp/asf_static AstroPhysics/research/experiments/baseline_static_field/config.json \
-  AstroPhysics/research/results/cpp_static.csv
-```
+The C++ code mirrors the core CR3BP propagation and navigation-risk equation
+without external dependencies.
 
 Compile tests:
 
 ```bash
 c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
-  AstroPhysics/research/cpp/src/asf_sim.cpp \
-  AstroPhysics/research/cpp/tests/asf_numeric_tests.cpp \
-  -o /tmp/asf_tests
+  AstroPhysics/research/cpp/src/cislunar_nav.cpp \
+  AstroPhysics/research/cpp/tests/cislunar_numeric_tests.cpp \
+  -o /private/tmp/cislunar_cpp_tests
 ```
 
 Run:
 
 ```bash
-/tmp/asf_tests
+/private/tmp/cislunar_cpp_tests
+```
+
+Compile the demo trajectory writer:
+
+```bash
+c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
+  AstroPhysics/research/cpp/src/cislunar_nav.cpp \
+  AstroPhysics/research/cpp/src/run_demo.cpp \
+  -o /private/tmp/cislunar_demo
 ```

@@ -1,0 +1,27 @@
+{
+  "experiment_name": "missed_measurement_stress",
+  "seed": 43,
+  "dynamics": {"mu": 0.0121505856, "dt": 0.01, "steps": 360},
+  "initial": {
+    "true_state": [0.84, 0.0, 0.0, 0.24],
+    "estimate_state": [0.842, -0.002, 0.001, 0.238]
+  },
+  "sensors": {
+    "observers": [[-0.0121505856, 0.0], [0.9878494144, 0.0]],
+    "missed_windows": [[90, 135], [240, 275]],
+    "lighting_windows": [],
+    "lighting_severity": 0.0
+  },
+  "filter": {
+    "P0_diag": [1.0e-5, 1.0e-5, 1.0e-6, 1.0e-6],
+    "Q0_diag": [1.0e-10, 1.0e-10, 1.0e-9, 1.0e-9],
+    "R0_diag": [1.0e-6, 2.5e-7],
+    "alpha": 0.4,
+    "beta": 0.8
+  },
+  "risk": {
+    "w_r": 0.30, "w_v": 0.20, "w_g": 0.20, "w_m": 0.25, "w_l": 0.05,
+    "r0": 0.01, "v0": 0.01, "epsilon": 0.05, "risk_max": 8.0
+  },
+  "output": {"directory": "AstroPhysics/research/results/missed_measurements"}
+}
