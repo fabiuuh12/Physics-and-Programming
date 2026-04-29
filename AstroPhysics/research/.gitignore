@@ -4,3 +4,12 @@ __pycache__/
 results/**
 !results/
 !results/.gitkeep
+
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.fls
+paper/*.fdb_latexmk

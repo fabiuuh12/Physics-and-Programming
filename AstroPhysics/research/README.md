@@ -65,10 +65,20 @@ c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
 
 ## Paper workflow
 
-The manuscript source is `paper/main.tex`. This machine currently does not have
-`pdflatex` or `latexmk` on PATH, so compilation is deferred until a TeX
-distribution is installed. The source is still kept ready for standard LaTeX
-toolchains.
+The methods-paper source is `paper/main.tex`. The equation companion is
+`paper/equation_explainer.tex`.
+
+Compile either paper with the local TinyTeX install:
+
+```bash
+cd AstroPhysics/research/paper
+PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" pdflatex main.tex
+PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" bibtex main
+PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" pdflatex main.tex
+PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" pdflatex main.tex
+```
+
+Replace `main` with `equation_explainer` to compile the companion paper.
 
 ## Research discipline
 
