@@ -1,0 +1,32 @@
+{
+  "experiment_name": "baseline_static_field",
+  "seed": 7,
+  "grid": {
+    "nx": 64,
+    "ny": 64,
+    "dx": 1.0,
+    "dy": 1.0
+  },
+  "physics": {
+    "G": 1.0,
+    "mu0": 1.0,
+    "rho0": 1.0,
+    "omega0": 1.0,
+    "temperature0": 1.0,
+    "length0": 1.0,
+    "lambda_A": 0.04,
+    "chi_B": 0.25,
+    "chi_omega": 0.15,
+    "chi_T": 0.10,
+    "pressure_floor": 1.0e-6,
+    "rho_floor": 1.0e-6
+  },
+  "solver": {
+    "iterations": 500,
+    "tolerance": 1.0e-8,
+    "smooth_passes": 1
+  },
+  "output": {
+    "directory": "AstroPhysics/research/results/baseline_static_field"
+  }
+}

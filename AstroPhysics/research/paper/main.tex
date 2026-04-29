@@ -1,0 +1,156 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+\input{macros}
+
+\title{A Phenomenological Astrophysical Structure Field Model for Dwarf-Galaxy Halo Diversity}
+\author{Fabio Facin}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We introduce the Astrophysical Structure Field (ASF), a phenomenological
+subgrid/effective-potential model designed to test whether unresolved baryonic
+organization can produce measurable corrections in dwarf-galaxy simulations.
+The model preserves the Newtonian Poisson limit while adding a dimensionless
+structure field, $\SA$, built from density contrast, magnetic support,
+vorticity, and thermal gradients. The central claim is not that ASF is a new
+law of gravity, but that unresolved structure may be represented as a compact
+closure whose gradients alter effective accelerations. We describe the
+mathematical form, dimensional consistency, controlled numerical experiments,
+diagnostics, and failure criteria required to assess the model.
+\end{abstract}
+
+\section{Introduction}
+
+Dwarf galaxies are sensitive laboratories for dark-matter halo structure
+because their shallow potentials amplify the impact of baryonic feedback,
+turbulence, gas outflows, magnetic fields, cosmic rays, and star-formation
+history. The core-cusp and halo-diversity problems motivate models that can
+separate mass-density effects from unresolved baryonic organization.
+
+This paper develops ASF as a methods framework. The model is intentionally
+phenomenological: it asks whether a dimensionless structure field can serve as
+a controlled closure for unresolved organization in galaxy-scale simulations.
+
+\section{Related Work}
+
+Large cosmological simulations already use subgrid prescriptions for
+unresolved galaxy-formation physics \citep{Pillepich2018IllustrisTNG}.
+Baryonic feedback can alter central dark-matter profiles
+\citep{BenitezLlambay2019EAGLECores}, and recent work continues to investigate
+rotation-curve diversity, black holes, cosmic rays, and feedback in dwarf
+systems \citep{Williams2025DARKexp,Gurvich2025FIRE,Thiele2025CosmicRaySubgrid}.
+ASF is positioned within this computational closure tradition.
+
+\section{Model Definition}
+
+The Newtonian potential satisfies
+\begin{equation}
+  \laplacian \PhiN = 4\pi G\rho.
+\end{equation}
+
+ASF introduces an effective potential
+\begin{equation}
+  \laplacian \Phieff = 4\pi G\rho + \lambdaA \laplacian \SA,
+  \label{eq:asf_poisson}
+\end{equation}
+which implies, under compatible boundary conditions,
+\begin{equation}
+  \Phieff \approx \PhiN + \lambdaA \SA.
+  \label{eq:effective_potential}
+\end{equation}
+
+The v1 structure field is
+\begin{equation}
+  \SA =
+  \ln\left(\frac{\rho}{\rho_0}\right)
+  + \chi_B \frac{B^2}{2\mu_0 P_{\mathrm{gas}}}
+  + \chi_\omega \frac{|\grad \times \bm{v}|^2}{\Omega_0^2}
+  + \chi_T \frac{L_0^2 |\grad T|^2}{T_0^2}.
+  \label{eq:structure_field}
+\end{equation}
+Each term is dimensionless. The coefficients $\chis$ control the relative
+importance of magnetic, vortical, and thermal structure.
+
+\section{Dimensional Analysis and Limits}
+
+Since $\SA$ is dimensionless, $\lambdaA$ must have units of squared velocity:
+\begin{equation}
+  [\lambdaA] = L^2T^{-2}, \qquad \lambdaA = \epsilon_A v_c^2.
+\end{equation}
+The acceleration is
+\begin{equation}
+  \bm{a}_{\mathrm{eff}} = -\grad \Phieff
+  = -\grad \PhiN - \lambdaA \grad \SA.
+  \label{eq:acceleration}
+\end{equation}
+If $\lambdaA=0$ or $\grad \SA = 0$, the correction vanishes. If $\SA$ is weak
+or intentionally disabled, Equation~\ref{eq:asf_poisson} recovers the standard
+Poisson equation.
+
+The correction can also be written as an effective source density,
+\begin{equation}
+  \rhoStruct = \frac{\lambdaA}{4\pi G}\laplacian \SA,
+\end{equation}
+but $\rhoStruct$ is not literal matter. It is a closure representation of
+unresolved structure.
+
+\section{Numerical Method}
+
+The first experiments use a two-dimensional grid, finite differences, and a
+Jacobi or Gauss-Seidel Poisson solver. The numerical pipeline is:
+\begin{enumerate}
+  \item initialize $\rho$, $P_{\mathrm{gas}}$, $\bm{B}$, $\bm{v}$, and $T$;
+  \item compute $\SA$ from Equation~\ref{eq:structure_field};
+  \item solve $\laplacian \PhiN = 4\pi G\rho$;
+  \item compute $\Phieff = \PhiN + \lambdaA \SA$;
+  \item compute $\bm{a}_{\mathrm{eff}} = -\grad\Phieff$;
+  \item evolve test particles or compute rotation-curve diagnostics.
+\end{enumerate}
+
+\section{Controlled Experiments}
+
+The core experiment holds $\rho$ fixed while varying $\SA$. This tests whether
+two systems with the same mass density but different unresolved organization
+produce measurable differences in potential maps, acceleration maps, particle
+orbits, and circular velocity diagnostics.
+
+\section{Diagnostics}
+
+For approximate axisymmetric diagnostics, the circular velocity profile is
+\begin{equation}
+  \vc(r) = \sqrt{r\frac{d\Phieff}{dr}}.
+\end{equation}
+Additional diagnostics include potential residuals, orbit divergence, energy
+drift, central acceleration changes, and the parameter region in which the ASF
+correction is small but measurable.
+
+\section{Limitations and Failure Criteria}
+
+ASF must be rejected or revised if it requires unphysically large $\lambdaA$,
+is numerically unstable, worsens rotation-curve agreement, double-counts
+resolved hydrodynamic/MHD effects, violates conservation behavior, or depends
+strongly on arbitrary boundary conditions. The form of $\SA$ is not unique and
+must eventually be derived from a coarse-graining, turbulence-closure, or
+effective-theory argument.
+
+\section{Conclusion}
+
+ASF provides a structured way to test whether unresolved baryonic organization
+can alter effective-potential diagnostics in dwarf-galaxy simulations. The
+model is useful only if it remains constrained, falsifiable, and distinguishable
+from existing baryonic feedback prescriptions.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
