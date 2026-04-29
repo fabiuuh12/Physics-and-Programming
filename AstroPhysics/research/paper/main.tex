@@ -143,6 +143,40 @@ error, covariance growth, maximum risk score, and missed-measurement fraction.
 
 \section{Preliminary Results}
 
+The first controlled scenario suite separated clean navigation, missed
+measurements, bad geometry, lighting degradation, and a combined-stress case.
+Table~\ref{tab:scenario-summary} summarizes the best filter in each case. The
+results show that risk adaptation is not universally beneficial. It is most
+useful when the estimator is actually stressed by measurement loss or geometry,
+while the fixed baseline remains competitive in clean and lighting-only cases.
+
+\begin{table}[ht]
+  \centering
+  \caption{First-pass controlled scenario results. RMS errors are nondimensional
+  CR3BP position errors from deterministic single-seed runs.}
+  \label{tab:scenario-summary}
+  \begin{tabular}{lrrrr}
+    \toprule
+    Scenario & Best filter & Baseline RMS & Best RMS & Improvement\\
+    \midrule
+    Clean baseline & Baseline & $4.232{\times}10^{-4}$ & $4.232{\times}10^{-4}$ & $0.0\%$\\
+    Missed measurements & Adaptive $\Rmat$ & $2.470{\times}10^{-1}$ & $3.632{\times}10^{-3}$ & $98.5\%$\\
+    Bad geometry & Adaptive $\Rmat$ & $4.221{\times}10^{-4}$ & $3.075{\times}10^{-4}$ & $27.2\%$\\
+    Lighting loss & Baseline & $5.636{\times}10^{-4}$ & $5.636{\times}10^{-4}$ & $0.0\%$\\
+    Combined stress & Adaptive $\Qmat$ & $1.005{\times}10^{-3}$ & $8.504{\times}10^{-4}$ & $15.4\%$\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{figures/scenario_rms_comparison.png}
+  \caption{RMS position-error comparison across controlled scenarios. The
+  adaptive filters help in some stress cases, but the baseline remains best or
+  tied in clean and lighting-only cases.}
+  \label{fig:scenario-comparison}
+\end{figure}
+
 The first implemented parameter scan used a combined-stress scenario with
 missed measurements, lighting degradation, and weak geometry. The scan varied
 $\alpha$, $\beta$, and $w_g$ over 81 filter summaries. These results are

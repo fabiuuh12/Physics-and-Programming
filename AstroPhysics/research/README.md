@@ -50,6 +50,14 @@ PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scr
   --out AstroPhysics/research/results/parameter_scan/analysis
 ```
 
+Analyze controlled scenario outputs:
+
+```bash
+PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scripts/analyze_scenarios.py \
+  --results-root AstroPhysics/research/results \
+  --out AstroPhysics/research/results/scenario_analysis
+```
+
 ## C++ quick start
 
 ```bash
