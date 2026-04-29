@@ -1,0 +1,294 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\input{macros}
+
+\title{Mathematical Foundations of Risk-Aware CR3BP Navigation}
+\author{Fabio Facin}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This note explains the mathematical structure behind a risk-aware navigation
+filter for cislunar spacecraft motion. The framework combines CR3BP dynamics,
+a nonlinear range-bearing measurement model, an Extended Kalman Filter (EKF),
+a scalar navigation-risk score, and adaptive noise rules. The CR3BP and EKF
+provide the physics and estimation foundation, while the navigation-risk score
+is the main research contribution.
+\end{abstract}
+
+\section{Physical Dynamics: CR3BP}
+
+The planar spacecraft state is
+\begin{equation}
+  \xstate =
+  \begin{bmatrix}
+    x & y & \dot{x} & \dot{y}
+  \end{bmatrix}^{T}.
+\end{equation}
+This state comes from classical mechanics in a rotating reference frame. The
+model is the circular restricted three-body problem (CR3BP), where the Earth
+and Moon are the massive bodies and the spacecraft has negligible mass.
+
+The nondimensional rotating-frame equations are
+\begin{align}
+  \ddot{x}
+  &=
+  2\dot{y}
+  + x
+  - \frac{(1-\mu)(x+\mu)}{r_1^3}
+  - \frac{\mu(x-1+\mu)}{r_2^3},
+  \\
+  \ddot{y}
+  &=
+  -2\dot{x}
+  + y
+  - \frac{(1-\mu)y}{r_1^3}
+  - \frac{\mu y}{r_2^3},
+\end{align}
+with
+\begin{align}
+  r_1 &= \sqrt{(x+\mu)^2+y^2},\\
+  r_2 &= \sqrt{(x-1+\mu)^2+y^2}.
+\end{align}
+
+The terms $2\dot{y}$ and $-2\dot{x}$ are Coriolis terms caused by the rotating
+frame. The terms $x$ and $y$ come from the centrifugal potential,
+\begin{equation}
+  U_{\mathrm{eff}} = \frac{1}{2}(x^2+y^2).
+\end{equation}
+The gravitational terms come from Newtonian gravity in vector form:
+\begin{equation}
+  \bm{a} = -\frac{GM}{r^3}\bm{r}.
+\end{equation}
+The CR3BP is useful for risk-aware filtering because it is already nonlinear
+and can be dynamically sensitive. That makes it a strong test case for EKF
+performance and uncertainty growth.
+
+\section{Measurement Model}
+
+An observer located at $(x_o,y_o)$ measures range and bearing:
+\begin{equation}
+  \bm{z}
+  =
+  \begin{bmatrix}
+    \rho\\
+    \theta
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \sqrt{(x-x_o)^2+(y-y_o)^2}\\
+    \tan^{-1}\!\left(\frac{y-y_o}{x-x_o}\right)
+  \end{bmatrix}
+  + \bm{\eta}.
+\end{equation}
+The range term is Euclidean distance, and the bearing term is the angle from
+the observer to the spacecraft. Measurement noise is modeled as
+\begin{equation}
+  \bm{\eta} \sim \mathcal{N}(\bm{0},\Rmat),
+\end{equation}
+where $\Rmat$ represents sensor imperfections, photon noise, tracking error,
+and environmental degradation.
+
+This measurement model is nonlinear, so the filter must linearize it. That is
+why the EKF is appropriate.
+
+\section{Extended Kalman Filter}
+
+\subsection{Prediction}
+
+The EKF first predicts the spacecraft state through the nonlinear dynamics:
+\begin{equation}
+  \hat{\xstate}_{k|k-1}
+  =
+  f(\hat{\xstate}_{k-1|k-1}).
+\end{equation}
+In implementation, the function $f$ is obtained by numerically integrating the
+CR3BP differential equations, for example with fourth-order Runge--Kutta.
+
+The covariance prediction is
+\begin{equation}
+  \Pmat_{k|k-1}
+  =
+  \Phi_k \Pmat_{k-1|k-1}\Phi_k^{T}
+  + \Qmat.
+\end{equation}
+Here $\Pmat$ is the uncertainty covariance, $\Qmat$ is process noise, and
+\begin{equation}
+  \Phi_k = \frac{\partial f}{\partial \xstate}
+\end{equation}
+is the dynamics Jacobian. The Jacobian comes from a first-order Taylor
+expansion of the nonlinear dynamics.
+
+\subsection{Update}
+
+The Kalman gain is
+\begin{equation}
+  K_k
+  =
+  \Pmat H_k^{T}
+  \left(
+    H_k \Pmat H_k^{T} + \Rmat
+  \right)^{-1},
+\end{equation}
+where $H_k$ is the measurement Jacobian. The gain comes from minimizing
+mean-squared estimation error under Gaussian and locally linear assumptions.
+
+The corrected estimate is
+\begin{equation}
+  \hat{\xstate}_{k|k}
+  =
+  \hat{\xstate}_{k|k-1}
+  +
+  K_k
+  \left(
+    \bm{z}_k - h(\hat{\xstate}_{k|k-1})
+  \right).
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+Term & Meaning\\
+\midrule
+$\Pmat$ & Current uncertainty\\
+$\Rmat$ & Measurement noise\\
+$\Qmat$ & Process or model noise\\
+$K_k$ & How strongly the filter trusts the measurement\\
+\bottomrule
+\end{tabular}
+\caption{Interpretation of core EKF terms.}
+\end{table}
+
+\section{Main Equation: Navigation Risk Score}
+
+The central contribution is the navigation-risk score:
+\begin{equation}
+\boxed{
+\Rnav(t)
+=
+w_r\frac{\sigmar(t)}{r_0}
++
+w_v\frac{\sigmav(t)}{v_0}
++
+w_g\frac{1}{\GammaGeom(t)+\epsilon}
++
+w_mM(t)
++
+w_lL(t)
+}.
+\end{equation}
+This equation turns a high-dimensional navigation state into a single scalar
+warning signal.
+
+\subsection{Position Uncertainty}
+
+The position uncertainty term is
+\begin{equation}
+  \sigmar(t) = \sqrt{\operatorname{tr}(\Pmat_{rr}(t))}.
+\end{equation}
+The block $\Pmat_{rr}$ is the position covariance submatrix. The trace sums
+the total position variance, and the square root converts that variance scale
+into a standard-deviation scale.
+
+\subsection{Velocity Uncertainty}
+
+The velocity uncertainty term is
+\begin{equation}
+  \sigmav(t) = \sqrt{\operatorname{tr}(\Pmat_{vv}(t))}.
+\end{equation}
+Velocity matters because orbital prediction is not controlled by position
+alone. A velocity error can drive large future trajectory divergence.
+
+\subsection{Geometry Term}
+
+The geometry penalty is
+\begin{equation}
+  \frac{1}{\GammaGeom(t)+\epsilon}.
+\end{equation}
+The quantity $\GammaGeom(t)$ measures measurement geometry quality. Good
+geometry gives a large $\GammaGeom(t)$ and therefore low risk. Bad geometry
+gives a small $\GammaGeom(t)$ and therefore high risk. The small positive
+constant $\epsilon$ prevents division by zero.
+
+This is similar in spirit to GPS dilution of precision and to observability
+metrics from estimation theory.
+
+\subsection{Missed Measurements}
+
+The missed-measurement term is
+\begin{equation}
+  M(t)
+  =
+  \begin{cases}
+    1, & \text{measurement missed},\\
+    0, & \text{measurement received}.
+  \end{cases}
+\end{equation}
+When a measurement is missed, the filter performs prediction without a
+corrective observation. In nonlinear orbital dynamics, that usually means
+uncertainty grows.
+
+\subsection{Lighting Penalty}
+
+The lighting penalty $L(t)$ adds aerospace realism. Optical tracking can
+degrade during poor illumination, eclipse, glare, low contrast, or other
+visibility problems.
+
+\subsection{Weights}
+
+The weights $w_r,w_v,w_g,w_m,w_l$ are tuning parameters, not physical
+constants. They define how strongly each risk source contributes to the final
+score. Conceptually, the score behaves like a cost function or a Lyapunov-like
+summary of the filter's uncertainty condition.
+
+\section{Adaptive Rules}
+
+The navigation-risk score can modify the EKF noise assumptions:
+\begin{align}
+  \Rmat(t)
+  &=
+  \Rmat_0
+  \left[
+    1+\beta\,\operatorname{clip}(\Rnav(t))
+  \right],
+  \\
+  \Qmat(t)
+  &=
+  \Qmat_0
+  \left[
+    1+\alpha\,\operatorname{clip}(\Rnav(t))
+  \right].
+\end{align}
+These are adaptive filtering rules, not standard EKF equations. When risk
+increases, the filter inflates its measurement noise or process noise model.
+That makes the estimator more cautious under stressed navigation conditions.
+
+\section{Conclusion}
+
+The full framework can be summarized as
+\begin{equation}
+  \text{CR3BP physics}
+  +
+  \text{Bayesian estimation}
+  +
+  \text{adaptive feedback}.
+\end{equation}
+The CR3BP grounds the problem in nonlinear orbital mechanics. The EKF provides
+the estimation engine. The navigation-risk score contributes an interpretable
+feedback signal that connects covariance, geometry, missed data, and lighting
+to adaptive filtering behavior.
+
+Future work can strengthen the framework by deriving $\Phi_k$ explicitly,
+defining $\GammaGeom(t)$ through the Fisher information matrix, connecting
+$\Rnav(t)$ to entropy or information gain, and analyzing Kalman-gain stability.
+
+\end{document}
