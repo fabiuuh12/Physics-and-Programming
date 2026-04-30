@@ -23,5 +23,5 @@
     "w_r": 0.30, "w_v": 0.20, "w_g": 0.20, "w_m": 0.25, "w_l": 0.05,
     "r0": 0.01, "v0": 0.01, "epsilon": 0.05, "risk_max": 8.0
   },
-  "output": {"directory": "AstroPhysics/research/results/missed_measurements"}
+  "output": {"directory": "Aerospace/research/results/missed_measurements"}
 }

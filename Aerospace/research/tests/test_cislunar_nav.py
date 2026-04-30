@@ -12,7 +12,7 @@ from cislunar_nav.measurements import geometry_strength, measurement, measuremen
 from cislunar_nav.risk import navigation_risk
 
 
-CONFIG = Path("AstroPhysics/research/experiments/baseline/config.json")
+CONFIG = Path("Aerospace/research/experiments/baseline/config.json")
 
 
 def test_cr3bp_rhs_is_finite() -> None:

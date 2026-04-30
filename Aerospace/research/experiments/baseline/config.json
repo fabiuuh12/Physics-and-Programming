@@ -35,6 +35,6 @@
     "risk_max": 8.0
   },
   "output": {
-    "directory": "AstroPhysics/research/results/baseline"
+    "directory": "Aerospace/research/results/baseline"
   }
 }

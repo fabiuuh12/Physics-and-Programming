@@ -28,42 +28,50 @@ missed measurements, poor geometry, and lighting/visibility loss?
 
 ## Python quick start
 
-```bash
-PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scripts/run_experiment.py \
-  --config AstroPhysics/research/experiments/baseline/config.json
+Run the full reproducible experiment and analysis pipeline:
 
-PYTHONPATH=AstroPhysics/research/python python3 -m pytest AstroPhysics/research/tests -q
+```bash
+Aerospace/research/run_all_experiments.sh
+```
+
+Run one scenario manually:
+
+```bash
+PYTHONPATH=Aerospace/research/python python3 Aerospace/research/python/scripts/run_experiment.py \
+  --config Aerospace/research/experiments/baseline/config.json
+
+PYTHONPATH=Aerospace/research/python python3 -m pytest Aerospace/research/tests -q
 ```
 
 Run the parameter scan:
 
 ```bash
-PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scripts/run_parameter_scan.py \
-  --config AstroPhysics/research/experiments/parameter_scan/config.json
+PYTHONPATH=Aerospace/research/python python3 Aerospace/research/python/scripts/run_parameter_scan.py \
+  --config Aerospace/research/experiments/parameter_scan/config.json
 ```
 
 Analyze the parameter scan:
 
 ```bash
-PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scripts/analyze_parameter_scan.py \
-  --summary AstroPhysics/research/results/parameter_scan/parameter_scan_summary.csv \
-  --out AstroPhysics/research/results/parameter_scan/analysis
+PYTHONPATH=Aerospace/research/python python3 Aerospace/research/python/scripts/analyze_parameter_scan.py \
+  --summary Aerospace/research/results/parameter_scan/parameter_scan_summary.csv \
+  --out Aerospace/research/results/parameter_scan/analysis
 ```
 
 Analyze controlled scenario outputs:
 
 ```bash
-PYTHONPATH=AstroPhysics/research/python python3 AstroPhysics/research/python/scripts/analyze_scenarios.py \
-  --results-root AstroPhysics/research/results \
-  --out AstroPhysics/research/results/scenario_analysis
+PYTHONPATH=Aerospace/research/python python3 Aerospace/research/python/scripts/analyze_scenarios.py \
+  --results-root Aerospace/research/results \
+  --out Aerospace/research/results/scenario_analysis
 ```
 
 ## C++ quick start
 
 ```bash
-c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
-  AstroPhysics/research/cpp/src/cislunar_nav.cpp \
-  AstroPhysics/research/cpp/tests/cislunar_numeric_tests.cpp \
+c++ -std=c++17 -O2 -I Aerospace/research/cpp/include \
+  Aerospace/research/cpp/src/cislunar_nav.cpp \
+  Aerospace/research/cpp/tests/cislunar_numeric_tests.cpp \
   -o /private/tmp/cislunar_cpp_tests
 
 /private/tmp/cislunar_cpp_tests
@@ -72,7 +80,7 @@ c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
 ## Paper compile
 
 ```bash
-cd AstroPhysics/research/paper
+cd Aerospace/research/paper
 TEXMFVAR=/private/tmp/asf_texmf_var PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" pdflatex main.tex
 TEXMFVAR=/private/tmp/asf_texmf_var PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" bibtex main
 TEXMFVAR=/private/tmp/asf_texmf_var PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH" pdflatex main.tex

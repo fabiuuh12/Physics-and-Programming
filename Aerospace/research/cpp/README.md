@@ -6,9 +6,9 @@ without external dependencies.
 Compile tests:
 
 ```bash
-c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
-  AstroPhysics/research/cpp/src/cislunar_nav.cpp \
-  AstroPhysics/research/cpp/tests/cislunar_numeric_tests.cpp \
+c++ -std=c++17 -O2 -I Aerospace/research/cpp/include \
+  Aerospace/research/cpp/src/cislunar_nav.cpp \
+  Aerospace/research/cpp/tests/cislunar_numeric_tests.cpp \
   -o /private/tmp/cislunar_cpp_tests
 ```
 
@@ -21,8 +21,8 @@ Run:
 Compile the demo trajectory writer:
 
 ```bash
-c++ -std=c++17 -O2 -I AstroPhysics/research/cpp/include \
-  AstroPhysics/research/cpp/src/cislunar_nav.cpp \
-  AstroPhysics/research/cpp/src/run_demo.cpp \
+c++ -std=c++17 -O2 -I Aerospace/research/cpp/include \
+  Aerospace/research/cpp/src/cislunar_nav.cpp \
+  Aerospace/research/cpp/src/run_demo.cpp \
   -o /private/tmp/cislunar_demo
 ```
