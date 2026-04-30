@@ -77,6 +77,19 @@ c++ -std=c++17 -O2 -I Aerospace/research/cpp/include \
 /private/tmp/cislunar_cpp_tests
 ```
 
+The C++ folder also includes an interactive raylib visualization:
+
+```bash
+c++ -std=c++17 -O2 \
+  -I Aerospace/research/cpp/include \
+  -I Aerospace/AstroPhysics/third_party/raylib/include \
+  Aerospace/research/cpp/src/cislunar_nav.cpp \
+  Aerospace/research/cpp/src/cislunar_nav_3d_viz.cpp \
+  Aerospace/AstroPhysics/third_party/raylib-src/src/libraylib.a \
+  -framework CoreVideo -framework IOKit -framework Cocoa -framework OpenGL \
+  -o /private/tmp/cislunar_nav_3d_viz
+```
+
 ## Paper compile
 
 ```bash
