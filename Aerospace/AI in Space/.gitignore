@@ -1,4 +1,10 @@
 build/
+build-cmake/
 __pycache__/
 *.pyc
 simulations/.matplotlib/
+downloads/
+tools/
+papers/*.aux
+papers/*.log
+papers/*.out

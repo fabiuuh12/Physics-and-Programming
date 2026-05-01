@@ -86,3 +86,9 @@ mkdir -p build
 clang++ -std=c++17 -Icpp/include cpp/src/orbit.cpp cpp/apps/rendezvous_cpp.cpp -o build/rendezvous_cpp
 ./build/rendezvous_cpp
 ```
+
+First paper:
+
+```bash
+PATH="$PWD/tools/tinytex/TinyTeX/bin/universal-darwin:$PATH" pdflatex -interaction=nonstopmode -halt-on-error -output-directory=papers papers/ai_in_space_foundation.tex
+```
