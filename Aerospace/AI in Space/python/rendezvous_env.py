@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+
+from rendezvous_sim import (
+    ACTIONS,
+    EARTH_RADIUS,
+    SimConfig,
+    circular_state,
+    norm,
+    rk4_step,
+)
+
+
+@dataclass(frozen=True)
+class EnvConfig:
+    sim: SimConfig = SimConfig()
+    max_delta_v: float = 0.120  # km/s, equal to 120 m/s
+    unsafe_distance: float = 1.0
+    distance_scale: float = 500.0
+    speed_scale: float = 0.1
+
+
+class RendezvousEnv:
+    """Small RL-style environment for planar autonomous rendezvous."""
+
+    def __init__(self, cfg: EnvConfig | None = None):
+        self.cfg = cfg or EnvConfig()
+        self.action_names = ACTIONS
+        self.n_actions = len(self.action_names)
+        self.reset()
+
+    def reset(self) -> np.ndarray:
+        self.target_r, self.target_v = circular_state(EARTH_RADIUS + 500.0, 0.0)
+        self.chaser_r, self.chaser_v = circular_state(EARTH_RADIUS + 485.0, -0.045)
+        self.elapsed = 0.0
+        self.fuel_delta_v = 0.0
+        self.previous_distance = norm(self.chaser_r - self.target_r)
+        return self.observation()
+
+    def observation(self) -> np.ndarray:
+        relative_r = self.chaser_r - self.target_r
+        relative_v = self.chaser_v - self.target_v
+        fuel_remaining = max(0.0, self.cfg.max_delta_v - self.fuel_delta_v)
+
+        return np.array(
+            [
+                relative_r[0] / self.cfg.distance_scale,
+                relative_r[1] / self.cfg.distance_scale,
+                relative_v[0] / self.cfg.speed_scale,
+                relative_v[1] / self.cfg.speed_scale,
+                self.chaser_r[0] / (EARTH_RADIUS + 500.0),
+                self.chaser_r[1] / (EARTH_RADIUS + 500.0),
+                self.target_r[0] / (EARTH_RADIUS + 500.0),
+                self.target_r[1] / (EARTH_RADIUS + 500.0),
+                fuel_remaining / self.cfg.max_delta_v,
+            ],
+            dtype=np.float64,
+        )
+
+    def step(self, action_index: int) -> tuple[np.ndarray, float, bool, dict[str, Any]]:
+        if action_index < 0 or action_index >= self.n_actions:
+            raise ValueError(f"action_index must be in [0, {self.n_actions - 1}]")
+
+        action = self.action_names[action_index]
+        sim = self.cfg.sim
+
+        if action != "coast":
+            self.fuel_delta_v += sim.max_thrust_accel * sim.dt
+
+        self.chaser_r, self.chaser_v = rk4_step(self.chaser_r, self.chaser_v, action, sim)
+        self.target_r, self.target_v = rk4_step(self.target_r, self.target_v, "coast", sim)
+        self.elapsed += sim.dt
+
+        distance = norm(self.chaser_r - self.target_r)
+        relative_speed = norm(self.chaser_v - self.target_v)
+        distance_progress = self.previous_distance - distance
+        self.previous_distance = distance
+
+        success = distance <= sim.success_distance and relative_speed <= sim.success_relative_speed
+        earth_collision = norm(self.chaser_r) <= EARTH_RADIUS
+        fuel_empty = self.fuel_delta_v >= self.cfg.max_delta_v
+        timed_out = self.elapsed >= sim.duration
+        unsafe_approach = distance <= self.cfg.unsafe_distance and not success
+
+        reward = 0.25 * distance_progress
+        reward -= 8.0 * relative_speed
+        if action != "coast":
+            reward -= 0.05
+
+        if success:
+            reward += 100.0
+        if unsafe_approach:
+            reward -= 50.0
+        if earth_collision:
+            reward -= 100.0
+        if fuel_empty and not success:
+            reward -= 20.0
+        if timed_out and not success:
+            reward -= 10.0
+
+        done = success or unsafe_approach or earth_collision or fuel_empty or timed_out
+        info = {
+            "action": action,
+            "distance_km": distance,
+            "relative_speed_km_s": relative_speed,
+            "fuel_delta_v_km_s": self.fuel_delta_v,
+            "elapsed_s": self.elapsed,
+            "success": success,
+            "unsafe_approach": unsafe_approach,
+            "earth_collision": earth_collision,
+            "fuel_empty": fuel_empty,
+            "timed_out": timed_out,
+        }
+
+        return self.observation(), reward, done, info
+

@@ -38,6 +38,18 @@ The spacecraft succeeds if it reaches a small distance from the target with low 
 
 Begin with a simple planner or Q-learning agent before moving to neural reinforcement learning.
 
+Current baseline:
+
+- `python/rendezvous_sim.py` runs a greedy lookahead planner.
+- `python/rendezvous_env.py` exposes the same physics as `reset()` and `step(action_index)`.
+- `python/random_policy.py` runs a random baseline through the environment.
+
+Next coding target:
+
+- discretize relative distance, relative speed, and fuel remaining
+- train a small Q-learning agent
+- compare success rate, fuel use, and final miss distance against the greedy planner and random policy
+
 Good later tools:
 
 - Gymnasium

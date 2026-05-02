@@ -63,12 +63,22 @@ Use both Python and C++ from the beginning.
 
 The first milestone is to keep a small rendezvous simulator in both languages so the project grows with a hybrid workflow from day one.
 
+## Current Next Step
+
+The first planner is a greedy lookahead baseline. The next AI milestone is to train a small tabular or linear agent against `python/rendezvous_env.py`, then compare it against both the random policy and the greedy planner.
+
 ## Running The First Simulations
 
 Python:
 
 ```bash
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/rendezvous_sim.py
+```
+
+Random policy baseline using the RL-style environment:
+
+```bash
+python3 python/random_policy.py
 ```
 
 C++ with CMake:

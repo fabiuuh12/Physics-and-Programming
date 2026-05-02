@@ -4,7 +4,6 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -178,6 +177,8 @@ def run_simulation(cfg: SimConfig) -> dict[str, np.ndarray | list[str]]:
 
 
 def save_plots(result: dict[str, np.ndarray | list[str]], output_dir: Path) -> None:
+    import matplotlib.pyplot as plt
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     times = result["times"]
