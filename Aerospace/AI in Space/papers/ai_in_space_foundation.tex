@@ -16,20 +16,26 @@
 \maketitle
 
 \begin{abstract}
-This paper defines the starting point for a long-term research project on autonomous spacecraft decision-making.
-The project combines orbital mechanics, numerical simulation, artificial intelligence, and later extensions into nuclear-electric propulsion, spacecraft power management, and relativistic navigation corrections.
-The first experiment is intentionally simple: a chaser spacecraft in low Earth orbit must choose thrust actions that reduce its relative distance to a target spacecraft while limiting relative velocity and fuel use.
-We introduce a first custom decision formula, the Rendezvous Intent Functional, and test it in both Python and C++ implementations.
+This note records the first working version of an AI-in-space project.
+The first problem is small on purpose: a chaser spacecraft in low Earth orbit tries to rendezvous with a target by choosing from five simple thrust actions.
+The goal is not to claim a finished autonomy system.
+The goal is to build a loop we can inspect: propagate the orbit, choose an action, measure the result, and compare that behavior against later learning agents.
+The current baseline uses a short-horizon scoring rule, which I call the Rendezvous Intent Functional.
+I also add an early tabular Q-learning scaffold and a randomized-scenario test, which immediately shows the difference between solving one setup and learning behavior that generalizes.
 \end{abstract}
 
 \section{Motivation}
 
 The goal of this project is to build an extensible simulation environment where spacecraft autonomy can be tested under increasingly realistic physical constraints.
-Rather than beginning with a fully trained neural network, we begin with a transparent decision rule that can be inspected, modified, and compared against future learning-based agents.
+I am not starting with a neural network because that would hide too much too early.
+The first version should be something I can understand, break, and improve without guessing what the model learned.
+For that reason, the first controller is a transparent lookahead rule.
+It is not elegant, and it is not final, but it gives the project a baseline that future agents have to beat.
 
 This direction is useful because autonomous spacecraft will need to make decisions when direct human control is delayed, unavailable, or too slow.
 Examples include satellite inspection, debris avoidance, lunar logistics, asteroid missions, deep-space navigation, and high-power electric propulsion missions.
-The long-term version of this project will let an agent reason about orbit, fuel, power, heat, sensor uncertainty, communication delay, radiation, and mission risk.
+The long-term version of this project should let an agent reason about orbit, fuel, power, heat, sensor uncertainty, communication delay, radiation, and mission risk.
+For now, the right move is to get the small rendezvous problem working cleanly.
 
 \section{First Scenario}
 
@@ -40,6 +46,10 @@ There are two spacecraft:
     \item a target spacecraft in a circular orbit at altitude \(500~\mathrm{km}\),
     \item a chaser spacecraft in a nearby circular orbit at altitude \(485~\mathrm{km}\), initially behind the target by \(0.045~\mathrm{rad}\).
 \end{itemize}
+
+This fixed setup is the starter case.
+After the first successful run, I added randomized scenarios where the target altitude, chaser altitude offset, and starting phase angle vary.
+That randomized version is more important for learning because a policy can no longer survive by memorizing one trajectory.
 
 The Earth gravitational parameter is
 \[
@@ -126,7 +136,7 @@ Let the closest predicted distance during the lookahead be
     \right\|.
 \]
 
-The first personalized decision formula for this project is the \textbf{Rendezvous Intent Functional}:
+The first decision formula for this project is the \textbf{Rendezvous Intent Functional}:
 
 \[
 \boxed{
@@ -185,7 +195,7 @@ The current simulation uses the unnormalized implementation
 \]
 where \(D_H\) is in kilometers, \(V_H\) is in kilometers per second, and \(C_f\) is a small burn penalty.
 This is not meant to be the final objective function.
-It is the first testable version: simple enough to understand, but structured enough to evolve.
+It is the first testable version: simple enough to debug, but structured enough to evolve.
 
 \section{What We Are Testing}
 
@@ -198,7 +208,7 @@ This first paper tests four basic ideas:
     \item whether this formula gives us a foundation that can later become a reinforcement learning reward or model predictive control objective.
 \end{enumerate}
 
-\section{First Simulation Result}
+\section{Fixed-Scenario Result}
 
 The first simulation ran for up to \(7200~\mathrm{s}\), with a new decision every \(60~\mathrm{s}\).
 The success condition was
@@ -237,6 +247,57 @@ Simulated time to success & \(90.2~\mathrm{min}\) \\
 \caption{Relative distance between the chaser and target over time.}
 \end{figure}
 
+\section{Randomized Scenarios and Q-Learning}
+
+After the fixed case worked, I converted the Python simulation into a small reinforcement-learning-style environment with \texttt{reset()} and \texttt{step(action)}.
+The first learning agent is deliberately modest: a tabular Q-learning policy with discretized relative geometry, relative velocity, fuel remaining, and decision time.
+It is warm-started from the greedy planner, so it should be treated as a learning scaffold rather than an independent solution.
+
+The important change is that the environment can now randomize the target altitude, chaser altitude offset, and initial phase angle.
+This immediately made the problem more honest.
+The greedy planner still gives a useful baseline, but the Q table struggles to generalize across randomized starts.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lr}
+\toprule
+Quantity & Value \\
+\midrule
+Randomized evaluation cases & \(24\) \\
+Q-learning successes & \(1\) \\
+Success rate & \(4.2\%\) \\
+Mean final range & \(136.33~\mathrm{km}\) \\
+Best final range & \(4.95~\mathrm{km}\) \\
+Mean final relative speed & \(0.1523~\mathrm{km/s}\) \\
+Mean approximate \(\Delta v\) & \(84.20~\mathrm{m/s}\) \\
+\bottomrule
+\end{tabular}
+\caption{Early randomized-scenario evaluation for the warm-started tabular Q-learning policy.}
+\end{table}
+
+One randomized replay is still encouraging.
+For seed \(10024\), the Q-learning policy succeeds:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lr}
+\toprule
+Quantity & Value \\
+\midrule
+Final range & \(4.95~\mathrm{km}\) \\
+Final relative speed & \(0.0146~\mathrm{km/s}\) \\
+Approximate \(\Delta v\) used & \(76.80~\mathrm{m/s}\) \\
+Simulated time to success & \(91.3~\mathrm{min}\) \\
+\bottomrule
+\end{tabular}
+\caption{Successful randomized Q-learning replay for seed \(10024\).}
+\end{table}
+
+The visual replay matters here.
+In that seed, the chaser appears to catch up to the target path instead of simply diving inward.
+The action mix is also different from the fixed greedy case: \(165\) coast steps, \(300\) radial-in steps, \(54\) radial-out steps, and \(30\) retrograde steps.
+That looks like the beginning of a reusable rendezvous pattern, but the low overall success rate shows that the policy does not yet know when to use that pattern.
+
 \section{Discussion}
 
 The result is promising because a very simple action evaluator was able to reduce range from roughly \(310~\mathrm{km}\) to under \(5~\mathrm{km}\) while satisfying the relative-speed constraint.
@@ -255,8 +316,10 @@ It means the project now has a working decision loop:
     \text{chosen action}.
 \]
 
-That loop is exactly what we need before introducing reinforcement learning.
-A neural policy can eventually learn to approximate or improve this decision process, while the transparent formula remains useful as a baseline.
+That loop is exactly what we need before serious reinforcement learning.
+The randomized tests also show why the baseline matters.
+One successful Q-learning replay can look good, but the multi-seed evaluation tells the truth: the current learner is not robust yet.
+That is useful, because now the project has a way to measure progress instead of only producing good-looking animations.
 
 \section{Next Steps}
 
@@ -282,7 +345,16 @@ For example, a future debris-aware version could use
 \]
 where \(d_i(a)\) is the predicted distance to object \(i\), \(d_{\mathrm{safe}}\) is the required safety distance, and \(\epsilon\) prevents division by zero.
 
-After this, the project should add:
+The immediate AI work is more specific:
+
+\begin{itemize}
+    \item improve the state bins for radial position, along-track position, radial velocity, and along-track velocity,
+    \item adjust the reward so the agent learns controlled closing speed instead of only reducing distance,
+    \item train on a wider but staged set of randomized scenarios,
+    \item compare every learner against the greedy planner, the random policy, and the fixed-scenario baseline.
+\end{itemize}
+
+After that, the project should add:
 
 \begin{itemize}
     \item debris avoidance,
@@ -296,10 +368,12 @@ After this, the project should add:
 
 \section{Conclusion}
 
-This first paper defines the foundation of the AI in Space project.
-The first simulation is deliberately small, but it already combines orbital mechanics, numerical integration, autonomous action selection, and measurable success criteria.
+This first paper defines the foundation of the AI in Space project, but it should be read as a lab note, not a finished result.
+The first simulation is deliberately small, but it already combines orbital mechanics, numerical integration, autonomous action selection, measurable success criteria, and visual replay.
 The Rendezvous Intent Functional is the first custom formula in the project.
-It is not final; it is a testable starting point that can evolve into safer, more physically complete, and more intelligent decision-making methods.
+It is not final; it is a testable starting point.
+The randomized Q-learning result is the more important lesson: the system can produce a successful learned-looking replay, but it does not yet generalize reliably.
+That is the next problem to solve.
 
 \section{Long-Term Aim: The Spacecraft Autonomy Functional}
 

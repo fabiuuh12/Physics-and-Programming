@@ -55,6 +55,31 @@ The fixed-scenario and randomized-scenario Q policies are stored separately so r
 - `simulations/q_learning/q_policy_fixed.json`
 - `simulations/q_learning/q_policy_randomized.json`
 
+## Observation From Randomized Replay
+
+The Q-learning randomized replay for seed `10024` is the first case where the learned table looks like it is doing something useful instead of only copying the fixed scenario.
+
+Result for `qlearn_randomized_seed_10024.gif`:
+
+- success: true
+- simulated time: 91.3 min
+- final distance: 4.95 km
+- final relative speed: 0.0146 km/s
+- delta-v used: 76.80 m/s
+- action counts: coast 165, radial-in 300, retrograde 30, radial-out 54
+
+The important visual behavior is that the chaser catches up to the target path instead of just diving inward. The radial-in actions appear to help phase the orbit, while radial-out and retrograde actions shape the late approach. That is a promising sign because it looks closer to reusable rendezvous behavior.
+
+But the full randomized evaluation is still weak:
+
+- randomized Q-learning evaluation: 1/24 successes
+- mean final distance: 136.33 km
+- best final distance: 4.95 km
+- mean relative speed: 0.1523 km/s
+- mean delta-v: 84.20 m/s
+
+So seed `10024` is evidence that the setup can work, not evidence that the policy is robust yet. The next learning problem is to make more seeds behave like `10024`.
+
 Next coding target:
 
 - compare success rate, fuel use, and final miss distance against the greedy planner and random policy
