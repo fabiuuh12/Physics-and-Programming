@@ -383,11 +383,13 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[dict[str, list[float]
     return data["q_table"], data["metadata"]
 
 
-def q_policy_action_index(env: RendezvousEnv, table: dict[str, list[float]]) -> int:
+def q_policy_action_index(env: RendezvousEnv, table: dict[str, list[float]], fallback_threshold: float = 0.0) -> int:
     state = discretize_state(env)
     if state not in table:
         return greedy_action_index(env)
-    values = q_values(table, state, env.n_actions)
+    values = table[state]
+    if max(values) <= fallback_threshold:
+        return greedy_action_index(env)
     return int(np.argmax(values))
 
 
