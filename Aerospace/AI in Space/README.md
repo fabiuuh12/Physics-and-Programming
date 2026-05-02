@@ -67,6 +67,8 @@ The first milestone is to keep a small rendezvous simulator in both languages so
 
 The first planner is a greedy lookahead baseline. The next AI milestone is to train a small tabular or linear agent against `python/rendezvous_env.py`, then compare it against both the random policy and the greedy planner.
 
+The current Q-learning policy is warm-started from the greedy planner so there is already a successful replay path. Future training should reduce that dependence by improving state bins, reward shaping, and randomized initial conditions.
+
 ## Running The First Simulations
 
 Python:
@@ -81,10 +83,18 @@ Random policy baseline using the RL-style environment:
 python3 python/random_policy.py
 ```
 
-Greedy episode animation:
+Train a first tabular Q-learning agent:
 
 ```bash
-MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py
+python3 python/q_learning.py
+```
+
+Episode animations:
+
+```bash
+MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy greedy
+MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy random
+MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy qlearn
 ```
 
 C++ with CMake:

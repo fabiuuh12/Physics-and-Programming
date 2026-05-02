@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import argparse
+import random
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-from rendezvous_sim import ACTIONS, EARTH_RADIUS, SimConfig, choose_action
+from q_learning import DEFAULT_POLICY_PATH, load_policy, q_policy_action_index
 from rendezvous_env import EnvConfig, RendezvousEnv
+from rendezvous_sim import EARTH_RADIUS, SimConfig, choose_action
 
 
 ACTION_COLORS = {
@@ -18,6 +23,9 @@ ACTION_COLORS = {
     "radial_out": "#f59e0b",
     "radial_in": "#3f83f8",
 }
+
+
+EpisodeResult = dict[str, np.ndarray | list[str] | list[bool]]
 
 
 def greedy_action_index(env: RendezvousEnv) -> int:
@@ -31,8 +39,27 @@ def greedy_action_index(env: RendezvousEnv) -> int:
     return env.action_names.index(action)
 
 
-def record_greedy_episode(env: RendezvousEnv) -> dict[str, np.ndarray | list[str] | list[bool]]:
+def select_action(
+    env: RendezvousEnv,
+    policy: str,
+    rng: random.Random,
+    q_table: dict[str, list[float]] | None,
+) -> int:
+    if policy == "greedy":
+        return greedy_action_index(env)
+    if policy == "random":
+        return rng.randrange(env.n_actions)
+    if policy == "qlearn":
+        if q_table is None:
+            raise ValueError("qlearn policy requires a loaded Q table")
+        return q_policy_action_index(env, q_table)
+    raise ValueError(f"Unknown policy: {policy}")
+
+
+def record_episode(policy: str, seed: int, q_table: dict[str, list[float]] | None = None) -> EpisodeResult:
+    env = RendezvousEnv(EnvConfig())
     env.reset()
+    rng = random.Random(seed)
     decision_steps = max(1, int(env.cfg.sim.decision_interval / env.cfg.sim.dt))
 
     chaser_positions: list[np.ndarray] = [env.chaser_r.copy()]
@@ -50,7 +77,8 @@ def record_greedy_episode(env: RendezvousEnv) -> dict[str, np.ndarray | list[str
     action_index = env.action_names.index("coast")
     while not done:
         if step % decision_steps == 0:
-            action_index = greedy_action_index(env)
+            action_index = select_action(env, policy, rng, q_table)
+
         _, reward, done, info = env.step(action_index)
         step += 1
 
@@ -77,9 +105,17 @@ def record_greedy_episode(env: RendezvousEnv) -> dict[str, np.ndarray | list[str
     }
 
 
-def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], output_path: Path) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
+def get_arrays(result: EpisodeResult) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    list[str],
+    list[bool],
+]:
     chaser_positions = result["chaser_positions"]
     target_positions = result["target_positions"]
     distances = result["distances"]
@@ -99,6 +135,23 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
     assert isinstance(times, np.ndarray)
     assert isinstance(actions, list)
     assert isinstance(success, list)
+
+    return chaser_positions, target_positions, distances, relative_speeds, fuel_used, rewards, times, actions, success
+
+
+def save_episode_gif(result: EpisodeResult, output_path: Path, policy: str) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    (
+        chaser_positions,
+        target_positions,
+        distances,
+        relative_speeds,
+        fuel_used,
+        rewards,
+        times,
+        actions,
+        success,
+    ) = get_arrays(result)
 
     frame_stride = 4
     frame_indices = list(range(0, len(times), frame_stride))
@@ -120,7 +173,7 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
             spine.set_color("#374151")
 
     orbit_ax.set_aspect("equal", adjustable="box")
-    orbit_ax.set_title("Autonomous Rendezvous Episode", color="#f9fafb", fontsize=13)
+    orbit_ax.set_title(f"{policy.title()} Rendezvous Episode", color="#f9fafb", fontsize=13)
     orbit_ax.set_xlabel("x position (km)", color="#d1d5db")
     orbit_ax.set_ylabel("y position (km)", color="#d1d5db")
 
@@ -140,6 +193,18 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
     chaser_marker = orbit_ax.scatter([], [], s=65, color="#38bdf8", edgecolor="#111827", zorder=5)
     thrust_line, = orbit_ax.plot([], [], color="#f59e0b", linewidth=2.5, alpha=0.9)
     orbit_ax.legend(facecolor="#111827", edgecolor="#374151", labelcolor="#f9fafb", loc="upper left")
+
+    zoom_ax = inset_axes(orbit_ax, width="37%", height="37%", loc="lower right", borderpad=1.2)
+    zoom_ax.set_facecolor("#111827")
+    zoom_ax.set_aspect("equal", adjustable="box")
+    zoom_ax.tick_params(colors="#d1d5db", labelsize=7)
+    for spine in zoom_ax.spines.values():
+        spine.set_color("#64748b")
+    zoom_ax.set_title("final approach", color="#f9fafb", fontsize=8)
+    zoom_target_path, = zoom_ax.plot([], [], color="#e5e7eb", linewidth=1.3)
+    zoom_chaser_path, = zoom_ax.plot([], [], color="#38bdf8", linewidth=1.5)
+    zoom_target_marker = zoom_ax.scatter([], [], s=28, color="#f9fafb", edgecolor="#111827", zorder=4)
+    zoom_chaser_marker = zoom_ax.scatter([], [], s=34, color="#38bdf8", edgecolor="#111827", zorder=5)
 
     telemetry_ax.set_title("Episode Telemetry", color="#f9fafb", fontsize=13)
     telemetry_ax.set_xlabel("time (min)", color="#d1d5db")
@@ -170,7 +235,7 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
         va="bottom",
     )
 
-    def update(frame_index: int):
+    def update(frame_index: int) -> tuple[Any, ...]:
         action = actions[frame_index]
         color = ACTION_COLORS[action]
 
@@ -192,6 +257,24 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
                 thrust_line.set_data([start[0], end[0]], [start[1], end[1]])
                 thrust_line.set_color(color)
 
+        zoom_start = max(0, frame_index - 80)
+        zoom_points = np.vstack(
+            [
+                target_positions[zoom_start : frame_index + 1],
+                chaser_positions[zoom_start : frame_index + 1],
+            ]
+        )
+        zoom_center = zoom_points.mean(axis=0)
+        zoom_span = max(float(np.ptp(zoom_points, axis=0).max()), 20.0)
+        zoom_half_width = max(20.0, zoom_span * 0.65)
+        zoom_ax.set_xlim(zoom_center[0] - zoom_half_width, zoom_center[0] + zoom_half_width)
+        zoom_ax.set_ylim(zoom_center[1] - zoom_half_width, zoom_center[1] + zoom_half_width)
+        zoom_target_path.set_data(target_positions[zoom_start : frame_index + 1, 0], target_positions[zoom_start : frame_index + 1, 1])
+        zoom_chaser_path.set_data(chaser_positions[zoom_start : frame_index + 1, 0], chaser_positions[zoom_start : frame_index + 1, 1])
+        zoom_target_marker.set_offsets(target_positions[frame_index])
+        zoom_chaser_marker.set_offsets(chaser_positions[frame_index])
+        zoom_chaser_marker.set_color(color if action != "coast" else "#38bdf8")
+
         distance_line.set_data(times[: frame_index + 1], distances[: frame_index + 1])
         cursor_line.set_xdata([times[frame_index], times[frame_index]])
 
@@ -210,6 +293,10 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
             target_marker,
             chaser_marker,
             thrust_line,
+            zoom_target_path,
+            zoom_chaser_path,
+            zoom_target_marker,
+            zoom_chaser_marker,
             distance_line,
             cursor_line,
             status_text,
@@ -220,27 +307,45 @@ def save_episode_gif(result: dict[str, np.ndarray | list[str] | list[bool]], out
     plt.close(fig)
 
 
+def default_output_path(policy: str) -> Path:
+    return Path(__file__).resolve().parents[1] / "simulations" / "episode_viz" / f"{policy}_rendezvous.gif"
+
+
 def main() -> None:
-    env = RendezvousEnv(EnvConfig())
-    result = record_greedy_episode(env)
-    output_path = Path(__file__).resolve().parents[1] / "simulations" / "episode_viz" / "greedy_rendezvous.gif"
-    save_episode_gif(result, output_path)
+    parser = argparse.ArgumentParser(description="Render a rendezvous policy replay as an animated GIF.")
+    parser.add_argument("--policy", choices=["greedy", "random", "qlearn"], default="greedy")
+    parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--q-policy", type=Path, default=DEFAULT_POLICY_PATH)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
 
-    actions = result["actions"]
-    distances = result["distances"]
-    relative_speeds = result["relative_speeds"]
-    fuel_used = result["fuel_used"]
-    times = result["times"]
-    success = result["success"]
+    q_table = None
+    if args.policy == "qlearn":
+        q_table, metadata = load_policy(args.q_policy)
+        print(
+            "loaded q-learning policy:"
+            f" episodes={metadata['episodes']}"
+            f" training_successes={metadata['successes']}"
+            f" states={metadata['states']}"
+        )
 
-    assert isinstance(actions, list)
-    assert isinstance(distances, np.ndarray)
-    assert isinstance(relative_speeds, np.ndarray)
-    assert isinstance(fuel_used, np.ndarray)
-    assert isinstance(times, np.ndarray)
-    assert isinstance(success, list)
+    result = record_episode(args.policy, args.seed, q_table)
+    output_path = args.output or default_output_path(args.policy)
+    save_episode_gif(result, output_path, args.policy)
 
-    print("Greedy rendezvous episode visualization")
+    (
+        _,
+        _,
+        distances,
+        relative_speeds,
+        fuel_used,
+        _,
+        times,
+        actions,
+        success,
+    ) = get_arrays(result)
+
+    print(f"{args.policy.title()} rendezvous episode visualization")
     print(f"success: {success[-1]}")
     print(f"simulated time: {times[-1]:.1f} min")
     print(f"final distance: {distances[-1]:.2f} km")

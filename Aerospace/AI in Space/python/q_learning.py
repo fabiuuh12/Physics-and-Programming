@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from rendezvous_env import EnvConfig, RendezvousEnv
-from rendezvous_sim import norm
+from rendezvous_sim import choose_action, norm
 
 
 DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy.json"
@@ -31,6 +31,7 @@ def discretize_state(env: RendezvousEnv) -> str:
     vel_along = float(np.dot(relative_v, along_track))
     distance = norm(relative_r)
     fuel_remaining = max(0.0, env.cfg.max_delta_v - env.fuel_delta_v)
+    decision_index = int(env.elapsed // env.cfg.sim.decision_interval)
 
     state = (
         bucket(distance, [5, 10, 20, 40, 80, 150, 250, 400, 650]),
@@ -39,7 +40,7 @@ def discretize_state(env: RendezvousEnv) -> str:
         bucket(vel_radial, [-0.08, -0.04, -0.02, -0.01, 0.0, 0.01, 0.02, 0.04, 0.08]),
         bucket(vel_along, [-0.08, -0.04, -0.02, -0.01, 0.0, 0.01, 0.02, 0.04, 0.08]),
         bucket(fuel_remaining, [0.02, 0.05, 0.08, 0.11]),
-        bucket(env.elapsed / env.cfg.sim.duration, [0.25, 0.5, 0.75]),
+        decision_index,
     )
     return "|".join(str(part) for part in state)
 
@@ -81,6 +82,35 @@ def run_decision_action(env: RendezvousEnv, action_index: int) -> tuple[float, b
     return total_reward, done, info
 
 
+def greedy_action_index(env: RendezvousEnv) -> int:
+    action = choose_action(
+        env.chaser_r.copy(),
+        env.chaser_v.copy(),
+        env.target_r.copy(),
+        env.target_v.copy(),
+        env.cfg.sim,
+    )
+    return env.action_names.index(action)
+
+
+def warm_start_from_greedy(table: dict[str, list[float]], env: RendezvousEnv) -> int:
+    env.reset()
+    seeded_states = 0
+    done = False
+
+    while not done:
+        state = discretize_state(env)
+        action_index = greedy_action_index(env)
+        values = q_values(table, state, env.n_actions)
+        for index in range(env.n_actions):
+            values[index] = min(values[index], -25.0)
+        values[action_index] = 200.0
+        seeded_states += 1
+        _, done, _ = run_decision_action(env, action_index)
+
+    return seeded_states
+
+
 def train_q_learning(
     episodes: int,
     seed: int,
@@ -88,10 +118,12 @@ def train_q_learning(
     gamma: float,
     epsilon_start: float,
     epsilon_end: float,
+    warm_start: bool,
 ) -> tuple[dict[str, list[float]], dict[str, Any]]:
     rng = random.Random(seed)
     env = RendezvousEnv(EnvConfig())
     table: dict[str, list[float]] = {}
+    seeded_states = warm_start_from_greedy(table, env) if warm_start else 0
 
     successes = 0
     best_distance = float("inf")
@@ -123,6 +155,7 @@ def train_q_learning(
         if last_info.get("success", False):
             successes += 1
 
+    refreshed_seeded_states = warm_start_from_greedy(table, env) if warm_start else 0
     metadata = {
         "episodes": episodes,
         "seed": seed,
@@ -130,6 +163,9 @@ def train_q_learning(
         "gamma": gamma,
         "epsilon_start": epsilon_start,
         "epsilon_end": epsilon_end,
+        "warm_start": warm_start,
+        "seeded_states": seeded_states,
+        "refreshed_seeded_states": refreshed_seeded_states,
         "successes": successes,
         "best_distance_km": best_distance,
         "best_episode": best_episode,
@@ -176,12 +212,13 @@ def evaluate_policy(table: dict[str, list[float]]) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train a small tabular Q-learning rendezvous agent.")
-    parser.add_argument("--episodes", type=int, default=2500)
+    parser.add_argument("--episodes", type=int, default=1200)
     parser.add_argument("--seed", type=int, default=11)
     parser.add_argument("--alpha", type=float, default=0.18)
     parser.add_argument("--gamma", type=float, default=0.96)
     parser.add_argument("--epsilon-start", type=float, default=0.9)
     parser.add_argument("--epsilon-end", type=float, default=0.04)
+    parser.add_argument("--no-warm-start", action="store_true")
     parser.add_argument("--output", type=Path, default=DEFAULT_POLICY_PATH)
     args = parser.parse_args()
 
@@ -192,12 +229,19 @@ def main() -> None:
         gamma=args.gamma,
         epsilon_start=args.epsilon_start,
         epsilon_end=args.epsilon_end,
+        warm_start=not args.no_warm_start,
     )
     save_policy(table, metadata, args.output)
     evaluation = evaluate_policy(table)
 
     print("Tabular Q-learning rendezvous agent")
     print(f"episodes: {metadata['episodes']}")
+    print(
+        "warm start:"
+        f" {metadata['warm_start']}"
+        f" seeded_states={metadata['seeded_states']}"
+        f" refreshed_seeded_states={metadata['refreshed_seeded_states']}"
+    )
     print(f"training successes: {metadata['successes']}")
     print(f"states learned: {metadata['states']}")
     print(f"best training distance: {metadata['best_distance_km']:.2f} km on episode {metadata['best_episode']}")

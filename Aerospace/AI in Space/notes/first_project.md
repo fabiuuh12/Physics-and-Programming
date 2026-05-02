@@ -43,13 +43,16 @@ Current baseline:
 - `python/rendezvous_sim.py` runs a greedy lookahead planner.
 - `python/rendezvous_env.py` exposes the same physics as `reset()` and `step(action_index)`.
 - `python/random_policy.py` runs a random baseline through the environment.
-- `python/episode_viz.py` exports a GIF replay of the greedy rendezvous episode.
+- `python/q_learning.py` trains a first tabular Q-learning policy.
+- `python/episode_viz.py` exports GIF replays for greedy, random, and Q-learning policies.
+
+The first Q-learning policy is warm-started from the greedy planner. Treat it as the starting scaffold for learning experiments, not as proof that tabular Q-learning has independently solved rendezvous yet.
 
 Next coding target:
 
-- discretize relative distance, relative speed, and fuel remaining
-- train a small Q-learning agent
 - compare success rate, fuel use, and final miss distance against the greedy planner and random policy
+- improve Q-learning state bins and reward shaping until it reliably beats random
+- add randomized starting conditions so the agent learns a more general rendezvous strategy
 
 Good later tools:
 
