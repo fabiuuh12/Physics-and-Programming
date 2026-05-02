@@ -8,13 +8,21 @@ from typing import Any
 
 import numpy as np
 
-from rendezvous_env import EnvConfig, RendezvousEnv
+from rendezvous_env import Difficulty, EnvConfig, RendezvousEnv
 from rendezvous_sim import choose_action, norm
 
 
 DEFAULT_FIXED_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy_fixed.json"
 DEFAULT_RANDOMIZED_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy_randomized.json"
 DEFAULT_POLICY_PATH = DEFAULT_FIXED_POLICY_PATH
+
+
+def default_policy_path(randomized: bool, difficulty: Difficulty) -> Path:
+    if not randomized:
+        return DEFAULT_FIXED_POLICY_PATH
+    if difficulty == "full":
+        return DEFAULT_RANDOMIZED_POLICY_PATH
+    return Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / f"q_policy_{difficulty}.json"
 
 
 def bucket(value: float, edges: list[float]) -> int:
@@ -100,6 +108,7 @@ def warm_start_from_greedy(
     env: RendezvousEnv,
     *,
     randomized: bool,
+    difficulty: Difficulty,
     seed: int,
     scenarios: int,
 ) -> int:
@@ -107,7 +116,7 @@ def warm_start_from_greedy(
     effective_scenarios = scenarios if randomized else 1
 
     for scenario_index in range(max(1, effective_scenarios)):
-        env.reset(randomize=randomized, seed=seed + scenario_index)
+        env.reset(randomize=randomized, seed=seed + scenario_index, difficulty=difficulty)
         done = False
 
         while not done:
@@ -132,6 +141,7 @@ def train_q_learning(
     epsilon_end: float,
     warm_start: bool,
     randomized: bool,
+    difficulty: Difficulty,
     warm_start_scenarios: int,
 ) -> tuple[dict[str, list[float]], dict[str, Any]]:
     rng = random.Random(seed)
@@ -142,6 +152,7 @@ def train_q_learning(
             table,
             env,
             randomized=randomized,
+            difficulty=difficulty,
             seed=seed,
             scenarios=warm_start_scenarios,
         )
@@ -155,7 +166,7 @@ def train_q_learning(
     last_info: dict[str, Any] = {}
 
     for episode in range(episodes):
-        env.reset(randomize=randomized, seed=seed + episode)
+        env.reset(randomize=randomized, seed=seed + episode, difficulty=difficulty)
         fraction = episode / max(1, episodes - 1)
         epsilon = epsilon_start * (1.0 - fraction) + epsilon_end * fraction
         done = False
@@ -184,6 +195,7 @@ def train_q_learning(
             table,
             env,
             randomized=randomized,
+            difficulty=difficulty,
             seed=seed,
             scenarios=warm_start_scenarios,
         )
@@ -199,6 +211,7 @@ def train_q_learning(
         "epsilon_end": epsilon_end,
         "warm_start": warm_start,
         "randomized": randomized,
+        "difficulty": difficulty,
         "warm_start_scenarios": warm_start_scenarios,
         "seeded_states": seeded_states,
         "refreshed_seeded_states": refreshed_seeded_states,
@@ -227,9 +240,15 @@ def q_policy_action_index(env: RendezvousEnv, table: dict[str, list[float]]) -> 
     return int(np.argmax(values))
 
 
-def evaluate_one_policy(table: dict[str, list[float]], *, randomize: bool, seed: int) -> dict[str, Any]:
+def evaluate_one_policy(
+    table: dict[str, list[float]],
+    *,
+    randomize: bool,
+    seed: int,
+    difficulty: Difficulty = "full",
+) -> dict[str, Any]:
     env = RendezvousEnv(EnvConfig())
-    env.reset(randomize=randomize, seed=seed)
+    env.reset(randomize=randomize, seed=seed, difficulty=difficulty)
     done = False
     total_reward = 0.0
     info: dict[str, Any] = {}
@@ -252,8 +271,12 @@ def evaluate_policy(
     randomize: bool,
     seed: int,
     episodes: int,
+    difficulty: Difficulty = "full",
 ) -> dict[str, Any]:
-    runs = [evaluate_one_policy(table, randomize=randomize, seed=seed + index) for index in range(episodes)]
+    runs = [
+        evaluate_one_policy(table, randomize=randomize, seed=seed + index, difficulty=difficulty)
+        for index in range(episodes)
+    ]
     successes = sum(1 for run in runs if run["success"])
     distances = np.array([run["distance_km"] for run in runs], dtype=np.float64)
     speeds = np.array([run["relative_speed_km_s"] for run in runs], dtype=np.float64)
@@ -282,11 +305,12 @@ def main() -> None:
     parser.add_argument("--epsilon-end", type=float, default=0.04)
     parser.add_argument("--no-warm-start", action="store_true")
     parser.add_argument("--randomized", action="store_true")
+    parser.add_argument("--difficulty", choices=["easy", "medium", "full"], default="full")
     parser.add_argument("--warm-start-scenarios", type=int, default=24)
     parser.add_argument("--eval-episodes", type=int, default=24)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    output_path = args.output or (DEFAULT_RANDOMIZED_POLICY_PATH if args.randomized else DEFAULT_FIXED_POLICY_PATH)
+    output_path = args.output or default_policy_path(args.randomized, args.difficulty)
 
     table, metadata = train_q_learning(
         episodes=args.episodes,
@@ -297,6 +321,7 @@ def main() -> None:
         epsilon_end=args.epsilon_end,
         warm_start=not args.no_warm_start,
         randomized=args.randomized,
+        difficulty=args.difficulty,
         warm_start_scenarios=args.warm_start_scenarios,
     )
     save_policy(table, metadata, output_path)
@@ -305,6 +330,7 @@ def main() -> None:
         randomize=args.randomized,
         seed=args.seed + 10_000,
         episodes=args.eval_episodes,
+        difficulty=args.difficulty,
     )
 
     print("Tabular Q-learning rendezvous agent")
@@ -313,6 +339,7 @@ def main() -> None:
         "warm start:"
         f" {metadata['warm_start']}"
         f" randomized={metadata['randomized']}"
+        f" difficulty={metadata['difficulty']}"
         f" warm_start_scenarios={metadata['warm_start_scenarios']}"
         f" seeded_states={metadata['seeded_states']}"
         f" refreshed_seeded_states={metadata['refreshed_seeded_states']}"

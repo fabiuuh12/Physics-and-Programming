@@ -10,11 +10,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a random rendezvous policy baseline.")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--randomized", action="store_true")
+    parser.add_argument("--difficulty", choices=["easy", "medium", "full"], default="full")
     args = parser.parse_args()
 
     env = RendezvousEnv()
     rng = random.Random(args.seed)
-    env.reset(randomize=args.randomized, seed=args.seed)
+    env.reset(randomize=args.randomized, seed=args.seed, difficulty=args.difficulty)
 
     total_reward = 0.0
     done = False

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -13,6 +13,9 @@ from rendezvous_sim import (
     norm,
     rk4_step,
 )
+
+
+Difficulty = Literal["easy", "medium", "full"]
 
 
 @dataclass(frozen=True)
@@ -41,11 +44,24 @@ class RendezvousEnv:
         self.n_actions = len(self.action_names)
         self.reset()
 
-    def sample_scenario(self, seed: int | None = None) -> Scenario:
+    def sample_scenario(self, seed: int | None = None, difficulty: Difficulty = "full") -> Scenario:
         rng = np.random.default_rng(seed)
-        target_altitude = float(rng.uniform(480.0, 540.0))
-        chaser_offset = float(rng.uniform(-35.0, -8.0))
-        phase_angle = float(rng.uniform(-0.08, -0.025))
+
+        if difficulty == "easy":
+            target_altitude = float(rng.uniform(495.0, 505.0))
+            chaser_offset = float(rng.uniform(-20.0, -12.0))
+            phase_angle = float(rng.uniform(-0.052, -0.038))
+        elif difficulty == "medium":
+            target_altitude = float(rng.uniform(490.0, 520.0))
+            chaser_offset = float(rng.uniform(-28.0, -10.0))
+            phase_angle = float(rng.uniform(-0.065, -0.032))
+        elif difficulty == "full":
+            target_altitude = float(rng.uniform(480.0, 540.0))
+            chaser_offset = float(rng.uniform(-35.0, -8.0))
+            phase_angle = float(rng.uniform(-0.08, -0.025))
+        else:
+            raise ValueError(f"Unknown difficulty: {difficulty}")
+
         return Scenario(
             target_altitude_km=target_altitude,
             chaser_altitude_km=target_altitude + chaser_offset,
@@ -59,11 +75,13 @@ class RendezvousEnv:
         *,
         randomize: bool = False,
         seed: int | None = None,
+        difficulty: Difficulty = "full",
     ) -> np.ndarray:
         if scenario is not None and randomize:
             raise ValueError("Pass either scenario or randomize=True, not both")
 
-        self.scenario = scenario or (self.sample_scenario(seed) if randomize else Scenario())
+        self.difficulty = difficulty
+        self.scenario = scenario or (self.sample_scenario(seed, difficulty) if randomize else Scenario())
         self.target_r, self.target_v = circular_state(
             EARTH_RADIUS + self.scenario.target_altitude_km,
             self.scenario.target_angle_rad,

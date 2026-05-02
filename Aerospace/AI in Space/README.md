@@ -69,7 +69,7 @@ The first planner is a greedy lookahead baseline. The next AI milestone is to tr
 
 The current Q-learning policy is warm-started from the greedy planner so there is already a successful replay path. Future training should reduce that dependence by improving state bins, reward shaping, and randomized initial conditions.
 
-Randomized scenarios vary target altitude, chaser altitude, and starting phase angle. Use them to check whether a policy is learning a reusable strategy instead of memorizing the first setup.
+Randomized scenarios vary target altitude, chaser altitude, and starting phase angle. Use them to check whether a policy is learning a reusable strategy instead of memorizing the first setup. Difficulty levels stage the spread as `easy`, `medium`, and `full`.
 
 ## Running The First Simulations
 
@@ -84,6 +84,7 @@ Random policy baseline using the RL-style environment:
 ```bash
 python3 python/random_policy.py
 python3 python/random_policy.py --randomized --seed 21
+python3 python/random_policy.py --randomized --difficulty easy --seed 21
 ```
 
 Train a first tabular Q-learning agent:
@@ -91,9 +92,19 @@ Train a first tabular Q-learning agent:
 ```bash
 python3 python/q_learning.py
 python3 python/q_learning.py --randomized --episodes 1200
+python3 python/q_learning.py --randomized --difficulty easy --episodes 1200
+python3 python/policy_eval.py --difficulty easy
 ```
 
-The fixed run writes `simulations/q_learning/q_policy_fixed.json`. The randomized run writes `simulations/q_learning/q_policy_randomized.json`.
+The fixed run writes `simulations/q_learning/q_policy_fixed.json`. Randomized curriculum runs write policies such as `simulations/q_learning/q_policy_easy.json`, `q_policy_medium.json`, and `q_policy_randomized.json` for the full range.
+
+Current easy-difficulty comparison over 24 seeds:
+
+- random: 0/24 successes
+- greedy: 20/24 successes
+- qlearn: 1/24 successes
+
+The tabular learner closes distance better than random, but it does not yet learn the switching behavior that the greedy lookahead planner finds.
 
 Episode animations:
 
@@ -102,6 +113,7 @@ MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy random
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy qlearn
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy qlearn --randomized --seed 10024
+MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy qlearn --randomized --difficulty easy --seed 10024
 ```
 
 C++ with CMake:
