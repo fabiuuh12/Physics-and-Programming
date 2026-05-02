@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+import argparse
+import json
+import random
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from rendezvous_env import EnvConfig, RendezvousEnv
+from rendezvous_sim import norm
+
+
+DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy.json"
+
+
+def bucket(value: float, edges: list[float]) -> int:
+    return int(np.digitize([value], edges)[0])
+
+
+def discretize_state(env: RendezvousEnv) -> str:
+    relative_r = env.chaser_r - env.target_r
+    relative_v = env.chaser_v - env.target_v
+    radial = env.target_r / norm(env.target_r)
+    along_track = env.target_v / norm(env.target_v)
+
+    rel_radial = float(np.dot(relative_r, radial))
+    rel_along = float(np.dot(relative_r, along_track))
+    vel_radial = float(np.dot(relative_v, radial))
+    vel_along = float(np.dot(relative_v, along_track))
+    distance = norm(relative_r)
+    fuel_remaining = max(0.0, env.cfg.max_delta_v - env.fuel_delta_v)
+
+    state = (
+        bucket(distance, [5, 10, 20, 40, 80, 150, 250, 400, 650]),
+        bucket(rel_radial, [-80, -40, -20, -10, -5, 0, 5, 10, 20, 40, 80]),
+        bucket(rel_along, [-500, -300, -150, -75, -30, -10, 0, 10, 30, 75, 150, 300, 500]),
+        bucket(vel_radial, [-0.08, -0.04, -0.02, -0.01, 0.0, 0.01, 0.02, 0.04, 0.08]),
+        bucket(vel_along, [-0.08, -0.04, -0.02, -0.01, 0.0, 0.01, 0.02, 0.04, 0.08]),
+        bucket(fuel_remaining, [0.02, 0.05, 0.08, 0.11]),
+        bucket(env.elapsed / env.cfg.sim.duration, [0.25, 0.5, 0.75]),
+    )
+    return "|".join(str(part) for part in state)
+
+
+def q_values(table: dict[str, list[float]], state: str, n_actions: int) -> list[float]:
+    if state not in table:
+        table[state] = [0.0] * n_actions
+    return table[state]
+
+
+def choose_q_action(
+    table: dict[str, list[float]],
+    state: str,
+    n_actions: int,
+    rng: random.Random,
+    epsilon: float,
+) -> int:
+    if rng.random() < epsilon:
+        return rng.randrange(n_actions)
+
+    values = q_values(table, state, n_actions)
+    best_value = max(values)
+    best_actions = [index for index, value in enumerate(values) if value == best_value]
+    return rng.choice(best_actions)
+
+
+def run_decision_action(env: RendezvousEnv, action_index: int) -> tuple[float, bool, dict[str, Any]]:
+    decision_steps = max(1, int(env.cfg.sim.decision_interval / env.cfg.sim.dt))
+    total_reward = 0.0
+    done = False
+    info: dict[str, Any] = {}
+
+    for _ in range(decision_steps):
+        _, reward, done, info = env.step(action_index)
+        total_reward += reward
+        if done:
+            break
+
+    return total_reward, done, info
+
+
+def train_q_learning(
+    episodes: int,
+    seed: int,
+    alpha: float,
+    gamma: float,
+    epsilon_start: float,
+    epsilon_end: float,
+) -> tuple[dict[str, list[float]], dict[str, Any]]:
+    rng = random.Random(seed)
+    env = RendezvousEnv(EnvConfig())
+    table: dict[str, list[float]] = {}
+
+    successes = 0
+    best_distance = float("inf")
+    best_episode = 0
+    last_info: dict[str, Any] = {}
+
+    for episode in range(episodes):
+        env.reset()
+        fraction = episode / max(1, episodes - 1)
+        epsilon = epsilon_start * (1.0 - fraction) + epsilon_end * fraction
+        done = False
+
+        while not done:
+            state = discretize_state(env)
+            action_index = choose_q_action(table, state, env.n_actions, rng, epsilon)
+            reward, done, info = run_decision_action(env, action_index)
+            next_state = discretize_state(env)
+
+            values = q_values(table, state, env.n_actions)
+            next_values = q_values(table, next_state, env.n_actions)
+            target = reward if done else reward + gamma * max(next_values)
+            values[action_index] += alpha * (target - values[action_index])
+            last_info = info
+
+        final_distance = float(last_info.get("distance_km", float("inf")))
+        if final_distance < best_distance:
+            best_distance = final_distance
+            best_episode = episode + 1
+        if last_info.get("success", False):
+            successes += 1
+
+    metadata = {
+        "episodes": episodes,
+        "seed": seed,
+        "alpha": alpha,
+        "gamma": gamma,
+        "epsilon_start": epsilon_start,
+        "epsilon_end": epsilon_end,
+        "successes": successes,
+        "best_distance_km": best_distance,
+        "best_episode": best_episode,
+        "states": len(table),
+        "actions": list(env.action_names),
+    }
+    return table, metadata
+
+
+def save_policy(table: dict[str, list[float]], metadata: dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"metadata": metadata, "q_table": table}, indent=2), encoding="utf-8")
+
+
+def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[dict[str, list[float]], dict[str, Any]]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return data["q_table"], data["metadata"]
+
+
+def q_policy_action_index(env: RendezvousEnv, table: dict[str, list[float]]) -> int:
+    state = discretize_state(env)
+    values = q_values(table, state, env.n_actions)
+    return int(np.argmax(values))
+
+
+def evaluate_policy(table: dict[str, list[float]]) -> dict[str, Any]:
+    env = RendezvousEnv(EnvConfig())
+    env.reset()
+    done = False
+    total_reward = 0.0
+    info: dict[str, Any] = {}
+    decisions = 0
+
+    while not done:
+        action_index = q_policy_action_index(env, table)
+        reward, done, info = run_decision_action(env, action_index)
+        total_reward += reward
+        decisions += 1
+
+    info["total_reward"] = total_reward
+    info["decisions"] = decisions
+    return info
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Train a small tabular Q-learning rendezvous agent.")
+    parser.add_argument("--episodes", type=int, default=2500)
+    parser.add_argument("--seed", type=int, default=11)
+    parser.add_argument("--alpha", type=float, default=0.18)
+    parser.add_argument("--gamma", type=float, default=0.96)
+    parser.add_argument("--epsilon-start", type=float, default=0.9)
+    parser.add_argument("--epsilon-end", type=float, default=0.04)
+    parser.add_argument("--output", type=Path, default=DEFAULT_POLICY_PATH)
+    args = parser.parse_args()
+
+    table, metadata = train_q_learning(
+        episodes=args.episodes,
+        seed=args.seed,
+        alpha=args.alpha,
+        gamma=args.gamma,
+        epsilon_start=args.epsilon_start,
+        epsilon_end=args.epsilon_end,
+    )
+    save_policy(table, metadata, args.output)
+    evaluation = evaluate_policy(table)
+
+    print("Tabular Q-learning rendezvous agent")
+    print(f"episodes: {metadata['episodes']}")
+    print(f"training successes: {metadata['successes']}")
+    print(f"states learned: {metadata['states']}")
+    print(f"best training distance: {metadata['best_distance_km']:.2f} km on episode {metadata['best_episode']}")
+    print(f"evaluation success: {evaluation['success']}")
+    print(f"evaluation decisions: {evaluation['decisions']}")
+    print(f"evaluation time: {evaluation['elapsed_s'] / 60.0:.1f} min")
+    print(f"evaluation final distance: {evaluation['distance_km']:.2f} km")
+    print(f"evaluation relative speed: {evaluation['relative_speed_km_s']:.4f} km/s")
+    print(f"evaluation delta-v: {evaluation['fuel_delta_v_km_s'] * 1000.0:.2f} m/s")
+    print(f"policy written to: {args.output}")
+
+
+if __name__ == "__main__":
+    main()
