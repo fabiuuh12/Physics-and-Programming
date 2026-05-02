@@ -280,6 +280,84 @@ def train_q_learning(
     return table, metadata
 
 
+def train_best_q_learning(
+    *,
+    trials: int,
+    eval_episodes: int,
+    episodes: int,
+    seed: int,
+    alpha: float,
+    gamma: float,
+    epsilon_start: float,
+    epsilon_end: float,
+    warm_start: bool,
+    randomized: bool,
+    difficulty: Difficulty,
+    warm_start_scenarios: int,
+) -> tuple[dict[str, list[float]], dict[str, Any], dict[str, Any]]:
+    best_table: dict[str, list[float]] | None = None
+    best_metadata: dict[str, Any] | None = None
+    best_evaluation: dict[str, Any] | None = None
+
+    for trial in range(trials):
+        trial_seed = seed + trial * 10_000
+        table, metadata = train_q_learning(
+            episodes=episodes,
+            seed=trial_seed,
+            alpha=alpha,
+            gamma=gamma,
+            epsilon_start=epsilon_start,
+            epsilon_end=epsilon_end,
+            warm_start=warm_start,
+            randomized=randomized,
+            difficulty=difficulty,
+            warm_start_scenarios=warm_start_scenarios,
+        )
+        evaluation = evaluate_policy(
+            table,
+            randomize=randomized,
+            seed=seed + 10_000,
+            episodes=eval_episodes,
+            difficulty=difficulty,
+        )
+        metadata["trial"] = trial + 1
+        metadata["trial_seed"] = trial_seed
+
+        if best_evaluation is None:
+            is_better = True
+        else:
+            current_key = (
+                evaluation["successes"],
+                -evaluation["median_final_distance_km"],
+                -evaluation["mean_final_distance_km"],
+            )
+            best_key = (
+                best_evaluation["successes"],
+                -best_evaluation["median_final_distance_km"],
+                -best_evaluation["mean_final_distance_km"],
+            )
+            is_better = current_key > best_key
+
+        print(
+            f"trial {trial + 1}/{trials}:"
+            f" seed={trial_seed}"
+            f" success={evaluation['successes']}/{evaluation['episodes']}"
+            f" median_distance={evaluation['median_final_distance_km']:.2f} km"
+            f" mean_distance={evaluation['mean_final_distance_km']:.2f} km"
+        )
+
+        if is_better:
+            best_table = table
+            best_metadata = metadata
+            best_evaluation = evaluation
+
+    assert best_table is not None
+    assert best_metadata is not None
+    assert best_evaluation is not None
+    best_metadata["selection_trials"] = trials
+    return best_table, best_metadata, best_evaluation
+
+
 def save_policy(table: dict[str, list[float]], metadata: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"metadata": metadata, "q_table": table}, indent=2), encoding="utf-8")
@@ -364,11 +442,14 @@ def main() -> None:
     parser.add_argument("--difficulty", choices=["easy", "medium", "full"], default="full")
     parser.add_argument("--warm-start-scenarios", type=int, default=24)
     parser.add_argument("--eval-episodes", type=int, default=24)
+    parser.add_argument("--trials", type=int, default=1)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     output_path = args.output or default_policy_path(args.randomized, args.difficulty)
 
-    table, metadata = train_q_learning(
+    table, metadata, evaluation = train_best_q_learning(
+        trials=args.trials,
+        eval_episodes=args.eval_episodes,
         episodes=args.episodes,
         seed=args.seed,
         alpha=args.alpha,
@@ -381,13 +462,6 @@ def main() -> None:
         warm_start_scenarios=args.warm_start_scenarios,
     )
     save_policy(table, metadata, output_path)
-    evaluation = evaluate_policy(
-        table,
-        randomize=args.randomized,
-        seed=args.seed + 10_000,
-        episodes=args.eval_episodes,
-        difficulty=args.difficulty,
-    )
 
     print("Tabular Q-learning rendezvous agent")
     print(f"episodes: {metadata['episodes']}")
