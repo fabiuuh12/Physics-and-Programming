@@ -121,21 +121,21 @@ After improving the tabular state and reward:
 - replaced exact decision time with coarse mission-time buckets
 - added a shaped decision reward that favors controlled closing and penalizes fast near-target approaches
 
-New easy-difficulty Q-learning result:
+New easy-difficulty Q-learning result after selecting the best table from trial runs:
 
-- command: `python3 python/q_learning.py --randomized --difficulty easy --episodes 1200 --eval-episodes 24`
+- command: `python3 python/q_learning.py --randomized --difficulty easy --episodes 900 --eval-episodes 24 --trials 1`
 - evaluation success rate: 11/24
-- mean final distance: 29.00 km
-- median final distance: 5.60 km
-- best final distance: 0.98 km
-- mean relative speed: 0.0399 km/s
-- mean delta-v: 86.59 m/s
+- mean final distance: 23.25 km
+- median final distance: 10.13 km
+- best final distance: 4.88 km
+- mean relative speed: 0.0334 km/s
+- mean delta-v: 87.24 m/s
 
 Updated easy policy comparison over the same 24 evaluation seeds:
 
 - random: 0/24 successes, mean final distance 118.80 km
 - greedy: 20/24 successes, mean final distance 4.91 km
-- qlearn: 11/24 successes, mean final distance 29.00 km
+- qlearn: 11/24 successes, mean final distance 23.25 km
 
 This is the first clear learning improvement. Q-learning is still behind greedy, but it moved from barely working to solving nearly half of the easy randomized cases.
 

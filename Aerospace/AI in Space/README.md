@@ -106,6 +106,8 @@ Current easy-difficulty comparison over 24 seeds after improving the Q-learning 
 
 The tabular learner now solves nearly half of the easy randomized cases. It still trails the greedy lookahead planner, but the updated state/reward design moved it from `1/24` to `11/24`.
 
+Current easy Q-learning mean final distance is `23.25 km`, down from `82.58 km` before the state/reward update.
+
 Episode animations:
 
 ```bash
