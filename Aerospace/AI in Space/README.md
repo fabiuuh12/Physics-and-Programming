@@ -93,7 +93,9 @@ Train a first tabular Q-learning agent:
 python3 python/q_learning.py
 python3 python/q_learning.py --randomized --episodes 1200
 python3 python/q_learning.py --randomized --difficulty easy --episodes 1200
+python3 python/q_learning.py --randomized --difficulty medium --episodes 900 --init-policy simulations/q_learning/q_policy_easy.json --output simulations/q_learning/q_policy_medium_from_easy.json
 python3 python/policy_eval.py --difficulty easy
+python3 python/curriculum_eval.py
 ```
 
 The fixed run writes `simulations/q_learning/q_policy_fixed.json`. Randomized curriculum runs write policies such as `simulations/q_learning/q_policy_easy.json`, `q_policy_medium.json`, and `q_policy_randomized.json` for the full range.
@@ -107,6 +109,18 @@ Current easy-difficulty comparison over 24 seeds after improving the Q-learning 
 The tabular learner now solves nearly half of the easy randomized cases. It still trails the greedy lookahead planner, but the updated state/reward design moved it from `1/24` to `11/24`.
 
 Current easy Q-learning mean final distance is `23.25 km`, down from `82.58 km` before the state/reward update.
+
+Current curriculum sweep over 24 seeds:
+
+| difficulty | random | greedy | qlearn |
+| --- | ---: | ---: | ---: |
+| easy | 0/24 | 20/24 | 11/24 |
+| medium | 0/24 | 7/24 | 1/24 |
+| full | 0/24 | 5/24 | 0/24 |
+
+The first medium policy exists now, but it is not robust. It only reaches `1/24` successes with a mean final distance of `120.34 km`, so the next practical learning target is improving medium before expecting the full randomized policy to work.
+
+An easy-to-medium transfer run improved mean distance to `107.59 km` but scored `0/24`, so it is useful diagnostic data rather than the new default medium policy.
 
 Episode animations:
 

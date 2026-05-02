@@ -139,6 +139,34 @@ Updated easy policy comparison over the same 24 evaluation seeds:
 
 This is the first clear learning improvement. Q-learning is still behind greedy, but it moved from barely working to solving nearly half of the easy randomized cases.
 
+Full curriculum evaluation, using `python/curriculum_eval.py --episodes 24`:
+
+| difficulty | policy | success | mean distance (km) | best (km) | mean speed (km/s) | mean dv (m/s) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| easy | random | 0/24 | 118.80 | 23.55 | 0.1286 | 114.60 |
+| easy | greedy | 20/24 | 4.91 | 1.27 | 0.0124 | 99.43 |
+| easy | qlearn | 11/24 | 23.25 | 4.88 | 0.0334 | 87.24 |
+| medium | random | 0/24 | 120.92 | 9.75 | 0.1289 | 114.60 |
+| medium | greedy | 7/24 | 19.28 | 2.75 | 0.0273 | 110.31 |
+| medium | qlearn | 1/24 | 120.34 | 4.99 | 0.1369 | 99.95 |
+| full | random | 0/24 | 152.22 | 11.50 | 0.1628 | 114.60 |
+| full | greedy | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
+| full | qlearn | 0/24 | 153.46 | 30.56 | 0.1675 | 0.00 |
+
+The sweep makes the next gap concrete: the first medium policy is only `1/24`, so medium needs more work before tuning full randomization. The existing full policy mostly chooses coast on the evaluation seeds, which explains the zero delta-v and random-like miss distance.
+
+Medium transfer test:
+
+- command: `python3 python/q_learning.py --randomized --difficulty medium --episodes 900 --eval-episodes 24 --trials 1 --init-policy simulations/q_learning/q_policy_easy.json --output simulations/q_learning/q_policy_medium_from_easy.json`
+- evaluation success rate: 0/24
+- mean final distance: 107.59 km
+- median final distance: 96.86 km
+- best final distance: 7.59 km
+- mean relative speed: 0.1210 km/s
+- mean delta-v: 93.20 m/s
+
+Initializing medium from the easy table improved average miss distance compared with the default medium run, but it did not produce successes. The likely issue is still state/reward generalization rather than only lack of curriculum initialization.
+
 Useful easy replay files after the reward/state update:
 
 - `simulations/episode_viz/qlearn_easy_seed_10013.gif`: Q-learning success

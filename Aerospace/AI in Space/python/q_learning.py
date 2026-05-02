@@ -66,6 +66,12 @@ def q_values(table: dict[str, list[float]], state: str, n_actions: int) -> list[
     return table[state]
 
 
+def copy_q_table(table: dict[str, list[float]] | None) -> dict[str, list[float]]:
+    if table is None:
+        return {}
+    return {state: list(values) for state, values in table.items()}
+
+
 def choose_q_action(
     table: dict[str, list[float]],
     state: str,
@@ -196,10 +202,13 @@ def train_q_learning(
     randomized: bool,
     difficulty: Difficulty,
     warm_start_scenarios: int,
+    initial_table: dict[str, list[float]] | None,
+    initial_policy_path: str | None,
 ) -> tuple[dict[str, list[float]], dict[str, Any]]:
     rng = random.Random(seed)
     env = RendezvousEnv(EnvConfig())
-    table: dict[str, list[float]] = {}
+    table = copy_q_table(initial_table)
+    initial_states = len(table)
     seeded_states = (
         warm_start_from_greedy(
             table,
@@ -268,6 +277,8 @@ def train_q_learning(
         "warm_start": warm_start,
         "randomized": randomized,
         "difficulty": difficulty,
+        "initial_policy_path": initial_policy_path,
+        "initial_states": initial_states,
         "warm_start_scenarios": warm_start_scenarios,
         "seeded_states": seeded_states,
         "refreshed_seeded_states": refreshed_seeded_states,
@@ -294,6 +305,8 @@ def train_best_q_learning(
     randomized: bool,
     difficulty: Difficulty,
     warm_start_scenarios: int,
+    initial_table: dict[str, list[float]] | None,
+    initial_policy_path: str | None,
 ) -> tuple[dict[str, list[float]], dict[str, Any], dict[str, Any]]:
     best_table: dict[str, list[float]] | None = None
     best_metadata: dict[str, Any] | None = None
@@ -312,6 +325,8 @@ def train_best_q_learning(
             randomized=randomized,
             difficulty=difficulty,
             warm_start_scenarios=warm_start_scenarios,
+            initial_table=initial_table,
+            initial_policy_path=initial_policy_path,
         )
         evaluation = evaluate_policy(
             table,
@@ -443,9 +458,21 @@ def main() -> None:
     parser.add_argument("--warm-start-scenarios", type=int, default=24)
     parser.add_argument("--eval-episodes", type=int, default=24)
     parser.add_argument("--trials", type=int, default=1)
+    parser.add_argument("--init-policy", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     output_path = args.output or default_policy_path(args.randomized, args.difficulty)
+    initial_table = None
+    initial_policy_path = None
+    if args.init_policy is not None:
+        initial_table, initial_metadata = load_policy(args.init_policy)
+        initial_policy_path = str(args.init_policy)
+        print(
+            "loaded initial q-learning policy:"
+            f" path={args.init_policy}"
+            f" difficulty={initial_metadata.get('difficulty', 'unknown')}"
+            f" states={len(initial_table)}"
+        )
 
     table, metadata, evaluation = train_best_q_learning(
         trials=args.trials,
@@ -460,6 +487,8 @@ def main() -> None:
         randomized=args.randomized,
         difficulty=args.difficulty,
         warm_start_scenarios=args.warm_start_scenarios,
+        initial_table=initial_table,
+        initial_policy_path=initial_policy_path,
     )
     save_policy(table, metadata, output_path)
 
