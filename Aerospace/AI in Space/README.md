@@ -69,6 +69,8 @@ The first planner is a greedy lookahead baseline. The next AI milestone is to tr
 
 The current Q-learning policy is warm-started from the greedy planner so there is already a successful replay path. Future training should reduce that dependence by improving state bins, reward shaping, and randomized initial conditions.
 
+Randomized scenarios vary target altitude, chaser altitude, and starting phase angle. Use them to check whether a policy is learning a reusable strategy instead of memorizing the first setup.
+
 ## Running The First Simulations
 
 Python:
@@ -81,13 +83,17 @@ Random policy baseline using the RL-style environment:
 
 ```bash
 python3 python/random_policy.py
+python3 python/random_policy.py --randomized --seed 21
 ```
 
 Train a first tabular Q-learning agent:
 
 ```bash
 python3 python/q_learning.py
+python3 python/q_learning.py --randomized --episodes 1200
 ```
+
+The fixed run writes `simulations/q_learning/q_policy_fixed.json`. The randomized run writes `simulations/q_learning/q_policy_randomized.json`.
 
 Episode animations:
 
@@ -95,6 +101,7 @@ Episode animations:
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy greedy
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy random
 MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy qlearn
+MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py --policy qlearn --randomized --seed 10024
 ```
 
 C++ with CMake:

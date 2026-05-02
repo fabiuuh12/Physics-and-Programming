@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import argparse
 import random
 
 from rendezvous_env import RendezvousEnv
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Run a random rendezvous policy baseline.")
+    parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--randomized", action="store_true")
+    args = parser.parse_args()
+
     env = RendezvousEnv()
-    rng = random.Random(7)
-    env.reset()
+    rng = random.Random(args.seed)
+    env.reset(randomize=args.randomized, seed=args.seed)
 
     total_reward = 0.0
     done = False

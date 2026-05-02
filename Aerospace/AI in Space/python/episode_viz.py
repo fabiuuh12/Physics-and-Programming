@@ -11,7 +11,7 @@ import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-from q_learning import DEFAULT_POLICY_PATH, load_policy, q_policy_action_index
+from q_learning import DEFAULT_FIXED_POLICY_PATH, DEFAULT_RANDOMIZED_POLICY_PATH, load_policy, q_policy_action_index
 from rendezvous_env import EnvConfig, RendezvousEnv
 from rendezvous_sim import EARTH_RADIUS, SimConfig, choose_action
 
@@ -56,9 +56,15 @@ def select_action(
     raise ValueError(f"Unknown policy: {policy}")
 
 
-def record_episode(policy: str, seed: int, q_table: dict[str, list[float]] | None = None) -> EpisodeResult:
+def record_episode(
+    policy: str,
+    seed: int,
+    q_table: dict[str, list[float]] | None = None,
+    *,
+    randomized: bool = False,
+) -> EpisodeResult:
     env = RendezvousEnv(EnvConfig())
-    env.reset()
+    env.reset(randomize=randomized, seed=seed)
     rng = random.Random(seed)
     decision_steps = max(1, int(env.cfg.sim.decision_interval / env.cfg.sim.dt))
 
@@ -307,31 +313,38 @@ def save_episode_gif(result: EpisodeResult, output_path: Path, policy: str) -> N
     plt.close(fig)
 
 
-def default_output_path(policy: str) -> Path:
-    return Path(__file__).resolve().parents[1] / "simulations" / "episode_viz" / f"{policy}_rendezvous.gif"
+def default_output_path(policy: str, randomized: bool, seed: int) -> Path:
+    suffix = f"randomized_seed_{seed}" if randomized else "rendezvous"
+    return Path(__file__).resolve().parents[1] / "simulations" / "episode_viz" / f"{policy}_{suffix}.gif"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render a rendezvous policy replay as an animated GIF.")
     parser.add_argument("--policy", choices=["greedy", "random", "qlearn"], default="greedy")
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--q-policy", type=Path, default=DEFAULT_POLICY_PATH)
+    parser.add_argument("--randomized", action="store_true")
+    parser.add_argument("--q-policy", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
     q_table = None
     if args.policy == "qlearn":
-        q_table, metadata = load_policy(args.q_policy)
+        q_policy_path = args.q_policy or (
+            DEFAULT_RANDOMIZED_POLICY_PATH if args.randomized else DEFAULT_FIXED_POLICY_PATH
+        )
+        q_table, metadata = load_policy(q_policy_path)
         print(
             "loaded q-learning policy:"
+            f" path={q_policy_path}"
             f" episodes={metadata['episodes']}"
             f" training_successes={metadata['successes']}"
             f" states={metadata['states']}"
         )
 
-    result = record_episode(args.policy, args.seed, q_table)
-    output_path = args.output or default_output_path(args.policy)
-    save_episode_gif(result, output_path, args.policy)
+    result = record_episode(args.policy, args.seed, q_table, randomized=args.randomized)
+    output_path = args.output or default_output_path(args.policy, args.randomized, args.seed)
+    title_policy = f"{args.policy} randomized" if args.randomized else args.policy
+    save_episode_gif(result, output_path, title_policy)
 
     (
         _,

@@ -24,6 +24,14 @@ class EnvConfig:
     speed_scale: float = 0.1
 
 
+@dataclass(frozen=True)
+class Scenario:
+    target_altitude_km: float = 500.0
+    chaser_altitude_km: float = 485.0
+    target_angle_rad: float = 0.0
+    chaser_angle_rad: float = -0.045
+
+
 class RendezvousEnv:
     """Small RL-style environment for planar autonomous rendezvous."""
 
@@ -33,9 +41,37 @@ class RendezvousEnv:
         self.n_actions = len(self.action_names)
         self.reset()
 
-    def reset(self) -> np.ndarray:
-        self.target_r, self.target_v = circular_state(EARTH_RADIUS + 500.0, 0.0)
-        self.chaser_r, self.chaser_v = circular_state(EARTH_RADIUS + 485.0, -0.045)
+    def sample_scenario(self, seed: int | None = None) -> Scenario:
+        rng = np.random.default_rng(seed)
+        target_altitude = float(rng.uniform(480.0, 540.0))
+        chaser_offset = float(rng.uniform(-35.0, -8.0))
+        phase_angle = float(rng.uniform(-0.08, -0.025))
+        return Scenario(
+            target_altitude_km=target_altitude,
+            chaser_altitude_km=target_altitude + chaser_offset,
+            target_angle_rad=0.0,
+            chaser_angle_rad=phase_angle,
+        )
+
+    def reset(
+        self,
+        scenario: Scenario | None = None,
+        *,
+        randomize: bool = False,
+        seed: int | None = None,
+    ) -> np.ndarray:
+        if scenario is not None and randomize:
+            raise ValueError("Pass either scenario or randomize=True, not both")
+
+        self.scenario = scenario or (self.sample_scenario(seed) if randomize else Scenario())
+        self.target_r, self.target_v = circular_state(
+            EARTH_RADIUS + self.scenario.target_altitude_km,
+            self.scenario.target_angle_rad,
+        )
+        self.chaser_r, self.chaser_v = circular_state(
+            EARTH_RADIUS + self.scenario.chaser_altitude_km,
+            self.scenario.chaser_angle_rad,
+        )
         self.elapsed = 0.0
         self.fuel_delta_v = 0.0
         self.previous_distance = norm(self.chaser_r - self.target_r)
@@ -114,7 +150,7 @@ class RendezvousEnv:
             "earth_collision": earth_collision,
             "fuel_empty": fuel_empty,
             "timed_out": timed_out,
+            "scenario": self.scenario,
         }
 
         return self.observation(), reward, done, info
-

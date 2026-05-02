@@ -8,6 +8,8 @@ Can an autonomous agent learn useful maneuver choices for spacecraft rendezvous 
 
 Start with a planar two-body Earth orbit model.
 
+The environment now supports both a fixed starter scenario and randomized scenarios. The randomized reset varies target altitude, chaser altitude offset, and initial phase angle.
+
 State:
 
 - spacecraft position and velocity
@@ -48,11 +50,16 @@ Current baseline:
 
 The first Q-learning policy is warm-started from the greedy planner. Treat it as the starting scaffold for learning experiments, not as proof that tabular Q-learning has independently solved rendezvous yet.
 
+The fixed-scenario and randomized-scenario Q policies are stored separately so replays use the right table:
+
+- `simulations/q_learning/q_policy_fixed.json`
+- `simulations/q_learning/q_policy_randomized.json`
+
 Next coding target:
 
 - compare success rate, fuel use, and final miss distance against the greedy planner and random policy
 - improve Q-learning state bins and reward shaping until it reliably beats random
-- add randomized starting conditions so the agent learns a more general rendezvous strategy
+- expand randomized starting conditions so the agent learns a more general rendezvous strategy
 
 Good later tools:
 
