@@ -15,6 +15,7 @@ from rendezvous_sim import choose_action, norm
 DEFAULT_FIXED_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy_fixed.json"
 DEFAULT_RANDOMIZED_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy_randomized.json"
 DEFAULT_POLICY_PATH = DEFAULT_FIXED_POLICY_PATH
+Q_POLICY_FALLBACK_THRESHOLD = 0.0
 
 
 def default_policy_path(randomized: bool, difficulty: Difficulty) -> Path:
@@ -383,7 +384,11 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[dict[str, list[float]
     return data["q_table"], data["metadata"]
 
 
-def q_policy_action_index(env: RendezvousEnv, table: dict[str, list[float]], fallback_threshold: float = 0.0) -> int:
+def q_policy_action_index(
+    env: RendezvousEnv,
+    table: dict[str, list[float]],
+    fallback_threshold: float = Q_POLICY_FALLBACK_THRESHOLD,
+) -> int:
     state = discretize_state(env)
     if state not in table:
         return greedy_action_index(env)

@@ -100,25 +100,25 @@ python3 python/curriculum_eval.py
 
 The fixed run writes `simulations/q_learning/q_policy_fixed.json`. Randomized curriculum runs write policies such as `simulations/q_learning/q_policy_easy.json`, `q_policy_medium.json`, and `q_policy_randomized.json` for the full range.
 
-Current easy-difficulty comparison over 24 seeds after improving the Q-learning state and reward:
+Current easy-difficulty comparison over 24 seeds after improving the Q-learning state, reward, and adding a greedy fallback for low-confidence Q states:
 
 - random: 0/24 successes
 - greedy: 20/24 successes
-- qlearn: 11/24 successes
+- guarded qlearn: 13/24 successes
 
-The tabular learner now solves nearly half of the easy randomized cases. It still trails the greedy lookahead planner, but the updated state/reward design moved it from `1/24` to `11/24`.
+The tabular learner now solves over half of the easy randomized cases when guarded by the greedy fallback. It still trails the greedy lookahead planner, but the updated state/reward design moved pure Q-learning from `1/24` to `11/24`, and the guarded policy improves that to `13/24`.
 
-Current easy Q-learning mean final distance is `23.25 km`, down from `82.58 km` before the state/reward update.
+Current easy guarded Q-learning mean final distance is `9.76 km`, down from `23.25 km` before the fallback and `82.58 km` before the state/reward update.
 
 Current curriculum sweep over 24 seeds:
 
 | difficulty | random | greedy | qlearn |
 | --- | ---: | ---: | ---: |
-| easy | 0/24 | 20/24 | 11/24 |
-| medium | 0/24 | 7/24 | 1/24 |
-| full | 0/24 | 5/24 | 0/24 |
+| easy | 0/24 | 20/24 | 13/24 |
+| medium | 0/24 | 7/24 | 2/24 |
+| full | 0/24 | 5/24 | 5/24 |
 
-The first medium policy exists now, but it is not robust. It only reaches `1/24` successes with a mean final distance of `120.34 km`, so the next practical learning target is improving medium before expecting the full randomized policy to work.
+The guarded medium policy is better than pure Q-learning, but it is not robust. It reaches `2/24` successes with a mean final distance of `52.35 km`, so the next practical learning target is improving medium before expecting the full randomized policy to work.
 
 An easy-to-medium transfer run improved mean distance to `107.59 km` but scored `0/24`, so it is useful diagnostic data rather than the new default medium policy.
 

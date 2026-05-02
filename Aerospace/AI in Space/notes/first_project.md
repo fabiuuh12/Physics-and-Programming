@@ -139,21 +139,23 @@ Updated easy policy comparison over the same 24 evaluation seeds:
 
 This is the first clear learning improvement. Q-learning is still behind greedy, but it moved from barely working to solving nearly half of the easy randomized cases.
 
-Full curriculum evaluation, using `python/curriculum_eval.py --episodes 24`:
+Full curriculum evaluation, using `python/curriculum_eval.py --episodes 24`.
+
+The `qlearn` row is now a guarded policy: it uses the learned Q table when the best stored value is positive, and falls back to the greedy lookahead planner for unseen or low-confidence states. This prevents untrained table regions from defaulting to all-coast behavior.
 
 | difficulty | policy | success | mean distance (km) | best (km) | mean speed (km/s) | mean dv (m/s) |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | easy | random | 0/24 | 118.80 | 23.55 | 0.1286 | 114.60 |
 | easy | greedy | 20/24 | 4.91 | 1.27 | 0.0124 | 99.43 |
-| easy | qlearn | 11/24 | 23.25 | 4.88 | 0.0334 | 87.24 |
+| easy | qlearn | 13/24 | 9.76 | 4.88 | 0.0096 | 99.55 |
 | medium | random | 0/24 | 120.92 | 9.75 | 0.1289 | 114.60 |
 | medium | greedy | 7/24 | 19.28 | 2.75 | 0.0273 | 110.31 |
-| medium | qlearn | 1/24 | 120.34 | 4.99 | 0.1369 | 99.95 |
+| medium | qlearn | 2/24 | 52.35 | 4.89 | 0.0551 | 118.40 |
 | full | random | 0/24 | 152.22 | 11.50 | 0.1628 | 114.60 |
 | full | greedy | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
-| full | qlearn | 0/24 | 153.46 | 30.56 | 0.1675 | 0.00 |
+| full | qlearn | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
 
-The sweep makes the next gap concrete: the first medium policy is only `1/24`, so medium needs more work before tuning full randomization. The existing full policy mostly chooses coast on the evaluation seeds, which explains the zero delta-v and random-like miss distance.
+The sweep makes the next gap concrete: guarded Q-learning improves medium from `1/24` to `2/24` and cuts mean miss distance from `120.34 km` to `52.35 km`, but it still trails greedy. The existing full Q table mostly chooses coast without the guard; with the guard, full behavior falls back to greedy.
 
 Medium transfer test:
 
