@@ -98,13 +98,13 @@ python3 python/policy_eval.py --difficulty easy
 
 The fixed run writes `simulations/q_learning/q_policy_fixed.json`. Randomized curriculum runs write policies such as `simulations/q_learning/q_policy_easy.json`, `q_policy_medium.json`, and `q_policy_randomized.json` for the full range.
 
-Current easy-difficulty comparison over 24 seeds:
+Current easy-difficulty comparison over 24 seeds after improving the Q-learning state and reward:
 
 - random: 0/24 successes
 - greedy: 20/24 successes
-- qlearn: 1/24 successes
+- qlearn: 11/24 successes
 
-The tabular learner closes distance better than random, but it does not yet learn the switching behavior that the greedy lookahead planner finds.
+The tabular learner now solves nearly half of the easy randomized cases. It still trails the greedy lookahead planner, but the updated state/reward design moved it from `1/24` to `11/24`.
 
 Episode animations:
 

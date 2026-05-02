@@ -34,23 +34,28 @@ def discretize_state(env: RendezvousEnv) -> str:
     relative_v = env.chaser_v - env.target_v
     radial = env.target_r / norm(env.target_r)
     along_track = env.target_v / norm(env.target_v)
+    distance = norm(relative_r)
+    line_of_sight = relative_r / max(distance, 1.0e-9)
 
     rel_radial = float(np.dot(relative_r, radial))
     rel_along = float(np.dot(relative_r, along_track))
     vel_radial = float(np.dot(relative_v, radial))
     vel_along = float(np.dot(relative_v, along_track))
-    distance = norm(relative_r)
+    closing_speed = -float(np.dot(relative_v, line_of_sight))
+    relative_speed = norm(relative_v)
     fuel_remaining = max(0.0, env.cfg.max_delta_v - env.fuel_delta_v)
-    decision_index = int(env.elapsed // env.cfg.sim.decision_interval)
+    time_fraction = env.elapsed / env.cfg.sim.duration
 
     state = (
-        bucket(distance, [5, 10, 20, 40, 80, 150, 250, 400, 650]),
-        bucket(rel_radial, [-80, -40, -20, -10, -5, 0, 5, 10, 20, 40, 80]),
-        bucket(rel_along, [-500, -300, -150, -75, -30, -10, 0, 10, 30, 75, 150, 300, 500]),
-        bucket(vel_radial, [-0.08, -0.04, -0.02, -0.01, 0.0, 0.01, 0.02, 0.04, 0.08]),
-        bucket(vel_along, [-0.08, -0.04, -0.02, -0.01, 0.0, 0.01, 0.02, 0.04, 0.08]),
+        bucket(distance, [5, 10, 20, 40, 80, 140, 220, 340, 520]),
+        bucket(rel_radial, [-60, -30, -15, -5, 0, 5, 15, 30, 60]),
+        bucket(rel_along, [-420, -260, -150, -80, -35, -10, 0, 10, 35, 80, 150, 260, 420]),
+        bucket(vel_radial, [-0.06, -0.03, -0.015, -0.005, 0.0, 0.005, 0.015, 0.03, 0.06]),
+        bucket(vel_along, [-0.06, -0.03, -0.015, -0.005, 0.0, 0.005, 0.015, 0.03, 0.06]),
+        bucket(closing_speed, [-0.04, -0.02, -0.005, 0.0, 0.005, 0.015, 0.03, 0.06]),
+        bucket(relative_speed, [0.015, 0.02, 0.035, 0.06, 0.10, 0.16, 0.25]),
         bucket(fuel_remaining, [0.02, 0.05, 0.08, 0.11]),
-        decision_index,
+        bucket(time_fraction, [0.35, 0.7, 0.9]),
     )
     return "|".join(str(part) for part in state)
 
@@ -90,6 +95,54 @@ def run_decision_action(env: RendezvousEnv, action_index: int) -> tuple[float, b
             break
 
     return total_reward, done, info
+
+
+def decision_reward(
+    start_distance: float,
+    start_relative_speed: float,
+    action_index: int,
+    env: RendezvousEnv,
+    done: bool,
+    info: dict[str, Any],
+) -> float:
+    end_distance = float(info["distance_km"])
+    end_relative_speed = float(info["relative_speed_km_s"])
+    progress = start_distance - end_distance
+    near_factor = max(0.0, min(1.0, (100.0 - end_distance) / 100.0))
+
+    reward = 1.8 * progress
+    reward -= 0.015 * end_distance
+    reward -= 10.0 * end_relative_speed
+
+    if env.action_names[action_index] != "coast":
+        reward -= 0.15
+
+    if progress < -1.0:
+        reward += 0.6 * progress
+    if end_distance < 40.0 and end_relative_speed <= 0.035:
+        reward += 12.0
+    if end_distance < 20.0 and end_relative_speed <= 0.025:
+        reward += 25.0
+    if end_distance < 10.0 and end_relative_speed <= env.cfg.sim.success_relative_speed:
+        reward += 45.0
+
+    excess_near_speed = max(0.0, end_relative_speed - env.cfg.sim.success_relative_speed)
+    reward -= near_factor * 450.0 * excess_near_speed
+
+    if end_distance < 20.0 and end_relative_speed > start_relative_speed:
+        reward -= 8.0
+    if info.get("success", False):
+        reward += 300.0
+    if info.get("unsafe_approach", False):
+        reward -= 120.0
+    if info.get("fuel_empty", False) and not info.get("success", False):
+        reward -= 70.0
+    if info.get("timed_out", False) and not info.get("success", False):
+        reward -= 55.0 + 0.05 * end_distance
+    if done and not info.get("success", False) and end_distance <= env.cfg.sim.success_distance:
+        reward -= 80.0
+
+    return reward
 
 
 def greedy_action_index(env: RendezvousEnv) -> int:
@@ -174,7 +227,10 @@ def train_q_learning(
         while not done:
             state = discretize_state(env)
             action_index = choose_q_action(table, state, env.n_actions, rng, epsilon)
-            reward, done, info = run_decision_action(env, action_index)
+            start_distance = norm(env.chaser_r - env.target_r)
+            start_relative_speed = norm(env.chaser_v - env.target_v)
+            _, done, info = run_decision_action(env, action_index)
+            reward = decision_reward(start_distance, start_relative_speed, action_index, env, done, info)
             next_state = discretize_state(env)
 
             values = q_values(table, state, env.n_actions)

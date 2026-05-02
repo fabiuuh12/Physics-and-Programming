@@ -96,7 +96,7 @@ Added staged randomized difficulties:
 - `medium`: target altitude 490-520 km, chaser offset -28 to -10 km, phase angle -0.065 to -0.032 rad
 - `full`: target altitude 480-540 km, chaser offset -35 to -8 km, phase angle -0.080 to -0.025 rad
 
-First easy-difficulty Q-learning run:
+First easy-difficulty Q-learning run, before reward/state changes:
 
 - command: `python3 python/q_learning.py --randomized --difficulty easy --episodes 1200 --eval-episodes 24`
 - training successes: 5
@@ -115,10 +115,34 @@ Easy policy comparison over the same 24 evaluation seeds:
 
 This tells us the curriculum idea is useful as a diagnostic, but it does not solve the learning problem by itself. Q-learning is better than random on mean distance, but far worse than the greedy planner. Since greedy solves most easy cases, the environment is not the blocker. The likely blockers are the tabular state representation and reward shaping.
 
-Useful easy replay files:
+After improving the tabular state and reward:
 
-- `simulations/episode_viz/qlearn_easy_seed_10015.gif`: Q-learning success
-- `simulations/episode_viz/qlearn_easy_seed_10011.gif`: Q-learning failure
+- added closing-speed and relative-speed buckets
+- replaced exact decision time with coarse mission-time buckets
+- added a shaped decision reward that favors controlled closing and penalizes fast near-target approaches
+
+New easy-difficulty Q-learning result:
+
+- command: `python3 python/q_learning.py --randomized --difficulty easy --episodes 1200 --eval-episodes 24`
+- evaluation success rate: 11/24
+- mean final distance: 29.00 km
+- median final distance: 5.60 km
+- best final distance: 0.98 km
+- mean relative speed: 0.0399 km/s
+- mean delta-v: 86.59 m/s
+
+Updated easy policy comparison over the same 24 evaluation seeds:
+
+- random: 0/24 successes, mean final distance 118.80 km
+- greedy: 20/24 successes, mean final distance 4.91 km
+- qlearn: 11/24 successes, mean final distance 29.00 km
+
+This is the first clear learning improvement. Q-learning is still behind greedy, but it moved from barely working to solving nearly half of the easy randomized cases.
+
+Useful easy replay files after the reward/state update:
+
+- `simulations/episode_viz/qlearn_easy_seed_10013.gif`: Q-learning success
+- `simulations/episode_viz/qlearn_easy_seed_10011.gif`: Q-learning near miss, 9.85 km final range with low relative speed
 - `simulations/episode_viz/greedy_easy_seed_10011.gif`: greedy success on the same failure seed
 
 Next coding target:
