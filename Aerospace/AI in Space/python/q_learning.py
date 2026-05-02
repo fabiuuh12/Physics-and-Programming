@@ -385,6 +385,8 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[dict[str, list[float]
 
 def q_policy_action_index(env: RendezvousEnv, table: dict[str, list[float]]) -> int:
     state = discretize_state(env)
+    if state not in table:
+        return greedy_action_index(env)
     values = q_values(table, state, env.n_actions)
     return int(np.argmax(values))
 
