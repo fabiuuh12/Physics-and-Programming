@@ -43,6 +43,7 @@ Current baseline:
 - `python/rendezvous_sim.py` runs a greedy lookahead planner.
 - `python/rendezvous_env.py` exposes the same physics as `reset()` and `step(action_index)`.
 - `python/random_policy.py` runs a random baseline through the environment.
+- `python/episode_viz.py` exports a GIF replay of the greedy rendezvous episode.
 
 Next coding target:
 

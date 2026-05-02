@@ -81,6 +81,12 @@ Random policy baseline using the RL-style environment:
 python3 python/random_policy.py
 ```
 
+Greedy episode animation:
+
+```bash
+MPLBACKEND=Agg MPLCONFIGDIR="simulations/.matplotlib" python3 python/episode_viz.py
+```
+
 C++ with CMake:
 
 ```bash
