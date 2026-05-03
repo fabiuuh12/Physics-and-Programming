@@ -139,7 +139,7 @@ Updated easy policy comparison over the same 24 evaluation seeds:
 
 This is the first clear learning improvement. Q-learning is still behind greedy, but it moved from barely working to solving nearly half of the easy randomized cases.
 
-Full curriculum evaluation, using `python/curriculum_eval.py --episodes 24`.
+Full curriculum evaluation, using `python scripts/benchmark.py --episodes 24`.
 
 The `qlearn` row is now a guarded policy: it uses the learned Q table when the best stored value is positive, and falls back to the greedy lookahead planner for unseen or low-confidence states. This prevents untrained table regions from defaulting to all-coast behavior.
 
@@ -147,23 +147,23 @@ The `qlearn` row is now a guarded policy: it uses the learned Q table when the b
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | easy | random | 0/24 | 118.80 | 23.55 | 0.1286 | 114.60 |
 | easy | greedy | 20/24 | 4.91 | 1.27 | 0.0124 | 99.43 |
-| easy | qlearn | 13/24 | 9.76 | 4.88 | 0.0096 | 99.55 |
+| easy | qlearn | 20/24 | 4.91 | 1.27 | 0.0125 | 99.33 |
 | medium | random | 0/24 | 120.92 | 9.75 | 0.1289 | 114.60 |
 | medium | greedy | 7/24 | 19.28 | 2.75 | 0.0273 | 110.31 |
-| medium | qlearn | 2/24 | 52.35 | 4.89 | 0.0551 | 118.40 |
+| medium | qlearn | 7/24 | 19.28 | 2.75 | 0.0273 | 110.31 |
 | full | random | 0/24 | 152.22 | 11.50 | 0.1628 | 114.60 |
 | full | greedy | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
 | full | qlearn | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
 
 The initial sweep made the medium gap concrete: guarded Q-learning improved medium from `1/24` to `2/24` and cut mean miss distance from `120.34 km` to `52.35 km`, but it still trailed greedy.
 
-After adding a one-decision projection guard, the medium Q-learning policy matches greedy on the same 24-seed benchmark:
+After adding a one-decision projection guard, the guarded Q-learning policy matches greedy on the same 24-seed benchmark for easy, medium, and full:
 
-- random: 0/24 successes, mean final distance 120.92 km
-- greedy: 7/24 successes, mean final distance 19.28 km
-- qlearn: 7/24 successes, mean final distance 19.28 km
+- easy qlearn: 20/24 successes, mean final distance 4.91 km
+- medium qlearn: 7/24 successes, mean final distance 19.28 km
+- full qlearn: 5/24 successes, mean final distance 44.89 km
 
-The guard lets Q-learning act only when its projected decision is materially closer than greedy without adding meaningful speed risk, or when it projects immediate success. This stops the medium table from making confident but locally shallow overrides that break otherwise successful greedy trajectories. The next learning target is to make the Q table beat this guarded greedy-equivalent behavior instead of merely matching it.
+The guard lets Q-learning act only when its projected decision is materially closer than greedy without adding meaningful speed risk, or when it projects immediate success. This stops the table from making confident but locally shallow overrides that break otherwise successful greedy trajectories. The next learning target is to make the Q table beat this guarded greedy-equivalent behavior instead of merely matching it.
 
 Medium transfer test:
 

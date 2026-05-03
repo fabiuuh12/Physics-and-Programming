@@ -2,9 +2,12 @@ build/
 build-cmake/
 .venv/
 __pycache__/
+.pytest_cache/
 *.pyc
 simulations/.matplotlib/
+simulations/episode_viz/*.gif
 simulations/q_learning/q_policy_smoke.json
+simulations/q_learning/q_policy_experiment*.json
 downloads/
 tools/
 papers/*.aux

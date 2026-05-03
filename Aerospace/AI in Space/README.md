@@ -101,9 +101,21 @@ The smoke test runs the Python simulator, a randomized baseline, policy evaluati
 
 Use `python` in project commands after activating the virtual environment. On macOS, `python3` also works if you are outside the virtual environment.
 
+Run the unit tests:
+
+```bash
+python -m pytest
+```
+
+Run the official policy benchmark:
+
+```bash
+python scripts/benchmark.py --episodes 24
+```
+
 ## Current Next Step
 
-The first planner is a greedy lookahead baseline. The next AI milestone is to train a small tabular or linear agent against `python/rendezvous_env.py`, then compare it against both the random policy and the greedy planner.
+The first planner is a greedy lookahead baseline. The next AI milestone is to make the learned policy beat that baseline, then compare tabular Q-learning against a linear function approximator.
 
 The current Q-learning policy is warm-started from the greedy planner so there is already a successful replay path. Future training should reduce that dependence by improving state bins, reward shaping, and randomized initial conditions.
 
@@ -133,26 +145,26 @@ python3 python/q_learning.py --randomized --episodes 1200
 python3 python/q_learning.py --randomized --difficulty easy --episodes 1200
 python3 python/q_learning.py --randomized --difficulty medium --episodes 900 --init-policy simulations/q_learning/q_policy_easy.json --output simulations/q_learning/q_policy_medium_from_easy.json
 python3 python/policy_eval.py --difficulty easy
-python3 python/curriculum_eval.py
+python scripts/benchmark.py --episodes 24
 ```
 
 The fixed run writes `simulations/q_learning/q_policy_fixed.json`. Randomized curriculum runs write policies such as `simulations/q_learning/q_policy_easy.json`, `q_policy_medium.json`, and `q_policy_randomized.json` for the full range.
 
-Current easy-difficulty comparison over 24 seeds after improving the Q-learning state, reward, and adding a greedy fallback for low-confidence Q states:
+Current easy-difficulty comparison over 24 seeds after improving the Q-learning state, reward, and adding projection guards for learned actions:
 
 - random: 0/24 successes
 - greedy: 20/24 successes
-- guarded qlearn: 13/24 successes
+- guarded qlearn: 20/24 successes
 
-The tabular learner now solves over half of the easy randomized cases when guarded by the greedy fallback. It still trails the greedy lookahead planner, but the updated state/reward design moved pure Q-learning from `1/24` to `11/24`, and the guarded policy improves that to `13/24`.
+The guarded tabular policy now matches greedy on easy randomized cases. It still needs to beat the planner rather than mostly relying on projection guards, but the benchmark gives a stable scorecard for the next AI upgrade.
 
-Current easy guarded Q-learning mean final distance is `9.76 km`, down from `23.25 km` before the fallback and `82.58 km` before the state/reward update.
+Current easy guarded Q-learning mean final distance is `4.91 km`, down from `23.25 km` before the fallback and `82.58 km` before the state/reward update.
 
 Current curriculum sweep over 24 seeds:
 
 | difficulty | random | greedy | qlearn |
 | --- | ---: | ---: | ---: |
-| easy | 0/24 | 20/24 | 13/24 |
+| easy | 0/24 | 20/24 | 20/24 |
 | medium | 0/24 | 7/24 | 7/24 |
 | full | 0/24 | 5/24 | 5/24 |
 
