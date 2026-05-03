@@ -63,6 +63,44 @@ Use both Python and C++ from the beginning.
 
 The first milestone is to keep a small rendezvous simulator in both languages so the project grows with a hybrid workflow from day one.
 
+## Working On Mac And Windows
+
+Use Git as the source of truth between machines:
+
+```bash
+git pull
+git status
+git add .
+git commit -m "Describe the change"
+git push
+```
+
+Then pull on the other computer before continuing work there.
+
+Recommended Python setup on macOS:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python scripts/smoke_test.py
+```
+
+Recommended Python setup on Windows PowerShell:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python scripts/smoke_test.py
+```
+
+The smoke test runs the Python simulator, a randomized baseline, policy evaluation, the CMake C++ build, and the C++ executable. Use `python scripts/smoke_test.py --skip-cpp` if CMake or a C++ compiler is not installed yet.
+
+Use `python` in project commands after activating the virtual environment. On macOS, `python3` also works if you are outside the virtual environment.
+
 ## Current Next Step
 
 The first planner is a greedy lookahead baseline. The next AI milestone is to train a small tabular or linear agent against `python/rendezvous_env.py`, then compare it against both the random policy and the greedy planner.
@@ -115,10 +153,10 @@ Current curriculum sweep over 24 seeds:
 | difficulty | random | greedy | qlearn |
 | --- | ---: | ---: | ---: |
 | easy | 0/24 | 20/24 | 13/24 |
-| medium | 0/24 | 7/24 | 2/24 |
+| medium | 0/24 | 7/24 | 7/24 |
 | full | 0/24 | 5/24 | 5/24 |
 
-The guarded medium policy is better than pure Q-learning, but it is not robust. It reaches `2/24` successes with a mean final distance of `52.35 km`, so the next practical learning target is improving medium before expecting the full randomized policy to work.
+The guarded medium policy now matches the greedy baseline on the 24-seed benchmark after adding a one-decision projection guard. Medium Q-learning improved from `2/24` successes and `52.35 km` mean final distance to `7/24` successes and `19.28 km` mean final distance. The next practical learning target is making the learned table beat greedy on medium instead of mostly relying on the guard.
 
 An easy-to-medium transfer run improved mean distance to `107.59 km` but scored `0/24`, so it is useful diagnostic data rather than the new default medium policy.
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import random
 from pathlib import Path
@@ -16,6 +17,10 @@ DEFAULT_FIXED_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" 
 DEFAULT_RANDOMIZED_POLICY_PATH = Path(__file__).resolve().parents[1] / "simulations" / "q_learning" / "q_policy_randomized.json"
 DEFAULT_POLICY_PATH = DEFAULT_FIXED_POLICY_PATH
 Q_POLICY_FALLBACK_THRESHOLD = 0.0
+Q_POLICY_GUARD_DISTANCE_MARGIN_KM = 0.5
+Q_POLICY_GUARD_SPEED_MARGIN_KM_S = 0.002
+Q_POLICY_DOCKING_CORRIDOR_KM = 8.0
+Q_POLICY_DOCKING_CORRIDOR_SPEED_KM_S = 0.03
 
 
 def default_policy_path(randomized: bool, difficulty: Difficulty) -> Path:
@@ -395,7 +400,50 @@ def q_policy_action_index(
     values = table[state]
     if max(values) <= fallback_threshold:
         return greedy_action_index(env)
-    return int(np.argmax(values))
+    q_action_index = int(np.argmax(values))
+    greedy_index = greedy_action_index(env)
+    if q_action_index == greedy_index:
+        return q_action_index
+
+    q_info = projected_decision_info(env, q_action_index)
+    greedy_info = projected_decision_info(env, greedy_index)
+    if projected_action_is_in_docking_corridor(greedy_info) and not q_info.get("success", False):
+        return greedy_index
+    if projected_action_is_competitive(q_info, greedy_info):
+        return q_action_index
+    return greedy_index
+
+
+def projected_decision_info(env: RendezvousEnv, action_index: int) -> dict[str, Any]:
+    trial_env = copy.deepcopy(env)
+    _, _, info = run_decision_action(trial_env, action_index)
+    return info
+
+
+def projected_action_is_competitive(candidate: dict[str, Any], baseline: dict[str, Any]) -> bool:
+    if candidate.get("success", False):
+        return True
+    if baseline.get("success", False):
+        return False
+    if candidate.get("unsafe_approach", False) or candidate.get("earth_collision", False):
+        return False
+
+    candidate_distance = float(candidate["distance_km"])
+    baseline_distance = float(baseline["distance_km"])
+    candidate_speed = float(candidate["relative_speed_km_s"])
+    baseline_speed = float(baseline["relative_speed_km_s"])
+
+    materially_closer = candidate_distance <= baseline_distance - Q_POLICY_GUARD_DISTANCE_MARGIN_KM
+    not_much_faster = candidate_speed <= baseline_speed + Q_POLICY_GUARD_SPEED_MARGIN_KM_S
+
+    return materially_closer and not_much_faster
+
+
+def projected_action_is_in_docking_corridor(info: dict[str, Any]) -> bool:
+    return (
+        float(info["distance_km"]) <= Q_POLICY_DOCKING_CORRIDOR_KM
+        and float(info["relative_speed_km_s"]) <= Q_POLICY_DOCKING_CORRIDOR_SPEED_KM_S
+    )
 
 
 def evaluate_one_policy(

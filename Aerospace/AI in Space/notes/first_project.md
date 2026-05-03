@@ -155,7 +155,15 @@ The `qlearn` row is now a guarded policy: it uses the learned Q table when the b
 | full | greedy | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
 | full | qlearn | 5/24 | 44.89 | 4.83 | 0.0560 | 114.60 |
 
-The sweep makes the next gap concrete: guarded Q-learning improves medium from `1/24` to `2/24` and cuts mean miss distance from `120.34 km` to `52.35 km`, but it still trails greedy. The existing full Q table mostly chooses coast without the guard; with the guard, full behavior falls back to greedy.
+The initial sweep made the medium gap concrete: guarded Q-learning improved medium from `1/24` to `2/24` and cut mean miss distance from `120.34 km` to `52.35 km`, but it still trailed greedy.
+
+After adding a one-decision projection guard, the medium Q-learning policy matches greedy on the same 24-seed benchmark:
+
+- random: 0/24 successes, mean final distance 120.92 km
+- greedy: 7/24 successes, mean final distance 19.28 km
+- qlearn: 7/24 successes, mean final distance 19.28 km
+
+The guard lets Q-learning act only when its projected decision is materially closer than greedy without adding meaningful speed risk, or when it projects immediate success. This stops the medium table from making confident but locally shallow overrides that break otherwise successful greedy trajectories. The next learning target is to make the Q table beat this guarded greedy-equivalent behavior instead of merely matching it.
 
 Medium transfer test:
 

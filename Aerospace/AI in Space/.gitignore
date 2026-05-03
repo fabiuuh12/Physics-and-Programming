@@ -1,8 +1,10 @@
 build/
 build-cmake/
+.venv/
 __pycache__/
 *.pyc
 simulations/.matplotlib/
+simulations/q_learning/q_policy_smoke.json
 downloads/
 tools/
 papers/*.aux
