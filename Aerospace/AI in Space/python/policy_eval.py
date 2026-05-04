@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from q_learning import default_policy_path, load_policy, q_policy_action_index, run_decision_action
+from q_learning import default_policy_path, load_policy, q_policy_decision, run_decision_action
 from rendezvous_env import Difficulty, EnvConfig, RendezvousEnv
 from rendezvous_sim import choose_action
 
@@ -29,6 +29,7 @@ def run_episode(
     *,
     difficulty: Difficulty,
     q_table: dict[str, list[float]] | None,
+    q_guard: bool = True,
 ) -> dict[str, Any]:
     env = RendezvousEnv(EnvConfig())
     env.reset(randomize=True, seed=seed, difficulty=difficulty)
@@ -36,6 +37,7 @@ def run_episode(
     done = False
     total_reward = 0.0
     decisions = 0
+    q_decision_reasons: dict[str, int] = {}
     info: dict[str, Any] = {}
 
     while not done:
@@ -46,7 +48,9 @@ def run_episode(
         elif policy == "qlearn":
             if q_table is None:
                 raise ValueError("qlearn policy requires q_table")
-            action_index = q_policy_action_index(env, q_table)
+            decision = q_policy_decision(env, q_table, guard=q_guard)
+            action_index = decision.action_index
+            q_decision_reasons[decision.reason] = q_decision_reasons.get(decision.reason, 0) + 1
         else:
             raise ValueError(f"Unknown policy: {policy}")
 
@@ -56,6 +60,8 @@ def run_episode(
 
     info["total_reward"] = total_reward
     info["decisions"] = decisions
+    if policy == "qlearn":
+        info["q_decision_reasons"] = q_decision_reasons
     return info
 
 
@@ -75,12 +81,36 @@ def summarize(policy: str, runs: list[dict[str, Any]]) -> str:
     )
 
 
+def summarize_q_diagnostics(runs: list[dict[str, Any]]) -> str:
+    reasons: dict[str, int] = {}
+    for run in runs:
+        for reason, count in run.get("q_decision_reasons", {}).items():
+            reasons[reason] = reasons.get(reason, 0) + count
+
+    total = sum(reasons.values())
+    if total == 0:
+        return "q diagnostics: no q decisions recorded"
+
+    own_reasons = {"q_matches_greedy", "q_projected_better", "q_raw"}
+    own = sum(count for reason, count in reasons.items() if reason in own_reasons)
+    fallback = total - own
+    parts = [
+        f"q diagnostics: own={own}/{total} ({own / total * 100.0:.1f}%)",
+        f"fallback={fallback}/{total} ({fallback / total * 100.0:.1f}%)",
+    ]
+    for reason in sorted(reasons):
+        parts.append(f"{reason}={reasons[reason]}")
+    return " ".join(parts)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare rendezvous policies on randomized scenarios.")
     parser.add_argument("--difficulty", choices=["easy", "medium", "full"], default="easy")
     parser.add_argument("--episodes", type=int, default=24)
     parser.add_argument("--seed", type=int, default=10011)
     parser.add_argument("--q-policy", type=Path)
+    parser.add_argument("--raw-q", action="store_true", help="Evaluate Q argmax actions without projection guards.")
+    parser.add_argument("--diagnostics", action="store_true")
     args = parser.parse_args()
 
     q_policy_path = args.q_policy or default_policy_path(True, args.difficulty)
@@ -101,10 +131,18 @@ def main() -> None:
         if policy == "qlearn" and q_table is None:
             continue
         runs = [
-            run_episode(policy, args.seed + index, difficulty=args.difficulty, q_table=q_table)
+            run_episode(
+                policy,
+                args.seed + index,
+                difficulty=args.difficulty,
+                q_table=q_table,
+                q_guard=not args.raw_q,
+            )
             for index in range(args.episodes)
         ]
         print(summarize(policy, runs))
+        if args.diagnostics and policy == "qlearn":
+            print(summarize_q_diagnostics(runs))
 
 
 if __name__ == "__main__":

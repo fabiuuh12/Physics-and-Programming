@@ -4,6 +4,7 @@ import argparse
 import copy
 import json
 import random
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,17 @@ Q_POLICY_GUARD_DISTANCE_MARGIN_KM = 0.5
 Q_POLICY_GUARD_SPEED_MARGIN_KM_S = 0.002
 Q_POLICY_DOCKING_CORRIDOR_KM = 8.0
 Q_POLICY_DOCKING_CORRIDOR_SPEED_KM_S = 0.03
+WARM_START_GREEDY_VALUE = 200.0
+WARM_START_OTHER_VALUE = -25.0
+
+
+@dataclass(frozen=True)
+class QPolicyDecision:
+    action_index: int
+    q_action_index: int | None
+    greedy_action_index: int
+    state_known: bool
+    reason: str
 
 
 def default_policy_path(randomized: bool, difficulty: Difficulty) -> Path:
@@ -176,6 +188,8 @@ def warm_start_from_greedy(
     difficulty: Difficulty,
     seed: int,
     scenarios: int,
+    greedy_value: float,
+    other_value: float,
 ) -> int:
     seeded_states = 0
     effective_scenarios = scenarios if randomized else 1
@@ -189,8 +203,8 @@ def warm_start_from_greedy(
             action_index = greedy_action_index(env)
             values = q_values(table, state, env.n_actions)
             for index in range(env.n_actions):
-                values[index] = min(values[index], -25.0)
-            values[action_index] = 200.0
+                values[index] = min(values[index], other_value)
+            values[action_index] = max(values[action_index], greedy_value)
             seeded_states += 1
             _, done, _ = run_decision_action(env, action_index)
 
@@ -208,6 +222,9 @@ def train_q_learning(
     randomized: bool,
     difficulty: Difficulty,
     warm_start_scenarios: int,
+    warm_start_greedy_value: float,
+    warm_start_other_value: float,
+    refresh_warm_start: bool,
     initial_table: dict[str, list[float]] | None,
     initial_policy_path: str | None,
 ) -> tuple[dict[str, list[float]], dict[str, Any]]:
@@ -223,6 +240,8 @@ def train_q_learning(
             difficulty=difficulty,
             seed=seed,
             scenarios=warm_start_scenarios,
+            greedy_value=warm_start_greedy_value,
+            other_value=warm_start_other_value,
         )
         if warm_start
         else 0
@@ -269,8 +288,10 @@ def train_q_learning(
             difficulty=difficulty,
             seed=seed,
             scenarios=warm_start_scenarios,
+            greedy_value=warm_start_greedy_value,
+            other_value=warm_start_other_value,
         )
-        if warm_start
+        if warm_start and refresh_warm_start
         else 0
     )
     metadata = {
@@ -286,6 +307,9 @@ def train_q_learning(
         "initial_policy_path": initial_policy_path,
         "initial_states": initial_states,
         "warm_start_scenarios": warm_start_scenarios,
+        "warm_start_greedy_value": warm_start_greedy_value,
+        "warm_start_other_value": warm_start_other_value,
+        "refresh_warm_start": refresh_warm_start,
         "seeded_states": seeded_states,
         "refreshed_seeded_states": refreshed_seeded_states,
         "successes": successes,
@@ -311,6 +335,9 @@ def train_best_q_learning(
     randomized: bool,
     difficulty: Difficulty,
     warm_start_scenarios: int,
+    warm_start_greedy_value: float,
+    warm_start_other_value: float,
+    refresh_warm_start: bool,
     initial_table: dict[str, list[float]] | None,
     initial_policy_path: str | None,
 ) -> tuple[dict[str, list[float]], dict[str, Any], dict[str, Any]]:
@@ -331,6 +358,9 @@ def train_best_q_learning(
             randomized=randomized,
             difficulty=difficulty,
             warm_start_scenarios=warm_start_scenarios,
+            warm_start_greedy_value=warm_start_greedy_value,
+            warm_start_other_value=warm_start_other_value,
+            refresh_warm_start=refresh_warm_start,
             initial_table=initial_table,
             initial_policy_path=initial_policy_path,
         )
@@ -393,25 +423,37 @@ def q_policy_action_index(
     env: RendezvousEnv,
     table: dict[str, list[float]],
     fallback_threshold: float = Q_POLICY_FALLBACK_THRESHOLD,
+    guard: bool = True,
 ) -> int:
+    return q_policy_decision(env, table, fallback_threshold, guard=guard).action_index
+
+
+def q_policy_decision(
+    env: RendezvousEnv,
+    table: dict[str, list[float]],
+    fallback_threshold: float = Q_POLICY_FALLBACK_THRESHOLD,
+    guard: bool = True,
+) -> QPolicyDecision:
     state = discretize_state(env)
+    greedy_index = greedy_action_index(env)
     if state not in table:
-        return greedy_action_index(env)
+        return QPolicyDecision(greedy_index, None, greedy_index, False, "unknown_state")
     values = table[state]
     if max(values) <= fallback_threshold:
-        return greedy_action_index(env)
+        return QPolicyDecision(greedy_index, None, greedy_index, True, "low_confidence")
     q_action_index = int(np.argmax(values))
-    greedy_index = greedy_action_index(env)
+    if not guard:
+        return QPolicyDecision(q_action_index, q_action_index, greedy_index, True, "q_raw")
     if q_action_index == greedy_index:
-        return q_action_index
+        return QPolicyDecision(q_action_index, q_action_index, greedy_index, True, "q_matches_greedy")
 
     q_info = projected_decision_info(env, q_action_index)
     greedy_info = projected_decision_info(env, greedy_index)
     if projected_action_is_in_docking_corridor(greedy_info) and not q_info.get("success", False):
-        return greedy_index
+        return QPolicyDecision(greedy_index, q_action_index, greedy_index, True, "docking_corridor_guard")
     if projected_action_is_competitive(q_info, greedy_info):
-        return q_action_index
-    return greedy_index
+        return QPolicyDecision(q_action_index, q_action_index, greedy_index, True, "q_projected_better")
+    return QPolicyDecision(greedy_index, q_action_index, greedy_index, True, "projection_guard")
 
 
 def projected_decision_info(env: RendezvousEnv, action_index: int) -> dict[str, Any]:
@@ -513,6 +555,9 @@ def main() -> None:
     parser.add_argument("--randomized", action="store_true")
     parser.add_argument("--difficulty", choices=["easy", "medium", "full"], default="full")
     parser.add_argument("--warm-start-scenarios", type=int, default=24)
+    parser.add_argument("--warm-start-greedy-value", type=float, default=WARM_START_GREEDY_VALUE)
+    parser.add_argument("--warm-start-other-value", type=float, default=WARM_START_OTHER_VALUE)
+    parser.add_argument("--no-refresh-warm-start", action="store_true")
     parser.add_argument("--eval-episodes", type=int, default=24)
     parser.add_argument("--trials", type=int, default=1)
     parser.add_argument("--init-policy", type=Path)
@@ -544,6 +589,9 @@ def main() -> None:
         randomized=args.randomized,
         difficulty=args.difficulty,
         warm_start_scenarios=args.warm_start_scenarios,
+        warm_start_greedy_value=args.warm_start_greedy_value,
+        warm_start_other_value=args.warm_start_other_value,
+        refresh_warm_start=not args.no_refresh_warm_start,
         initial_table=initial_table,
         initial_policy_path=initial_policy_path,
     )
