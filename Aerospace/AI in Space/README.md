@@ -113,6 +113,8 @@ Run the official policy benchmark:
 python scripts/benchmark.py --episodes 24
 ```
 
+The full guarded Q-learning benchmark can take several minutes because each learned action is checked against a one-decision greedy projection. Use `--no-write` when you want a read-only scorecard.
+
 ## Current Next Step
 
 The first planner is a greedy lookahead baseline. The next AI milestone is to make the learned policy beat that baseline, then compare tabular Q-learning against a linear function approximator.
@@ -169,6 +171,8 @@ Current curriculum sweep over 24 seeds:
 | full | 0/24 | 5/24 | 5/24 |
 
 The guarded medium policy now matches the greedy baseline on the 24-seed benchmark after adding a one-decision projection guard. Medium Q-learning improved from `2/24` successes and `52.35 km` mean final distance to `7/24` successes and `19.28 km` mean final distance. The next practical learning target is making the learned table beat greedy on medium instead of mostly relying on the guard.
+
+On the full difficulty sweep, guarded Q-learning currently matches greedy at `5/24` successes with `44.89 km` mean final distance. That makes the full-range policy useful as a baseline check, but not yet an improvement over the planner.
 
 An easy-to-medium transfer run improved mean distance to `107.59 km` but scored `0/24`, so it is useful diagnostic data rather than the new default medium policy.
 
