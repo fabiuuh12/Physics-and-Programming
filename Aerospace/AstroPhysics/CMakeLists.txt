@@ -162,6 +162,9 @@ target_link_libraries(interferometer_gw_viz_cpp PRIVATE raylib)
 add_executable(launch_window_porkchop_viz_cpp "orbital_mechanics/launch_window_porkchop_viz.cpp")
 target_link_libraries(launch_window_porkchop_viz_cpp PRIVATE raylib)
 
+add_executable(solar_system_orbit_planner_viz_cpp "orbital_mechanics/solar_system_orbit_planner_viz.cpp")
+target_link_libraries(solar_system_orbit_planner_viz_cpp PRIVATE raylib)
+
 add_executable(three_body_problem_viz_cpp "gravity/three_body_problem_viz.cpp")
 target_link_libraries(three_body_problem_viz_cpp PRIVATE raylib)
 
