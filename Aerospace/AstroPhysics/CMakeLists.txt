@@ -153,8 +153,14 @@ target_link_libraries(nuclear_power_plant_viz_cpp PRIVATE raylib)
 add_executable(hr_diagram_evolution_viz_cpp "astronomy/hr_diagram_evolution_viz.cpp")
 target_link_libraries(hr_diagram_evolution_viz_cpp PRIVATE raylib)
 
+add_executable(hohmann_transfer_viz_cpp "orbital_mechanics/hohmann_transfer_viz.cpp")
+target_link_libraries(hohmann_transfer_viz_cpp PRIVATE raylib)
+
 add_executable(interferometer_gw_viz_cpp "gravity/interferometer_gw_viz.cpp")
 target_link_libraries(interferometer_gw_viz_cpp PRIVATE raylib)
+
+add_executable(launch_window_porkchop_viz_cpp "orbital_mechanics/launch_window_porkchop_viz.cpp")
+target_link_libraries(launch_window_porkchop_viz_cpp PRIVATE raylib)
 
 add_executable(three_body_problem_viz_cpp "gravity/three_body_problem_viz.cpp")
 target_link_libraries(three_body_problem_viz_cpp PRIVATE raylib)

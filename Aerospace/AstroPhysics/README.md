@@ -25,6 +25,7 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 | Folder | Purpose |
 | --- | --- |
 | `astronomy/` | Stellar, galactic, exoplanet, pulsar, solar-wind, and mission visualizations |
+| `orbital_mechanics/` | Transfer orbits, launch windows, delta-v intuition, and mission-design trade spaces |
 | `gravity/` | Orbital mechanics, black holes, lensing, gravitational waves, and spacetime demos |
 | `mechanics/` | Classical mechanics, oscillators, drag, aerodynamics, and interactive hand labs |
 | `electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
@@ -47,6 +48,8 @@ These are good first demos for an aerospace or space-systems reviewer:
 | Target | Source | Why it is relevant |
 | --- | --- | --- |
 | `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Visualizes aerodynamic intuition and force behavior |
+| `hohmann_transfer_viz_cpp` | `orbital_mechanics/hohmann_transfer_viz.cpp` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
+| `launch_window_porkchop_viz_cpp` | `orbital_mechanics/launch_window_porkchop_viz.cpp` | Visualizes departure/arrival trade space for mission planning |
 | `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Demonstrates nonlinear orbital dynamics |
 | `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Shows Lagrange-point intuition for mission design |
 | `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Connects space weather, charged particles, and planetary fields |
