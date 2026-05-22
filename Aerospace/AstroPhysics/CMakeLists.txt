@@ -96,6 +96,9 @@ target_link_libraries(em_helical_poynting_viz_cpp PRIVATE raylib)
 add_executable(magnetosphere_solar_wind_viz_cpp "electromagnetism/magnetosphere_solar_wind_viz.cpp")
 target_link_libraries(magnetosphere_solar_wind_viz_cpp PRIVATE raylib)
 
+add_executable(earth_weather_globe_viz_cpp "meteorology/earth_weather_globe_viz.cpp")
+target_link_libraries(earth_weather_globe_viz_cpp PRIVATE raylib)
+
 add_executable(enthropy_viz_cpp "thermodynamics/enthropy_viz.cpp")
 target_link_libraries(enthropy_viz_cpp PRIVATE raylib)
 

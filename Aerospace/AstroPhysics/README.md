@@ -29,6 +29,7 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 | `gravity/` | Orbital mechanics, black holes, lensing, gravitational waves, and spacetime demos |
 | `mechanics/` | Classical mechanics, oscillators, drag, aerodynamics, and interactive hand labs |
 | `electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
+| `meteorology/` | Earth weather globe, atmospheric layers, wind, pressure, and storm-system visualizations |
 | `fluids/` | Channel flow and vortex visualization |
 | `plasma/` | Tokamak confinement visualization |
 | `relativity/` | Time dilation, Doppler effects, and Penrose diagram visualization |
@@ -53,6 +54,7 @@ These are good first demos for an aerospace or space-systems reviewer:
 | `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Demonstrates nonlinear orbital dynamics |
 | `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Shows Lagrange-point intuition for mission design |
 | `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Connects space weather, charged particles, and planetary fields |
+| `earth_weather_globe_viz_cpp` | `meteorology/earth_weather_globe_viz.cpp` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
 | `tokamak_confinement_viz_cpp` | `plasma/tokamak_confinement_viz.cpp` | Shows field-guided plasma confinement concepts |
 | `gravitational_lensing_playground_viz_cpp` | `gravity/gravitational_lensing_playground_viz.cpp` | Communicates spacetime curvature through interactive optics-like behavior |
 | `orbital_construction_hand_lab_viz_cpp` | `astronomy/orbital_construction_hand_lab_viz.cpp` | Combines orbital visualization with live hand-control input |
