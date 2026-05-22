@@ -132,6 +132,9 @@ target_link_libraries(gravitational_lensing_animation_viz_cpp PRIVATE raylib)
 add_executable(gravitational_lensing_playground_viz_cpp "gravity/gravitational_lensing_playground_viz.cpp")
 target_link_libraries(gravitational_lensing_playground_viz_cpp PRIVATE raylib)
 
+add_executable(gravity_well_grid_viz_cpp "gravity/gravity_well_grid_viz.cpp")
+target_link_libraries(gravity_well_grid_viz_cpp PRIVATE raylib)
+
 add_executable(gravity_lagrange_viz_cpp "gravity/gravity_lagrange_viz.cpp")
 target_link_libraries(gravity_lagrange_viz_cpp PRIVATE raylib)
 
