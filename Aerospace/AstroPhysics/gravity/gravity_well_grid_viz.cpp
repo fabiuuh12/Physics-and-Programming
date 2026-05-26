@@ -390,7 +390,7 @@ Vector3 CenterOfMassVelocity(const std::vector<MassObject>& masses) {
     return totalMass > 0.0f ? Vector3Scale(weighted, 1.0f / totalMass) : Vector3Zero();
 }
 
-void RecenterSystem(std::vector<MassObject>* masses) {
+void RecenterSystem(std::vector<MassObject>* masses, std::vector<CollisionEvent>* collisions = nullptr, std::vector<ExplosionParticle>* particles = nullptr) {
     Vector3 com = CenterOfMass(*masses);
     Vector3 comVel = CenterOfMassVelocity(*masses);
     for (MassObject& body : *masses) {
@@ -398,6 +398,16 @@ void RecenterSystem(std::vector<MassObject>* masses) {
         body.vel = Vector3Subtract(body.vel, comVel);
         for (Vector3& point : body.trail) {
             point = Vector3Subtract(point, com);
+        }
+    }
+    if (collisions != nullptr) {
+        for (CollisionEvent& event : *collisions) {
+            event.pos = Vector3Subtract(event.pos, com);
+        }
+    }
+    if (particles != nullptr) {
+        for (ExplosionParticle& particle : *particles) {
+            particle.pos = Vector3Subtract(particle.pos, com);
         }
     }
 }
@@ -422,11 +432,9 @@ void HandleCollisions(std::vector<MassObject>* masses, std::vector<CollisionEven
             a = {pos, vel, totalMass, radius, mergedColor, a.label + "+" + b.label, blackHole, pulsar, {}};
             masses->erase(masses->begin() + j);
             float burst = std::clamp(impact * 0.55f + totalMass * 0.08f, 0.5f, 1.8f);
-            Vector3 recenteredPos = Vector3Subtract(pos, CenterOfMass(*masses));
-            collisions->push_back({recenteredPos, 0.0f, burst});
-            SpawnExplosionParticles(particles, recenteredPos, burst, mergedColor);
+            collisions->push_back({pos, 0.0f, burst});
+            SpawnExplosionParticles(particles, pos, burst, mergedColor);
             *selected = std::min(i, static_cast<int>(masses->size()) - 1);
-            RecenterSystem(masses);
             return;
         }
     }
@@ -467,7 +475,7 @@ void UpdateMassObjects(std::vector<MassObject>* masses, std::vector<CollisionEve
         body.trail.push_back(body.pos);
         if (body.trail.size() > kTrailLimit) body.trail.pop_front();
     }
-    RecenterSystem(masses);
+    RecenterSystem(masses, collisions, particles);
     HandleCollisions(masses, collisions, particles, selected);
 }
 
