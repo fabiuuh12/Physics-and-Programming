@@ -1,28 +1,28 @@
 # Physics-and-Programming
 
-Mixed repository of interactive physics/astrophysics simulations and practical cybersecurity tooling.
+Mixed repository of computational physics simulations and practical cybersecurity tooling.
 
 ## Current Repo Snapshot
 
-- `AstroPhysics/`: C++ Raylib visualizers plus Python vision/interaction bridges.
-- `CyberTools/`: standalone Python security and analysis scripts.
-- C++ visualizers: 63 `.cpp` simulation programs in `AstroPhysics/` (plus vendored third-party sources).
+- `CompPhysics/`: C++ Raylib visualizers plus Python vision/interaction bridges.
+- `CompPhysics/CyberTools/`: standalone Python security and analysis scripts.
+- C++ visualizers: 63 `.cpp` simulation programs in `CompPhysics/` (plus vendored third-party sources).
 - CyberTools scripts: 24 Python utilities across auth/network/forensics/web/file/integrity/osint.
 
 ## Repository Layout
 
-- `AstroPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `dimensions`
-- `AstroPhysics/vision`
-- `AstroPhysics/DefensiveSys`
-- `AstroPhysics/mathematics`
-- `AstroPhysics/tests`
-- `AstroPhysics/mathematics/docs`
-- `AstroPhysics/third_party` (vendored Raylib source/headers)
-- `CyberTools/auth`, `file_ops`, `forensics`, `integrity_hashing`, `network`, `osint`, `web`
+- `CompPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `dimensions`
+- `CompPhysics/vision`
+- `CompPhysics/DefensiveSys`
+- `CompPhysics/mathematics`
+- `CompPhysics/tests`
+- `CompPhysics/mathematics/docs`
+- `CompPhysics/third_party` (vendored Raylib source/headers)
+- `CompPhysics/CyberTools/auth`, `file_ops`, `forensics`, `integrity_hashing`, `network`, `osint`, `web`
 
-## AstroPhysics (C++ and Vision)
+## CompPhysics (C++ and Vision)
 
-- Build system: `AstroPhysics/CMakeLists.txt`
+- Build system: `CompPhysics/CMakeLists.txt`
 - Model: one executable target per simulation `.cpp`
 - Example C++ targets:
 - `solar_system_spacetime_viz_cpp`
@@ -31,7 +31,7 @@ Mixed repository of interactive physics/astrophysics simulations and practical c
 - `defensive_sys_3d_cpp`
 - `vision_two_hands_scene_cpp`
 
-Vision and bridge scripts in `AstroPhysics/vision`:
+Vision and bridge scripts in `CompPhysics/vision`:
 
 - `hand_planet_overlay.py` (hand-tracked atom/neutron/star/blackhole interaction scene)
 - `floating_hand_avatar.py`
@@ -42,8 +42,8 @@ Vision and bridge scripts in `AstroPhysics/vision`:
 
 Defensive simulation bridge:
 
-- `AstroPhysics/DefensiveSys/hand_turret_sim.py`
-- `AstroPhysics/DefensiveSys/defensive_sys_3d.cpp`
+- `CompPhysics/DefensiveSys/hand_turret_sim.py`
+- `CompPhysics/DefensiveSys/defensive_sys_3d.cpp`
 
 ## CyberTools
 
@@ -83,7 +83,7 @@ python3 -m pip install numpy opencv-python mediapipe pytest requests
 From repo root:
 
 ```bash
-cd AstroPhysics
+cd CompPhysics
 cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
 cmake --build build-native --config Release
 ```
@@ -97,13 +97,13 @@ cmake --build build-native --config Release --target solar_system_spacetime_viz_
 Run (macOS/Linux example):
 
 ```bash
-./AstroPhysics/build-native/solar_system_spacetime_viz_cpp
+./CompPhysics/build-native/solar_system_spacetime_viz_cpp
 ```
 
 Run (Windows example):
 
 ```powershell
-.\AstroPhysics\build-native\Release\solar_system_spacetime_viz_cpp.exe
+.\CompPhysics\build-native\Release\solar_system_spacetime_viz_cpp.exe
 ```
 
 ## Run Python Programs
@@ -111,28 +111,28 @@ Run (Windows example):
 Examples from repo root:
 
 ```bash
-python3 AstroPhysics/vision/hand_planet_overlay.py
-python3 AstroPhysics/vision/floating_hand_avatar.py
-python3 AstroPhysics/vision/hologram_control.py
-python3 AstroPhysics/vision/two_hand_bridge.py
-python3 AstroPhysics/DefensiveSys/hand_turret_sim.py
-python3 "CyberTools/network/Certificate Expiry Checker.py" --host example.com
+python3 CompPhysics/vision/hand_planet_overlay.py
+python3 CompPhysics/vision/floating_hand_avatar.py
+python3 CompPhysics/vision/hologram_control.py
+python3 CompPhysics/vision/two_hand_bridge.py
+python3 CompPhysics/DefensiveSys/hand_turret_sim.py
+python3 "CompPhysics/CyberTools/network/Certificate Expiry Checker.py" --host example.com
 ```
 
 ## Tests
 
 Current automated tests:
 
-- `AstroPhysics/tests/test_quantum_search.py`
+- `CompPhysics/tests/test_quantum_search.py`
 
 Run:
 
 ```bash
-PYTHONPATH=AstroPhysics pytest AstroPhysics/tests -q
+PYTHONPATH=CompPhysics pytest CompPhysics/tests -q
 ```
 
 ## Notes
 
 - Many C++ programs open real-time interactive windows.
 - Some script filenames include spaces/apostrophes; quote paths in shell commands.
-- `AstroPhysics/build*` and `__pycache__` directories are generated artifacts.
+- `CompPhysics/build*` and `__pycache__` directories are generated artifacts.
