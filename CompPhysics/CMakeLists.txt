@@ -75,9 +75,6 @@ target_link_libraries(doppler_eff_viz_cpp PRIVATE raylib)
 add_executable(double_pendulum_chaos_viz_cpp "mechanics/double_pendulum_chaos_viz.cpp")
 target_link_libraries(double_pendulum_chaos_viz_cpp PRIVATE raylib)
 
-add_executable(double_slit_viz_cpp "quantum/double_slit_viz.cpp")
-target_link_libraries(double_slit_viz_cpp PRIVATE raylib)
-
 add_executable(electric_charges_interaction_cpp "electromagnetism/electric charges interaction.cpp")
 target_link_libraries(electric_charges_interaction_cpp PRIVATE raylib)
 
