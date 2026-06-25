@@ -1,6 +1,6 @@
 # Computational Physics Simulation Portfolio
 
-This folder is a portfolio of interactive computational physics simulations covering orbital mechanics, gravitational fields, electromagnetic fields, fluids, plasma behavior, optics, thermodynamics, and numerical/visual intuition for quantum systems.
+This folder is a portfolio of interactive computational physics simulations covering orbital mechanics, gravitational fields, electromagnetic fields, fluids, waves, plasma behavior, optics, thermodynamics, and numerical/visual intuition for quantum systems.
 
 The strongest presentation value is in the C++/raylib visual simulations. They show comfort with compiled systems, real-time rendering loops, vector math, physical models, camera controls, and clear interactive UI overlays.
 
@@ -31,6 +31,7 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 | `electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
 | `meteorology/` | Earth weather globe, atmospheric layers, wind, pressure, and storm-system visualizations |
 | `fluids/` | Channel flow and vortex visualization |
+| `waves/` | Helical waves, interference, standing-wave structure, and propagation intuition |
 | `plasma/` | Tokamak confinement visualization |
 | `relativity/` | Time dilation, Doppler effects, and Penrose diagram visualization |
 | `quantum/` | Quantum visualization demos and Grover-search visualization |
@@ -55,6 +56,7 @@ These are good first demos for a computational physics or simulation reviewer:
 | `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Add `media/lagrange-points.png` | Shows Lagrange-point intuition for mission design |
 | `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Add `media/magnetosphere-solar-wind.gif` | Connects space weather, charged particles, and planetary fields |
 | `earth_weather_globe_viz_cpp` | `meteorology/earth_weather_globe_viz.cpp` | Add `media/earth-weather-globe.png` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
+| `helical_wave_lab_viz_cpp` | `waves/helical_wave_lab_viz.cpp` | Add `media/helical-wave-lab.gif` | Shows circular polarization, interference braids, standing helices, and plasma-like torsion |
 | `tokamak_confinement_viz_cpp` | `plasma/tokamak_confinement_viz.cpp` | Add `media/tokamak-confinement.gif` | Shows field-guided plasma confinement concepts |
 | `gravitational_lensing_playground_viz_cpp` | `gravity/gravitational_lensing_playground_viz.cpp` | Add `media/gravitational-lensing.gif` | Communicates spacetime curvature through interactive optics-like behavior |
 | `orbital_construction_hand_lab_viz_cpp` | `astronomy/orbital_construction_hand_lab_viz.cpp` | Add `media/orbital-hand-lab.gif` | Combines orbital visualization with live hand-control input |

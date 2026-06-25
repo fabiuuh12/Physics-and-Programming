@@ -6,12 +6,12 @@ Mixed repository of computational physics simulations and practical cybersecurit
 
 - `CompPhysics/`: C++ Raylib visualizers plus Python vision/interaction bridges.
 - `CompPhysics/CyberTools/`: standalone Python security and analysis scripts.
-- C++ visualizers: 63 `.cpp` simulation programs in `CompPhysics/` (plus vendored third-party sources).
+- C++ visualizers: many standalone `.cpp` simulation programs in `CompPhysics/` (plus vendored third-party sources).
 - CyberTools scripts: 24 Python utilities across auth/network/forensics/web/file/integrity/osint.
 
 ## Repository Layout
 
-- `CompPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `dimensions`
+- `CompPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `waves`, `dimensions`
 - `CompPhysics/vision`
 - `CompPhysics/DefensiveSys`
 - `CompPhysics/mathematics`
@@ -54,6 +54,7 @@ Defensive simulation bridge:
 | Launch Window Porkchop | Mission design trade space | `launch_window_porkchop_viz_cpp` |
 | Three Body Problem | Nonlinear orbital dynamics | `three_body_problem_viz_cpp` |
 | Gravitational Lensing Playground | Relativity and optics intuition | `gravitational_lensing_playground_viz_cpp` |
+| Helical Wave Laboratory | Waves, interference, and polarization | `helical_wave_lab_viz_cpp` |
 | Tokamak Confinement | Plasma physics | `tokamak_confinement_viz_cpp` |
 
 Add screenshots or GIFs under `media/` when capturing demos locally, then link them from this table.

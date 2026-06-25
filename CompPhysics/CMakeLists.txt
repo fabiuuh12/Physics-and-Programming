@@ -120,6 +120,9 @@ target_link_libraries(fluid_mechanics_channel_viz_cpp PRIVATE raylib)
 add_executable(fluid_vortex_viz_cpp "fluids/fluid_vortex_viz.cpp")
 target_link_libraries(fluid_vortex_viz_cpp PRIVATE raylib)
 
+add_executable(helical_wave_lab_viz_cpp "waves/helical_wave_lab_viz.cpp")
+target_link_libraries(helical_wave_lab_viz_cpp PRIVATE raylib)
+
 add_executable(gravitational_lensing_viz_cpp "gravity/gravitational_lensing_viz.cpp")
 target_link_libraries(gravitational_lensing_viz_cpp PRIVATE raylib)
 

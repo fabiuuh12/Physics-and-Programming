@@ -8,7 +8,7 @@ This project is best presented as a scientific visualization and simulation port
 
 - Real-time C++ rendering with raylib and CMake
 - 3D camera control, scene composition, and live simulation state
-- Numerical intuition across orbital mechanics, fields, fluids, plasma, relativity, and quantum probability
+- Numerical intuition across orbital mechanics, waves, fields, fluids, plasma, relativity, and quantum probability
 - Python/C++ workflow separation for computer-vision input bridges and compiled visualizers
 - Testable mathematical helpers for selected numerical models
 - Clear domain organization for a large set of exploratory simulations
@@ -21,6 +21,7 @@ This project is best presented as a scientific visualization and simulation port
    - `mechanics/aerodynamics_viz.cpp`
    - `gravity/three_body_problem_viz.cpp`
    - `gravity/gravity_lagrange_viz.cpp`
+   - `waves/helical_wave_lab_viz.cpp`
    - `electromagnetism/magnetosphere_solar_wind_viz.cpp`
    - `plasma/tokamak_confinement_viz.cpp`
 4. Run one built target from `build-native/` or rebuild it from source.
