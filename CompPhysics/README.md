@@ -46,18 +46,27 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 
 These are good first demos for a computational physics or simulation reviewer:
 
-| Target | Source | Why it is relevant |
-| --- | --- | --- |
-| `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Visualizes aerodynamic intuition and force behavior |
-| `hohmann_transfer_viz_cpp` | `orbital_mechanics/hohmann_transfer_viz.cpp` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
-| `launch_window_porkchop_viz_cpp` | `orbital_mechanics/launch_window_porkchop_viz.cpp` | Visualizes departure/arrival trade space for mission planning |
-| `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Demonstrates nonlinear orbital dynamics |
-| `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Shows Lagrange-point intuition for mission design |
-| `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Connects space weather, charged particles, and planetary fields |
-| `earth_weather_globe_viz_cpp` | `meteorology/earth_weather_globe_viz.cpp` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
-| `tokamak_confinement_viz_cpp` | `plasma/tokamak_confinement_viz.cpp` | Shows field-guided plasma confinement concepts |
-| `gravitational_lensing_playground_viz_cpp` | `gravity/gravitational_lensing_playground_viz.cpp` | Communicates spacetime curvature through interactive optics-like behavior |
-| `orbital_construction_hand_lab_viz_cpp` | `astronomy/orbital_construction_hand_lab_viz.cpp` | Combines orbital visualization with live hand-control input |
+| Target | Source | Preview | Why it is relevant |
+| --- | --- | --- | --- |
+| `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Visualizes aerodynamic intuition and force behavior |
+| `hohmann_transfer_viz_cpp` | `orbital_mechanics/hohmann_transfer_viz.cpp` | Add `media/hohmann-transfer.gif` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
+| `launch_window_porkchop_viz_cpp` | `orbital_mechanics/launch_window_porkchop_viz.cpp` | Add `media/launch-window-porkchop.png` | Visualizes departure/arrival trade space for mission planning |
+| `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Add `media/three-body-problem.gif` | Demonstrates nonlinear orbital dynamics |
+| `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Add `media/lagrange-points.png` | Shows Lagrange-point intuition for mission design |
+| `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Add `media/magnetosphere-solar-wind.gif` | Connects space weather, charged particles, and planetary fields |
+| `earth_weather_globe_viz_cpp` | `meteorology/earth_weather_globe_viz.cpp` | Add `media/earth-weather-globe.png` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
+| `tokamak_confinement_viz_cpp` | `plasma/tokamak_confinement_viz.cpp` | Add `media/tokamak-confinement.gif` | Shows field-guided plasma confinement concepts |
+| `gravitational_lensing_playground_viz_cpp` | `gravity/gravitational_lensing_playground_viz.cpp` | Add `media/gravitational-lensing.gif` | Communicates spacetime curvature through interactive optics-like behavior |
+| `orbital_construction_hand_lab_viz_cpp` | `astronomy/orbital_construction_hand_lab_viz.cpp` | Add `media/orbital-hand-lab.gif` | Combines orbital visualization with live hand-control input |
+
+Store demo screenshots and GIFs in `media/` so the portfolio value is visible directly on GitHub.
+
+## macOS Setup
+
+```bash
+brew install cmake raylib python
+python3 -m pip install -r requirements.txt -r requirements-dev.txt
+```
 
 ## Build C++ Visualizations
 

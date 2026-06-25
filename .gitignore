@@ -12,7 +12,7 @@ venv/
 
 # C/C++ and CMake build outputs
 build/
-AstroPhysics/build-native/
+CompPhysics/build*/
 build-vcpkg/
 build-vcpkg-*/
 cmake-build-*/

@@ -45,6 +45,19 @@ Defensive simulation bridge:
 - `CompPhysics/DefensiveSys/hand_turret_sim.py`
 - `CompPhysics/DefensiveSys/defensive_sys_3d.cpp`
 
+## Featured Demos
+
+| Demo | Topic | Target |
+| --- | --- | --- |
+| Aerodynamics | Mechanics and fluid intuition | `aerodynamics_viz_cpp` |
+| Hohmann Transfer | Orbital mechanics | `hohmann_transfer_viz_cpp` |
+| Launch Window Porkchop | Mission design trade space | `launch_window_porkchop_viz_cpp` |
+| Three Body Problem | Nonlinear orbital dynamics | `three_body_problem_viz_cpp` |
+| Gravitational Lensing Playground | Relativity and optics intuition | `gravitational_lensing_playground_viz_cpp` |
+| Tokamak Confinement | Plasma physics | `tokamak_confinement_viz_cpp` |
+
+Add screenshots or GIFs under `media/` when capturing demos locally, then link them from this table.
+
 ## CyberTools
 
 Python security utilities grouped by domain:
@@ -64,7 +77,14 @@ Python security utilities grouped by domain:
 - Raylib available to CMake (`find_package(raylib CONFIG REQUIRED)`)
 - Python 3.10+
 
-Python packages used across repo:
+macOS setup:
+
+```bash
+brew install cmake raylib python
+python3 -m pip install -r CompPhysics/requirements.txt -r CompPhysics/requirements-dev.txt
+```
+
+Python packages used across the repo:
 
 - `numpy`
 - `opencv-python`
@@ -75,7 +95,7 @@ Python packages used across repo:
 Install Python deps:
 
 ```bash
-python3 -m pip install numpy opencv-python mediapipe pytest requests
+python3 -m pip install -r CompPhysics/requirements.txt -r CompPhysics/requirements-dev.txt
 ```
 
 ## Build C++ Programs
@@ -86,6 +106,15 @@ From repo root:
 cd CompPhysics
 cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
 cmake --build build-native --config Release
+```
+
+macOS quick demo:
+
+```bash
+cd CompPhysics
+cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
+cmake --build build-native --target aerodynamics_viz_cpp
+./build-native/aerodynamics_viz_cpp
 ```
 
 Build one target:

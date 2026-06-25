@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: python -m pip install -r CompPhysics/requirements-dev.txt
+
+      - name: Run tests
+        run: PYTHONPATH=CompPhysics python -m pytest CompPhysics/tests -q
+
+  macos-cmake:
+    name: macOS CMake build
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install raylib
+        run: brew install raylib
+
+      - name: Configure CMake
+        run: cmake -S CompPhysics -B CompPhysics/build-ci -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build representative target
+        run: cmake --build CompPhysics/build-ci --config Release --target aerodynamics_viz_cpp

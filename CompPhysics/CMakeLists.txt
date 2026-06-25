@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(computational physics_cpp_viz LANGUAGES CXX)
+project(computational_physics_cpp_viz LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
