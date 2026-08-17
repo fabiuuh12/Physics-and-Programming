@@ -361,7 +361,6 @@ int main() {
         BeginMode3D(camera);
 
         DrawPlane({0.0f, -2.45f, 0.0f}, {18.0f, 8.0f}, Color{9, 13, 23, 255});
-        DrawGrid(18, 1.0f);
         DrawTube(2.1f, kTunnelLength * 0.5f);
         DrawLine3D({kXMin - 0.3f, 0.0f, 0.0f}, {kXMax + 0.3f, 0.0f, 0.0f}, Color{185, 210, 245, 150});
 

@@ -60,6 +60,9 @@ target_link_libraries(collision_bh_viz_cpp PRIVATE raylib)
 add_executable(cosmic_expansion_sandbox_viz_cpp "astronomy/cosmic_expansion_sandbox_viz.cpp")
 target_link_libraries(cosmic_expansion_sandbox_viz_cpp PRIVATE raylib)
 
+add_executable(procedural_rose_viz_cpp "mathematics/procedural_rose_viz.cpp")
+target_link_libraries(procedural_rose_viz_cpp PRIVATE raylib)
+
 add_executable(damped_forced_oscillator_viz_cpp "mechanics/damped_forced_oscillator_viz.cpp")
 target_link_libraries(damped_forced_oscillator_viz_cpp PRIVATE raylib)
 
