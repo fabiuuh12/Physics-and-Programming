@@ -5,14 +5,13 @@ Detects people and pose landmarks, derives clothing-color observations, and
 optionally stores structured observations in SQLite. Camera frames are
 never saved. This tool does not identify people or infer sensitive traits.
 
-Controls: Q/Esc quit, R toggle data recording, F fullscreen, M mirror, H help.
+Controls: Q/Esc quit, R record, V cycle views, F fullscreen, M mirror, H help.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import socket
 import sqlite3
 import time
 import uuid
@@ -36,8 +35,6 @@ PROJECT_DIR = SCRIPT_DIR.parents[1]
 MODEL_DIR = PROJECT_DIR / "vision" / "models"
 DEFAULT_POSE_MODEL = MODEL_DIR / "pose_landmarker_lite.task"
 DEFAULT_DATABASE = SCRIPT_DIR / "data" / "scene_observations.sqlite3"
-DEFAULT_POSE_UDP_HOST = "127.0.0.1"
-DEFAULT_POSE_UDP_PORT = 50525
 
 PANEL_WIDTH = 360
 WHITE = (238, 241, 244)
@@ -92,6 +89,11 @@ class AppState:
     clothing: list[ClothingObservation] = field(default_factory=list)
     silhouette_contours: list[np.ndarray] = field(default_factory=list)
     silhouette_probability: np.ndarray | None = None
+    avatar_current: np.ndarray | None = None
+    avatar_target: np.ndarray | None = None
+    avatar_visibility: np.ndarray | None = None
+    avatar_last_seen: float = -100.0
+    view_mode: int = 0
     records_written: int = 0
     last_saved_at: float = 0.0
     fps_samples: list[float] = field(default_factory=list)
@@ -239,9 +241,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-mirror", action="store_true")
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     parser.add_argument("--profile", type=Path, help="optional self-described JSON profile")
-    parser.add_argument("--pose-udp-host", default=DEFAULT_POSE_UDP_HOST)
-    parser.add_argument("--pose-udp-port", type=int, default=DEFAULT_POSE_UDP_PORT)
-    parser.add_argument("--no-pose-stream", action="store_true", help="disable localhost avatar stream")
     return parser.parse_args()
 
 
@@ -381,34 +380,6 @@ def detect_pose(image: mp.Image, pose_detector, timestamp_ms: int):
     )
 
 
-def send_pose_packets(
-    sock: socket.socket,
-    host: str,
-    port: int,
-    timestamp_ms: int,
-    world_poses: list[list[object]],
-) -> None:
-    """Send one compact CSV datagram per person for the C++ avatar receiver."""
-    for person_index, landmarks in enumerate(world_poses):
-        if len(landmarks) != 33:
-            continue
-        parts = ["POSE", "1", str(timestamp_ms), str(person_index), "33"]
-        for point in landmarks:
-            parts.extend(
-                (
-                    f"{float(point.x):.5f}",
-                    f"{float(point.y):.5f}",
-                    f"{float(point.z):.5f}",
-                    f"{float(point.visibility):.4f}",
-                )
-            )
-        try:
-            sock.sendto(",".join(parts).encode("ascii"), (host, port))
-        except OSError:
-            # Tracking must continue even if no avatar receiver is running.
-            pass
-
-
 def update_silhouette(
     previous: np.ndarray | None,
     masks: list[object],
@@ -453,6 +424,178 @@ def update_silhouette(
 
 def put_text(image, text: str, position: tuple[int, int], scale=0.52, color=WHITE, thickness=1):
     cv2.putText(image, text, position, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
+
+
+def default_avatar_pose() -> np.ndarray:
+    pose = np.zeros((33, 2), dtype=np.float32)
+    pose[:] = (0.0, -0.55)
+    values = {
+        0: (0.0, -1.62), 7: (-0.18, -1.52), 8: (0.18, -1.52),
+        9: (-0.08, -1.38), 10: (0.08, -1.38),
+        11: (-0.45, -1.02), 12: (0.45, -1.02),
+        13: (-0.76, -0.62), 14: (0.76, -0.62),
+        15: (-0.92, -0.10), 16: (0.92, -0.10),
+        17: (-0.98, 0.00), 18: (0.98, 0.00),
+        19: (-1.00, -0.02), 20: (1.00, -0.02),
+        21: (-0.87, -0.01), 22: (0.87, -0.01),
+        23: (-0.23, 0.0), 24: (0.23, 0.0),
+        25: (-0.24, 0.84), 26: (0.24, 0.84),
+        27: (-0.24, 1.68), 28: (0.24, 1.68),
+        29: (-0.24, 1.78), 30: (0.24, 1.78),
+        31: (-0.31, 1.82), 32: (0.31, 1.82),
+    }
+    for index, value in values.items():
+        pose[index] = value
+    return pose
+
+
+def update_avatar_rig(state: AppState, now: float, dt: float) -> None:
+    fallback = default_avatar_pose()
+    if state.poses:
+        landmarks = state.poses[0]
+        raw = np.asarray([(point.x, point.y) for point in landmarks], dtype=np.float32)
+        visibility = np.asarray([point.visibility for point in landmarks], dtype=np.float32)
+        hip = 0.5 * (raw[23] + raw[24])
+        shoulders = 0.5 * (raw[11] + raw[12])
+        torso = float(np.linalg.norm(shoulders - hip))
+        if torso >= 0.035:
+            target = (raw - hip) / torso
+            if state.avatar_target is None:
+                state.avatar_target = target
+            else:
+                reliable = visibility >= 0.35
+                state.avatar_target[reliable] = target[reliable]
+            state.avatar_visibility = visibility
+            state.avatar_last_seen = now
+
+    if state.avatar_target is None:
+        state.avatar_target = fallback.copy()
+    if now - state.avatar_last_seen > 0.7:
+        state.avatar_target += (fallback - state.avatar_target) * min(1.0, dt * 2.6)
+    if state.avatar_current is None:
+        state.avatar_current = state.avatar_target.copy()
+
+    error = np.linalg.norm(state.avatar_target - state.avatar_current, axis=1)
+    rates = np.clip(7.0 + error * 18.0, 7.0, 25.0)
+    response = 1.0 - np.exp(-dt * rates)
+    state.avatar_current += (state.avatar_target - state.avatar_current) * response[:, None]
+
+
+def _avatar_color(state: AppState, region: str, fallback: tuple[int, int, int]) -> tuple[int, int, int]:
+    for item in state.clothing:
+        if item.person_index == 1 and item.region == region and item.primary_color in COLOR_SWATCHES:
+            if item.primary_color not in ("mixed", "uncertain"):
+                return COLOR_SWATCHES[item.primary_color]
+    return fallback
+
+
+def _draw_2d_limb(
+    image: np.ndarray,
+    start: tuple[int, int],
+    end: tuple[int, int],
+    thickness: int,
+    color: tuple[int, int, int],
+) -> None:
+    cv2.line(image, start, end, PANEL_DARK, thickness + 7, cv2.LINE_AA)
+    cv2.line(image, start, end, color, thickness, cv2.LINE_AA)
+    cv2.circle(image, start, thickness // 2, color, -1, cv2.LINE_AA)
+    cv2.circle(image, end, thickness // 2, color, -1, cv2.LINE_AA)
+
+
+def render_avatar_2d(height: int, width: int, state: AppState) -> np.ndarray:
+    avatar = np.zeros((height, width, 3), dtype=np.uint8)
+    top = np.asarray((41, 46, 51), dtype=np.float32)
+    bottom = np.asarray((18, 21, 24), dtype=np.float32)
+    blend = np.linspace(0.0, 1.0, height, dtype=np.float32)[:, None, None]
+    avatar[:] = ((1.0 - blend) * top + blend * bottom).astype(np.uint8)
+    cv2.line(avatar, (24, height - 47), (width - 24, height - 47), DIVIDER, 2, cv2.LINE_AA)
+    put_text(avatar, "PYTHON 2D AVATAR", (22, 31), 0.58, WHITE, 1)
+    put_text(avatar, "primary tracked person", (22, 55), 0.43, MUTED)
+
+    if state.avatar_current is None:
+        put_text(avatar, "Waiting for a visible pose", (width // 2 - 105, height // 2), 0.50, MUTED)
+        return avatar
+
+    relative = state.avatar_current.copy()
+    scale = height * 0.285
+    points = np.empty_like(relative)
+    points[:, 0] = width * 0.5 + relative[:, 0] * scale
+    points[:, 1] = height * 0.41 + relative[:, 1] * scale
+    lowest = float(max(points[27, 1], points[28, 1], points[31, 1], points[32, 1]))
+    points[:, 1] += height * 0.90 - lowest
+    p = np.rint(points).astype(np.int32)
+    point = lambda index: (int(p[index, 0]), int(p[index, 1]))
+
+    skin = (145, 185, 220)
+    hair = (38, 55, 74)
+    shirt = _avatar_color(state, "upper_clothing", (205, 126, 48))
+    pants = _avatar_color(state, "lower_clothing", (72, 64, 55))
+    shoes = (32, 35, 39)
+    arm_width = max(12, round(scale * 0.13))
+    leg_width = max(16, round(scale * 0.17))
+
+    cv2.ellipse(
+        avatar,
+        (width // 2, height - 39),
+        (max(55, round(scale * 0.55)), max(8, round(scale * 0.08))),
+        0, 0, 360, (12, 14, 16), -1, cv2.LINE_AA,
+    )
+
+    # Legs, feet, and rear arm segments.
+    for hip, knee, ankle, heel, foot in (
+        (23, 25, 27, 29, 31), (24, 26, 28, 30, 32)
+    ):
+        _draw_2d_limb(avatar, point(hip), point(knee), leg_width, pants)
+        _draw_2d_limb(avatar, point(knee), point(ankle), leg_width - 2, pants)
+        _draw_2d_limb(avatar, point(heel), point(foot), leg_width, shoes)
+
+    for shoulder, elbow, wrist in ((11, 13, 15), (12, 14, 16)):
+        _draw_2d_limb(avatar, point(shoulder), point(elbow), arm_width + 2, shirt)
+        _draw_2d_limb(avatar, point(elbow), point(wrist), arm_width, skin)
+
+    # Filled torso with a dark tailored outline.
+    torso = np.asarray([point(11), point(12), point(24), point(23)], dtype=np.int32)
+    cv2.fillConvexPoly(avatar, torso, PANEL_DARK, cv2.LINE_AA)
+    inner_center = np.mean(torso, axis=0)
+    inner = np.rint(torso * 0.93 + inner_center * 0.07).astype(np.int32)
+    cv2.fillConvexPoly(avatar, inner, shirt, cv2.LINE_AA)
+    cv2.line(avatar, point(23), point(24), PANEL_DARK, 4, cv2.LINE_AA)
+
+    # Hands and pose-level fingers.
+    hand_radius = max(8, round(scale * 0.075))
+    for wrist, index, pinky, thumb in ((15, 19, 17, 21), (16, 20, 18, 22)):
+        cv2.circle(avatar, point(wrist), hand_radius + 3, PANEL_DARK, -1, cv2.LINE_AA)
+        cv2.circle(avatar, point(wrist), hand_radius, skin, -1, cv2.LINE_AA)
+        for fingertip in (index, pinky, thumb):
+            cv2.line(avatar, point(wrist), point(fingertip), skin, max(3, hand_radius // 3), cv2.LINE_AA)
+
+    # Neck, head, hair, and simple facial features.
+    shoulder_center = tuple(np.mean(p[[11, 12]], axis=0).astype(int))
+    ear_center = tuple(np.mean(p[[7, 8]], axis=0).astype(int))
+    head_radius = int(np.clip(np.linalg.norm(p[7] - p[8]) * 0.72, scale * 0.18, scale * 0.27))
+    _draw_2d_limb(avatar, shoulder_center, ear_center, max(10, head_radius // 2), skin)
+    cv2.circle(avatar, ear_center, head_radius + 4, PANEL_DARK, -1, cv2.LINE_AA)
+    cv2.circle(avatar, (ear_center[0], ear_center[1] - 4), head_radius, hair, -1, cv2.LINE_AA)
+    face_center = (ear_center[0], ear_center[1] + max(4, head_radius // 7))
+    cv2.circle(avatar, face_center, max(8, head_radius - 5), skin, -1, cv2.LINE_AA)
+    eye_y = face_center[1] - head_radius // 6
+    eye_dx = max(5, head_radius // 3)
+    eye_radius = max(2, head_radius // 10)
+    for eye_x in (face_center[0] - eye_dx, face_center[0] + eye_dx):
+        cv2.circle(avatar, (eye_x, eye_y), eye_radius + 2, WHITE, -1, cv2.LINE_AA)
+        cv2.circle(avatar, (eye_x, eye_y), max(1, eye_radius // 2), PANEL_DARK, -1, cv2.LINE_AA)
+    cv2.ellipse(
+        avatar,
+        (face_center[0], face_center[1] + head_radius // 4),
+        (max(4, head_radius // 5), max(2, head_radius // 10)),
+        0, 10, 170, (85, 75, 125), 2, cv2.LINE_AA,
+    )
+
+    status = "TRACKING" if state.poses else "POSE LOST - RELAXING"
+    color = GREEN if state.poses else AMBER
+    cv2.circle(avatar, (23, height - 20), 5, color, -1, cv2.LINE_AA)
+    put_text(avatar, status, (36, height - 15), 0.43, color)
+    return avatar
 
 
 def _point(landmarks: list[object], index: int, width: int, height: int) -> tuple[int, int] | None:
@@ -545,7 +688,7 @@ def draw_panel(canvas: np.ndarray, x: int, state: AppState, fps: float, database
     cv2.rectangle(canvas, (x, 0), (canvas.shape[1], 92), PANEL_DARK, -1)
     left = x + 26
     put_text(canvas, "SCENE OBSERVATION", (left, 35), 0.64, WHITE)
-    put_text(canvas, "People + body landmarks", (left, 63), 0.48, MUTED)
+    put_text(canvas, "People + integrated 2D avatar", (left, 63), 0.48, MUTED)
 
     status_color = RED if state.recording else MUTED
     cv2.circle(canvas, (left + 7, 128), 7, status_color, -1, cv2.LINE_AA)
@@ -584,7 +727,7 @@ def draw_panel(canvas: np.ndarray, x: int, state: AppState, fps: float, database
     put_text(canvas, "Structured observations only.", (left, height - 79), 0.46, WHITE)
     put_text(canvas, "No images, identity, or sensitive traits.", (left, height - 55), 0.43, WHITE)
     if state.show_help:
-        put_text(canvas, "R Record   Q Quit   F Full   M Mirror", (left, height - 20), 0.42, BLUE)
+        put_text(canvas, "R Record  V View  F Full  M Mirror", (left, height - 20), 0.40, BLUE)
 
 
 def compose_display(frame: np.ndarray, state: AppState, fps: float, database: Path) -> np.ndarray:
@@ -595,9 +738,18 @@ def compose_display(frame: np.ndarray, state: AppState, fps: float, database: Pa
     put_text(view, status, (20, 32), 0.55, RED if state.recording else WHITE, 2)
     put_text(view, "Local analysis - camera frames are not stored", (20, view.shape[0] - 18), 0.48, WHITE)
     height, width = view.shape[:2]
-    canvas = np.full((height, width + PANEL_WIDTH, 3), PANEL, dtype=np.uint8)
-    canvas[:, :width] = view
-    draw_panel(canvas, width, state, fps, database)
+    avatar_width = max(420, round(height * 0.70))
+    if state.view_mode == 1:
+        content = render_avatar_2d(height, width, state)
+    elif state.view_mode == 2:
+        content = view
+    else:
+        avatar = render_avatar_2d(height, avatar_width, state)
+        content = np.concatenate((view, avatar), axis=1)
+    content_width = content.shape[1]
+    canvas = np.full((height, content_width + PANEL_WIDTH, 3), PANEL, dtype=np.uint8)
+    canvas[:, :content_width] = content
+    draw_panel(canvas, content_width, state, fps, database)
     return canvas
 
 
@@ -608,7 +760,6 @@ def main() -> int:
         or args.pose_every < 1
         or not 1 <= args.max_people <= 20
         or not 0.0 <= args.outline_smoothing <= 0.9
-        or not 1 <= args.pose_udp_port <= 65535
     ):
         print("Error: invalid interval, max people (1-20), or smoothing (0-0.9).")
         return 2
@@ -622,9 +773,8 @@ def main() -> int:
 
     state = AppState(mirror=not args.no_mirror)
     store = ObservationStore(args.database.resolve(), profile)
-    pose_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, min(args.width + PANEL_WIDTH, 1640), min(args.height, 900))
+    cv2.resizeWindow(WINDOW_NAME, min(args.width + round(args.height * 0.70) + PANEL_WIDTH, 1800), min(args.height, 900))
     started = time.perf_counter()
     previous = started
     frame_number = 0
@@ -638,7 +788,8 @@ def main() -> int:
             if state.mirror:
                 frame = cv2.flip(frame, 1)
             now = time.perf_counter()
-            state.fps_samples.append(1.0 / max(now - previous, 1.0 / 240.0))
+            dt = min(max(now - previous, 1.0 / 240.0), 0.1)
+            state.fps_samples.append(1.0 / dt)
             state.fps_samples = state.fps_samples[-30:]
             previous = now
 
@@ -646,15 +797,7 @@ def main() -> int:
             if run_pose:
                 timestamp_ms = int((now - started) * 1000)
                 image = make_mp_image(frame)
-                state.poses, world_poses, masks = detect_pose(image, pose_detector, timestamp_ms)
-                if not args.no_pose_stream:
-                    send_pose_packets(
-                        pose_socket,
-                        args.pose_udp_host,
-                        args.pose_udp_port,
-                        timestamp_ms,
-                        world_poses,
-                    )
+                state.poses, _world_poses, masks = detect_pose(image, pose_detector, timestamp_ms)
                 state.silhouette_probability, state.silhouette_contours = update_silhouette(
                     state.silhouette_probability,
                     masks,
@@ -664,6 +807,7 @@ def main() -> int:
                 )
                 state.clothing = analyze_clothing(frame, state.poses)
             frame_number += 1
+            update_avatar_rig(state, now, dt)
 
             if state.recording and now - state.last_saved_at >= args.sample_seconds:
                 state.records_written += store.save(state.poses, state.clothing)
@@ -683,16 +827,21 @@ def main() -> int:
                 state.mirror = not state.mirror
             elif key == ord("h"):
                 state.show_help = not state.show_help
+            elif key == ord("v"):
+                state.view_mode = (state.view_mode + 1) % 3
             elif key == ord("f"):
                 state.fullscreen = not state.fullscreen
                 mode = cv2.WINDOW_FULLSCREEN if state.fullscreen else cv2.WINDOW_NORMAL
                 cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, mode)
                 if not state.fullscreen:
-                    cv2.resizeWindow(WINDOW_NAME, min(args.width + PANEL_WIDTH, 1640), min(args.height, 900))
+                    cv2.resizeWindow(
+                        WINDOW_NAME,
+                        min(args.width + round(args.height * 0.70) + PANEL_WIDTH, 1800),
+                        min(args.height, 900),
+                    )
     finally:
         cap.release()
         pose_detector.close()
-        pose_socket.close()
         store.close()
         cv2.destroyAllWindows()
     return 0
