@@ -4,7 +4,21 @@ project(computational_physics_cpp_viz LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(raylib CONFIG REQUIRED)
+find_package(raylib CONFIG QUIET)
+if (NOT TARGET raylib)
+    set(RAYLIB_LOCAL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/raylib-6.0_win64_msvc16")
+    if (WIN32 AND EXISTS "${RAYLIB_LOCAL_ROOT}/lib/raylib.lib")
+        add_library(raylib STATIC IMPORTED GLOBAL)
+        set_target_properties(raylib PROPERTIES
+            IMPORTED_LOCATION "${RAYLIB_LOCAL_ROOT}/lib/raylib.lib"
+            INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_LOCAL_ROOT}/include"
+            INTERFACE_LINK_LIBRARIES "winmm;gdi32;opengl32;shell32;user32"
+        )
+        message(STATUS "Using vendored raylib 6.0 MSVC library")
+    else()
+        message(FATAL_ERROR "raylib package not found and no compatible vendored library is available")
+    endif()
+endif()
 
 add_executable(4th_dimension_viz_cpp "dimensions/4th_dimension_viz.cpp")
 target_link_libraries(4th_dimension_viz_cpp PRIVATE raylib)
@@ -286,6 +300,12 @@ add_executable(vision_two_hands_scene_cpp "vision/two_hands_scene.cpp")
 target_link_libraries(vision_two_hands_scene_cpp PRIVATE raylib)
 if (WIN32)
     target_link_libraries(vision_two_hands_scene_cpp PRIVATE ws2_32)
+endif()
+
+add_executable(pose_avatar_3d_cpp "vision/pose_avatar_3d.cpp")
+target_link_libraries(pose_avatar_3d_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(pose_avatar_3d_cpp PRIVATE ws2_32)
 endif()
 
 add_executable(gravitational_microlensing_viz_cpp "gravity/gravitational_microlensing_viz.cpp")
