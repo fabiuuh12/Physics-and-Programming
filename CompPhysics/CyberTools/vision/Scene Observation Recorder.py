@@ -11,6 +11,8 @@ Controls: Q/Esc quit, R record, V cycle views, F fullscreen, M mirror, H help.
 from __future__ import annotations
 
 import argparse
+import ctypes
+import ctypes.util
 import json
 import sqlite3
 import time
@@ -239,6 +241,7 @@ def parse_args() -> argparse.Namespace:
         help="outline stability from 0 (responsive) to 0.9 (very stable)",
     )
     parser.add_argument("--no-mirror", action="store_true")
+    parser.add_argument("--fullscreen", action="store_true", help="start in fullscreen mode")
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     parser.add_argument("--profile", type=Path, help="optional self-described JSON profile")
     return parser.parse_args()
@@ -753,6 +756,66 @@ def compose_display(frame: np.ndarray, state: AppState, fps: float, database: Pa
     return canvas
 
 
+def normal_window_size(width: int, height: int) -> tuple[int, int]:
+    return min(width + round(height * 0.70) + PANEL_WIDTH, 1800), min(height, 900)
+
+
+def apply_fullscreen(state: AppState, width: int, height: int) -> None:
+    mode = cv2.WINDOW_FULLSCREEN if state.fullscreen else cv2.WINDOW_NORMAL
+    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, mode)
+    if not state.fullscreen:
+        cv2.resizeWindow(WINDOW_NAME, *normal_window_size(width, height))
+
+
+def get_screen_size() -> tuple[int, int] | None:
+    core_graphics = ctypes.util.find_library("CoreGraphics")
+    if core_graphics is None:
+        return None
+
+    class CGSize(ctypes.Structure):
+        _fields_ = (("width", ctypes.c_double), ("height", ctypes.c_double))
+
+    class CGPoint(ctypes.Structure):
+        _fields_ = (("x", ctypes.c_double), ("y", ctypes.c_double))
+
+    class CGRect(ctypes.Structure):
+        _fields_ = (("origin", CGPoint), ("size", CGSize))
+
+    try:
+        quartz = ctypes.cdll.LoadLibrary(core_graphics)
+        quartz.CGMainDisplayID.restype = ctypes.c_uint32
+        quartz.CGDisplayBounds.argtypes = (ctypes.c_uint32,)
+        quartz.CGDisplayBounds.restype = CGRect
+        bounds = quartz.CGDisplayBounds(quartz.CGMainDisplayID())
+    except (AttributeError, OSError):
+        return None
+
+    width = round(bounds.size.width)
+    height = round(bounds.size.height)
+    if width <= 1 or height <= 1:
+        return None
+    return width, height
+
+
+def fullscreen_window_size(fallback: tuple[int, int]) -> tuple[int, int]:
+    try:
+        _x, _y, width, height = cv2.getWindowImageRect(WINDOW_NAME)
+    except cv2.error:
+        width, height = fallback
+    if width <= 1 or height <= 1:
+        width, height = fallback
+    return width, height
+
+
+def fit_display_to_window(canvas: np.ndarray, target_size: tuple[int, int]) -> np.ndarray:
+    target_width, target_height = target_size
+    if target_width <= 1 or target_height <= 1:
+        return canvas
+    if canvas.shape[1] == target_width and canvas.shape[0] == target_height:
+        return canvas
+    return cv2.resize(canvas, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+
+
 def main() -> int:
     args = parse_args()
     if (
@@ -771,10 +834,14 @@ def main() -> int:
         print(f"Error: {exc}")
         return 1
 
-    state = AppState(mirror=not args.no_mirror)
+    state = AppState(mirror=not args.no_mirror, fullscreen=args.fullscreen)
     store = ObservationStore(args.database.resolve(), profile)
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, min(args.width + round(args.height * 0.70) + PANEL_WIDTH, 1800), min(args.height, 900))
+    screen_size = get_screen_size() or normal_window_size(args.width, args.height)
+    if state.fullscreen:
+        apply_fullscreen(state, args.width, args.height)
+    else:
+        cv2.resizeWindow(WINDOW_NAME, *normal_window_size(args.width, args.height))
     started = time.perf_counter()
     previous = started
     frame_number = 0
@@ -814,7 +881,10 @@ def main() -> int:
                 state.last_saved_at = now
 
             fps = sum(state.fps_samples) / len(state.fps_samples)
-            cv2.imshow(WINDOW_NAME, compose_display(frame, state, fps, args.database))
+            display = compose_display(frame, state, fps, args.database)
+            if state.fullscreen:
+                display = fit_display_to_window(display, fullscreen_window_size(screen_size))
+            cv2.imshow(WINDOW_NAME, display)
             key = cv2.waitKey(1) & 0xFF
             if key in (27, ord("q")):
                 break
@@ -829,16 +899,9 @@ def main() -> int:
                 state.show_help = not state.show_help
             elif key == ord("v"):
                 state.view_mode = (state.view_mode + 1) % 3
-            elif key == ord("f"):
+            elif key in (ord("f"), ord("F")):
                 state.fullscreen = not state.fullscreen
-                mode = cv2.WINDOW_FULLSCREEN if state.fullscreen else cv2.WINDOW_NORMAL
-                cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, mode)
-                if not state.fullscreen:
-                    cv2.resizeWindow(
-                        WINDOW_NAME,
-                        min(args.width + round(args.height * 0.70) + PANEL_WIDTH, 1800),
-                        min(args.height, 900),
-                    )
+                apply_fullscreen(state, args.width, args.height)
     finally:
         cap.release()
         pose_detector.close()
