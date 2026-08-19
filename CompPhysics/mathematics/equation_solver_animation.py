@@ -38,6 +38,16 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from equation_solver_3d import (
+    Model3DSpec,
+    Model3DView,
+    build_surface_model,
+    build_triple_model,
+    parse_iterated_triple_request,
+    parse_surface_request,
+    parse_triple_request,
+)
+
 
 WINDOW_NAME = "Equation Solver Animation"
 WIDTH = 1400
@@ -66,6 +76,18 @@ MAX_FRAMES_PER_STEP = 280
 SPEED_STEP = 12
 DEFAULT_EQUATION = ""
 FRAME_DELAY_MS = 16
+TEMPLATE_BUTTONS = [
+    ("Linear", "2x + 3 = 11"),
+    ("Quadratic", "x^2 - 5x + 6 = 0"),
+    ("Derivative", "diff x^3 + 2x"),
+    ("Integral", "int[0,1] x^2"),
+    ("Limit", "lim[x->0] sin(x)/x"),
+    ("Graph", "graph y=x^2, y=2x+1"),
+    ("Surface", "surface z=sin(x)*cos(y)"),
+    ("Triple", "triple[x=0:1,y=0:1,z=0:1] x*y*z"),
+    ("Iterated", "∫₀¹ ∫₀¹ ∫₀¹ x*y*z dz dy dx"),
+]
+MAX_RECENT_PROBLEMS = 6
 INTEGRAL_FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/STIXIntUpDBol.otf",
     "/System/Library/Fonts/Supplemental/STIXIntUpBol.otf",
@@ -93,6 +115,10 @@ class TextSprite(NamedTuple):
 TEXT_CACHE: dict[tuple[str, tuple[int, int, int], float], TextSprite] = {}
 INTEGRAL_FONT_PATH: str | None = None
 LAST_CLICK: tuple[int, int] | None = None
+MOUSE_IS_DOWN = False
+LAST_MOUSE_POS: tuple[int, int] | None = None
+MOUSE_DRAG_DELTA: tuple[int, int] = (0, 0)
+MOUSE_WHEEL_DELTA = 0
 
 
 @dataclass
@@ -138,6 +164,8 @@ class ProblemSpec:
     display_text: str
     formula_text: str
     graph_spec: GraphSpec | None = None
+    model3d_spec: Model3DSpec | None = None
+    model3d_view = Model3DView()
 
 
 @dataclass(frozen=True)
@@ -585,15 +613,48 @@ def format_term(coef: Fraction) -> str:
 
 
 def normalize_input_text(text: str) -> str:
-    normalized = text.replace("^", "**").strip()
+    normalized = text.strip()
+    replacements = {
+        "−": "-",
+        "–": "-",
+        "—": "-",
+        "×": "*",
+        "·": "*",
+        "÷": "/",
+        "π": "pi",
+        "Π": "pi",
+    }
+    for old, new in replacements.items():
+        normalized = normalized.replace(old, new)
+
+    superscripts = str.maketrans({
+        "⁰": "0",
+        "¹": "1",
+        "²": "2",
+        "³": "3",
+        "⁴": "4",
+        "⁵": "5",
+        "⁶": "6",
+        "⁷": "7",
+        "⁸": "8",
+        "⁹": "9",
+    })
+    normalized = re.sub(r"([A-Za-z0-9_)])([⁰¹²³⁴⁵⁶⁷⁸⁹]+)", lambda m: f"{m.group(1)}**{m.group(2).translate(superscripts)}", normalized)
+    normalized = normalized.replace("^", "**")
+    normalized = re.sub(r"√\s*\(([^()]+)\)", r"sqrt(\1)", normalized)
+    normalized = re.sub(r"√\s*([A-Za-z0-9_.]+)", r"sqrt(\1)", normalized)
+    normalized = re.sub(r"\bln\s*\(", "log(", normalized, flags=re.IGNORECASE)
+
     # Accept common handwritten shorthand such as 2x, 3(x+1), x(2+1), and 2sin(x).
     patterns = [
         (r"(?<=\d)(?=[A-Za-z(])", "*"),
-        (r"(?<=[x\)])(?=\d)", "*"),
+        (r"(?<=[xe\)])(?=\d)", "*"),
         (r"(?<=[x\)])(?=[A-Za-z(])", "*"),
     ]
     for pattern, replacement in patterns:
         normalized = re.sub(pattern, replacement, normalized)
+    for name in ("sin", "cos", "tan", "sqrt", "exp", "abs", "log"):
+        normalized = re.sub(rf"\b{name}\*\(", f"{name}(", normalized)
     return normalized
 
 
@@ -655,6 +716,10 @@ def parse_linear(node: ast.AST) -> LinearExpr:
         raise ValueError("Unsupported unary operator.")
 
     if isinstance(node, ast.Name):
+        if node.id == "pi":
+            return LinearExpr(Fraction(0), Fraction(str(math.pi)))
+        if node.id == "e":
+            return LinearExpr(Fraction(0), Fraction(str(math.e)))
         if node.id != "x":
             raise ValueError("Only the variable x is supported.")
         return LinearExpr(Fraction(1), Fraction(0))
@@ -714,6 +779,10 @@ def parse_quadratic(node: ast.AST) -> QuadraticExpr:
         raise ValueError("Unsupported unary operator.")
 
     if isinstance(node, ast.Name):
+        if node.id == "pi":
+            return QuadraticExpr(Fraction(0), Fraction(0), Fraction(str(math.pi)))
+        if node.id == "e":
+            return QuadraticExpr(Fraction(0), Fraction(0), Fraction(str(math.e)))
         if node.id != "x":
             raise ValueError("Only the variable x is supported.")
         return QuadraticExpr(Fraction(0), Fraction(1), Fraction(0))
@@ -972,6 +1041,10 @@ def parse_symbolic_terms(node: ast.AST) -> list[SymbolicTerm]:
         raise ValueError("Unsupported unary operator.")
 
     if isinstance(node, ast.Name):
+        if node.id == "pi":
+            return [SymbolicTerm("const", Fraction(str(math.pi)))]
+        if node.id == "e":
+            return [SymbolicTerm("const", Fraction(str(math.e)))]
         if node.id != "x":
             raise ValueError("Only the variable x is supported.")
         return [SymbolicTerm("pow", Fraction(1), 1)]
@@ -1172,6 +1245,11 @@ def parse_constant_fraction(text: str) -> Fraction:
     def walk(node: ast.AST) -> Fraction:
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return Fraction(str(node.value))
+        if isinstance(node, ast.Name):
+            if node.id == "pi":
+                return Fraction(str(math.pi))
+            if node.id == "e":
+                return Fraction(str(math.e))
         if isinstance(node, ast.UnaryOp):
             value = walk(node.operand)
             if isinstance(node.op, ast.USub):
@@ -1237,8 +1315,11 @@ def evaluate_numeric_node(node: ast.AST, variables: dict[str, float]) -> float:
         funcs = {
             "sin": math.sin,
             "cos": math.cos,
+            "tan": math.tan,
+            "sqrt": math.sqrt,
             "exp": math.exp,
             "abs": abs,
+            "log": math.log,
         }
         if node.func.id not in funcs:
             raise ValueError(f"Unsupported function {node.func.id}.")
@@ -1248,6 +1329,10 @@ def evaluate_numeric_node(node: ast.AST, variables: dict[str, float]) -> float:
 
 def evaluate_numeric_expression(node: ast.AST, variable_name: str, variable_value: float) -> float:
     return evaluate_numeric_node(node, {variable_name: variable_value})
+
+
+def evaluate_numeric_expression_vars(node: ast.AST, variables: dict[str, float]) -> float:
+    return evaluate_numeric_node(node, variables)
 
 
 def parse_limit_request(text: str) -> tuple[str, str, str]:
@@ -1288,6 +1373,13 @@ def strip_graph_prefix(expression: str) -> str:
     if re.match(r"^y\s*=", expression, re.IGNORECASE):
         return re.sub(r"^y\s*=", "", expression, count=1, flags=re.IGNORECASE).strip()
     return expression
+
+
+def split_equation_sides(text: str) -> tuple[str, str]:
+    if "=" not in text:
+        raise ValueError("Enter an equation with '='.")
+    left_text, right_text = text.split("=", 1)
+    return left_text.strip(), right_text.strip()
 
 
 def split_top_level_commas(text: str) -> list[str]:
@@ -1712,6 +1804,41 @@ def build_graph_steps(expression_texts: list[str]) -> tuple[list[SolveStep], Gra
     return steps, graph_spec
 
 
+def build_surface_steps(bounds: dict[str, tuple[float, float]], expression_text: str) -> tuple[list[SolveStep], Model3DSpec]:
+    model = build_surface_model(bounds, expression_text, parse_numeric_expression, evaluate_numeric_expression_vars)
+    x_low, x_high = bounds["x"]
+    y_low, y_high = bounds["y"]
+    steps = [
+        SolveStep("Starting 3D surface", ["z", "=", expression_text]),
+        SolveStep("Sample the x-y domain", [f"x={clean_decimal(x_low)}:{clean_decimal(x_high)}", f"y={clean_decimal(y_low)}:{clean_decimal(y_high)}"]),
+        SolveStep("Evaluate heights", ["z", "=", "f(x,y)"]),
+        SolveStep("Connect samples into a mesh", ["wireframe", "surface"]),
+        SolveStep("3D model", ["z", "=", expression_text]),
+    ]
+    return steps, model
+
+
+def build_triple_steps(bounds: dict[str, tuple[float, float]], expression_text: str) -> tuple[list[SolveStep], Model3DSpec]:
+    model = build_triple_model(bounds, expression_text, parse_numeric_expression, evaluate_numeric_expression_vars)
+    bounds_text = [f"{axis}={clean_decimal(lo)}:{clean_decimal(hi)}" for axis, (lo, hi) in bounds.items()]
+    steps = [
+        SolveStep("Starting triple integral", ["triple"] + bounds_text + [expression_text]),
+        SolveStep("Build the 3D region", ["rectangular", "volume"]),
+        SolveStep("Sample f(x,y,z)", [expression_text]),
+        SolveStep("Add small volume cells", ["sum", "f(x,y,z)", "dV"]),
+        SolveStep("Riemann estimate", [clean_decimal(model.estimate or 0.0)]),
+    ]
+    return steps, model
+
+
+def try_build_equation_graph_spec(equation: str) -> GraphSpec | None:
+    try:
+        left_text, right_text = split_equation_sides(equation)
+        return build_graph_spec([left_text, right_text])
+    except Exception:
+        return None
+
+
 def equation_tokens_with_operation(left: LinearExpr, right: LinearExpr, op_tokens: list[str]) -> list[str]:
     return format_side(left) + op_tokens + ["="] + format_side(right) + op_tokens
 
@@ -1723,7 +1850,7 @@ def build_steps(equation: str) -> list[SolveStep]:
     if not is_zero(right.coef):
         moved_coef = right.coef
         op_tokens = ["-" if moved_coef > 0 else "+", format_term(abs(moved_coef))]
-        steps.append(SolveStep(f"Apply {''.join(op_tokens)} to both sides", equation_tokens_with_operation(left, right, op_tokens)))
+        steps.append(SolveStep(f"Move {format_term(abs(moved_coef))} away from the right side", equation_tokens_with_operation(left, right, op_tokens)))
         left = LinearExpr(left.coef - right.coef, left.const)
         right = LinearExpr(Fraction(0), right.const)
         steps.append(SolveStep("Combine like x terms", format_equation(left, right)))
@@ -1731,7 +1858,8 @@ def build_steps(equation: str) -> list[SolveStep]:
     if not is_zero(left.const):
         moved_const = left.const
         op_tokens = ["-" if moved_const > 0 else "+", clean_number(abs(moved_const))]
-        steps.append(SolveStep(f"Apply {''.join(op_tokens)} to both sides", equation_tokens_with_operation(left, right, op_tokens)))
+        action = "Subtract" if moved_const > 0 else "Add"
+        steps.append(SolveStep(f"{action} {clean_number(abs(moved_const))} on both sides", equation_tokens_with_operation(left, right, op_tokens)))
         right = LinearExpr(Fraction(0), right.const - left.const)
         left = LinearExpr(left.coef, Fraction(0))
         steps.append(SolveStep("Combine constants", format_equation(left, right)))
@@ -1774,6 +1902,8 @@ def parse_integral_request(text: str) -> tuple[str | None, str | None, str]:
 
 def build_problem_steps(text: str) -> ProblemSpec:
     raw = text.strip()
+    if raw.lower().startswith("solve "):
+        raw = raw[6:].strip()
     normalized = normalize_input_text(raw)
     lowered = normalized.lower()
 
@@ -1805,6 +1935,21 @@ def build_problem_steps(text: str) -> ProblemSpec:
         display_expr = ", ".join(expressions)
         formula = "graph y = f(x)" if len(expressions) == 1 else "graph y = f(x), g(x), h(x)"
         return ProblemSpec(steps, f"graph {display_expr}", formula, graph_spec=graph_spec)
+    if lowered.startswith(("surface ", "surface[", "surface3d ", "surface3d[", "plot3d ", "plot3d[", "graph3d ", "graph3d[")):
+        bounds, expr_raw = parse_surface_request(raw, split_top_level_commas, parse_constant_fraction, normalize_input_text)
+        expr = normalize_input_text(expr_raw)
+        steps, model3d_spec = build_surface_steps(bounds, expr)
+        return ProblemSpec(steps, f"surface z={expr}", "z = f(x,y)", model3d_spec=model3d_spec)
+    if lowered.startswith("triple["):
+        bounds, expr_raw = parse_triple_request(raw, split_top_level_commas, parse_constant_fraction, normalize_input_text)
+        expr = normalize_input_text(expr_raw)
+        steps, model3d_spec = build_triple_steps(bounds, expr)
+        return ProblemSpec(steps, f"triple {expr}", "integral integral integral f(x,y,z) dV", model3d_spec=model3d_spec)
+    if "∫" in raw:
+        bounds, expr_raw = parse_iterated_triple_request(raw, parse_constant_fraction, normalize_input_text)
+        expr = normalize_input_text(expr_raw)
+        steps, model3d_spec = build_triple_steps(bounds, expr)
+        return ProblemSpec(steps, f"triple {expr}", "integral integral integral f(x,y,z) dV", model3d_spec=model3d_spec)
     raw_lower = raw.lower()
     if raw_lower.startswith("int") or raw_lower.startswith("integral"):
         lower, upper, expr_raw = parse_integral_request(raw)
@@ -1814,9 +1959,10 @@ def build_problem_steps(text: str) -> ProblemSpec:
         return ProblemSpec(build_integral_steps(expr, lower, upper), shown, formula)
     if "=" in normalized:
         quadratic_steps = build_quadratic_steps(normalized)
+        graph_spec = try_build_equation_graph_spec(normalized)
         if quadratic_steps is not None:
-            return ProblemSpec(quadratic_steps, normalized, "ax^2 + bx + c = 0")
-        return ProblemSpec(build_steps(normalized), normalized, "ax + b = c  ->  x = (c - b)/a")
+            return ProblemSpec(quadratic_steps, normalized, "ax^2 + bx + c = 0", graph_spec=graph_spec)
+        return ProblemSpec(build_steps(normalized), normalized, "ax + b = c  ->  x = (c - b)/a", graph_spec=graph_spec)
     raise ValueError("Use an equation, or start with diff, int, lim, sum, or graph.")
 
 
@@ -2406,8 +2552,164 @@ def draw_graph_panel(image: np.ndarray, graph_spec: GraphSpec, progress: float) 
                 cv2.line(image, last_point, point, curve.color, 2, cv2.LINE_AA)
             last_point = point
 
+    if len(graph_spec.curves) == 2 and visible_samples >= 2:
+        first = graph_spec.curves[0].y_values
+        second = graph_spec.curves[1].y_values
+        intersections: list[tuple[float, float]] = []
+        for idx in range(1, visible_samples):
+            y0a, y0b = first[idx - 1], second[idx - 1]
+            y1a, y1b = first[idx], second[idx]
+            if y0a is None or y0b is None or y1a is None or y1b is None:
+                continue
+            d0 = y0a - y0b
+            d1 = y1a - y1b
+            if d0 == 0:
+                x_hit = graph_spec.x_values[idx - 1]
+                y_hit = y0a
+            elif d0 * d1 > 0:
+                continue
+            else:
+                t = abs(d0) / max(1e-9, abs(d0) + abs(d1))
+                x_hit = graph_spec.x_values[idx - 1] + t * (graph_spec.x_values[idx] - graph_spec.x_values[idx - 1])
+                y_hit = y0a + t * (y1a - y0a)
+            if graph_spec.y_min <= y_hit <= graph_spec.y_max:
+                if not intersections or abs(x_hit - intersections[-1][0]) > 0.12:
+                    intersections.append((x_hit, y_hit))
+
+        for x_hit, y_hit in intersections[:3]:
+            point = (map_x(x_hit), map_y(y_hit))
+            cv2.circle(image, point, 8, ACCENT, 2, cv2.LINE_AA)
+            cv2.circle(image, point, 3, TEXT, -1, cv2.LINE_AA)
+            label = f"({clean_decimal(x_hit, 2)}, {clean_decimal(y_hit, 2)})"
+            put_text_fit(image, label, point[0] + 12, point[1] - 10, 130, ACCENT, 0.42, min_scale=0.30)
+
     cv2.putText(image, clean_decimal(graph_spec.x_min, 2), (plot_x0 - 8, plot_y1 + 38), FONT, 0.42, SOFT, 1, cv2.LINE_AA)
     cv2.putText(image, clean_decimal(graph_spec.x_max, 2), (plot_x1 - 22, plot_y1 + 38), FONT, 0.42, SOFT, 1, cv2.LINE_AA)
+
+
+def project_model_point(
+    point: tuple[float, float, float],
+    model: Model3DSpec,
+    plot_rect: tuple[int, int, int, int],
+    view: Model3DView,
+) -> tuple[int, int, float]:
+    x, y, z = point
+    cx = (model.x_min + model.x_max) * 0.5
+    cy = (model.y_min + model.y_max) * 0.5
+    cz = (model.z_min + model.z_max) * 0.5
+    sx = max(1e-9, model.x_max - model.x_min)
+    sy = max(1e-9, model.y_max - model.y_min)
+    sz = max(1e-9, model.z_max - model.z_min)
+    nx = (x - cx) / sx * 2.0
+    ny = (y - cy) / sy * 2.0
+    nz = (z - cz) / sz * 2.0
+
+    ca, sa = math.cos(view.yaw), math.sin(view.yaw)
+    rx = nx * ca - ny * sa
+    ry = nx * sa + ny * ca
+    cp, sp = math.cos(view.pitch), math.sin(view.pitch)
+    py = ry * cp - nz * sp
+    depth = ry * sp + nz * cp
+
+    x0, y0, x1, y1 = plot_rect
+    scale = min(x1 - x0, y1 - y0) * 0.34 * view.zoom
+    px = int((x0 + x1) * 0.5 + rx * scale)
+    py_screen = int((y0 + y1) * 0.54 - py * scale)
+    return px, py_screen, depth
+
+
+def axis_value(model: Model3DSpec, axis: str, fraction: float) -> float:
+    if axis == "x":
+        return model.x_min + (model.x_max - model.x_min) * fraction
+    if axis == "y":
+        return model.y_min + (model.y_max - model.y_min) * fraction
+    return model.z_min + (model.z_max - model.z_min) * fraction
+
+
+def point_axis_value(point: tuple[float, float, float, float], axis: str) -> float:
+    return point[{"x": 0, "y": 1, "z": 2}[axis]]
+
+
+def draw_model3d_panel(image: np.ndarray, model: Model3DSpec, progress: float, view: Model3DView) -> None:
+    x0, y0, x1, y1 = 560, 242, WIDTH - 72, HEIGHT - 142
+    cv2.rectangle(image, (x0, y0), (x1, y1), PANEL, -1)
+    cv2.rectangle(image, (x0, y0), (x1, y1), PANEL_EDGE, 1)
+    cv2.putText(image, model.title, (x0 + 20, y0 + 28), FONT, 0.60, TEXT, 1, cv2.LINE_AA)
+    put_text_fit(image, model.expression_text, x0 + 190, y0 + 29, x1 - x0 - 220, MUTED, 0.44, min_scale=0.30)
+
+    plot_x0, plot_y0 = x0 + 26, y0 + 50
+    plot_x1, plot_y1 = x1 - 24, y1 - 60
+    cv2.rectangle(image, (plot_x0, plot_y0), (plot_x1, plot_y1), (20, 22, 24), -1)
+    cv2.rectangle(image, (plot_x0, plot_y0), (plot_x1, plot_y1), (48, 58, 62), 1)
+
+    projected = [
+        project_model_point((x, y, z), model, (plot_x0, plot_y0, plot_x1, plot_y1), view)
+        for x, y, z, _ in model.points
+    ]
+
+    for edge_a, edge_b in model.edges:
+        if edge_a >= len(projected) or edge_b >= len(projected):
+            continue
+        pa = projected[edge_a]
+        pb = projected[edge_b]
+        cv2.line(image, (pa[0], pa[1]), (pb[0], pb[1]), GRID, 1, cv2.LINE_AA)
+
+    values = [value for _, _, _, value in model.points]
+    value_low = min(values) if values else 0.0
+    value_high = max(values) if values else 1.0
+    value_span = max(1e-9, value_high - value_low)
+    indexed = list(enumerate(projected))
+    indexed.sort(key=lambda item: item[1][2])
+    start_idx = 8 if model.kind == "triple" else 0
+    visible_indices = [idx for idx, _ in indexed if idx >= start_idx]
+    if model.kind == "triple" and view.slice_axis is not None:
+        slice_at = axis_value(model, view.slice_axis, view.slice_value)
+        span = max(1e-9, {
+            "x": model.x_max - model.x_min,
+            "y": model.y_max - model.y_min,
+            "z": model.z_max - model.z_min,
+        }[view.slice_axis])
+        thickness = span * 0.075
+        visible_indices = [
+            idx for idx in visible_indices
+            if abs(point_axis_value(model.points[idx], view.slice_axis) - slice_at) <= thickness
+        ]
+    visible_set = set(visible_indices)
+    drawable_count = int(max(1, len(visible_indices) * np.clip(progress, 0.08, 1.0)))
+    drawn = 0
+    for idx, (px, py, depth) in indexed:
+        if model.kind == "triple" and idx < start_idx:
+            continue
+        if model.kind == "triple" and idx not in visible_set:
+            continue
+        if drawn >= drawable_count:
+            break
+        value = model.points[idx][3]
+        t = (value - value_low) / value_span
+        color = (
+            int(80 + 150 * t),
+            int(135 + 95 * (1.0 - abs(t - 0.5) * 2.0)),
+            int(255 - 120 * t),
+        )
+        radius = 2 if model.kind == "surface" else 3
+        cv2.circle(image, (px, py), radius, color, -1, cv2.LINE_AA)
+        drawn += 1
+
+    cv2.line(image, (plot_x0 + 44, plot_y1 - 44), (plot_x0 + 144, plot_y1 - 44), STEP_COLOR, 1, cv2.LINE_AA)
+    cv2.line(image, (plot_x0 + 44, plot_y1 - 44), (plot_x0 + 44, plot_y1 - 144), STEP_COLOR, 1, cv2.LINE_AA)
+    cv2.line(image, (plot_x0 + 44, plot_y1 - 44), (plot_x0 + 104, plot_y1 - 96), STEP_COLOR, 1, cv2.LINE_AA)
+    cv2.putText(image, "x", (plot_x0 + 150, plot_y1 - 38), FONT, 0.42, SOFT, 1, cv2.LINE_AA)
+    cv2.putText(image, "z", (plot_x0 + 35, plot_y1 - 150), FONT, 0.42, SOFT, 1, cv2.LINE_AA)
+    cv2.putText(image, "y", (plot_x0 + 110, plot_y1 - 100), FONT, 0.42, SOFT, 1, cv2.LINE_AA)
+    if model.estimate is not None:
+        put_text_fit(image, f"Riemann estimate: {clean_decimal(model.estimate, 4)}", plot_x0 + 20, plot_y1 + 38, plot_x1 - plot_x0 - 40, ACCENT, 0.50)
+        if view.slice_axis is not None:
+            slice_at = axis_value(model, view.slice_axis, view.slice_value)
+            put_text_fit(image, f"slice {view.slice_axis} = {clean_decimal(slice_at, 3)}   X/Y/Z choose   ,/. move   A all", plot_x0 + 20, plot_y0 + 22, plot_x1 - plot_x0 - 40, STEP_COLOR, 0.42)
+        else:
+            put_text_fit(image, "drag orbit   wheel zoom   X/Y/Z slice   A all slices", plot_x0 + 20, plot_y0 + 22, plot_x1 - plot_x0 - 40, STEP_COLOR, 0.42)
+    else:
+        put_text_fit(image, f"drag orbit   wheel zoom   x [{clean_decimal(model.x_min)}, {clean_decimal(model.x_max)}]   y [{clean_decimal(model.y_min)}, {clean_decimal(model.y_max)}]", plot_x0 + 20, plot_y1 + 38, plot_x1 - plot_x0 - 40, SOFT, 0.44)
 
 
 def draw_transition(
@@ -2422,17 +2724,23 @@ def draw_transition(
     hold_frames: int,
     frames_per_step: int,
     graph_spec: GraphSpec | None = None,
+    model3d_spec: Model3DSpec | None = None,
+    model3d_view: Model3DView | None = None,
 ) -> np.ndarray:
     image = blank_canvas()
     draw_chrome(image, new_step.label, equation_text, formula_text, paused, frames_per_step)
-    draw_step_history(image, all_steps, step_index, graph_spec is not None)
+    visual_mode = graph_spec is not None or model3d_spec is not None
+    draw_step_history(image, all_steps, step_index, visual_mode)
     phase = stage_phase(frame_index, hold_frames, frames_per_step)
     if graph_spec is not None:
         overall_progress = (step_index + phase) / max(1, len(all_steps) - 1)
         draw_graph_panel(image, graph_spec, overall_progress)
+    if model3d_spec is not None:
+        overall_progress = (step_index + phase) / max(1, len(all_steps) - 1)
+        draw_model3d_panel(image, model3d_spec, overall_progress, model3d_view or Model3DView())
 
-    equation_y = 204 if graph_spec is not None else 588
-    if graph_spec is not None:
+    equation_y = 204 if visual_mode else 588
+    if visual_mode:
         token_scale = 1.08
         gap = 12
         old_scale, old_gap = fit_token_style(old_step.tokens, WIDTH - 160, token_scale, gap, min_scale=0.58)
@@ -2480,15 +2788,21 @@ def draw_static_step(
     paused: bool,
     frames_per_step: int,
     graph_spec: GraphSpec | None = None,
+    model3d_spec: Model3DSpec | None = None,
+    model3d_view: Model3DView | None = None,
 ) -> np.ndarray:
     image = blank_canvas()
     draw_chrome(image, step.label, equation_text, formula_text, paused, frames_per_step)
-    draw_step_history(image, all_steps, step_index, graph_spec is not None)
+    visual_mode = graph_spec is not None or model3d_spec is not None
+    draw_step_history(image, all_steps, step_index, visual_mode)
     if graph_spec is not None:
         progress = step_index / max(1, len(all_steps) - 1)
         draw_graph_panel(image, graph_spec, progress)
-    equation_y = 204 if graph_spec is not None else 588
-    if graph_spec is not None:
+    if model3d_spec is not None:
+        progress = step_index / max(1, len(all_steps) - 1)
+        draw_model3d_panel(image, model3d_spec, progress, model3d_view or Model3DView())
+    equation_y = 204 if visual_mode else 588
+    if visual_mode:
         token_scale = 1.08
         positions, token_scale, _ = layout_tokens_fit(step.tokens, equation_y, WIDTH - 160, token_scale, 12, min_scale=0.58)
     else:
@@ -2498,7 +2812,42 @@ def draw_static_step(
     return image
 
 
-def draw_editor(equation_text: str, cursor_index: int, message: str | None = None) -> np.ndarray:
+def make_template_buttons() -> list[Button]:
+    buttons: list[Button] = []
+    x0 = 150
+    y0 = HEIGHT // 2 + 64
+    cols = 4
+    button_w = 176
+    button_h = 38
+    gap_x = 14
+    gap_y = 10
+    for idx, (label, value) in enumerate(TEMPLATE_BUTTONS):
+        col = idx % cols
+        row = idx // cols
+        x = x0 + col * (button_w + gap_x)
+        y = y0 + row * (button_h + gap_y)
+        buttons.append(Button((x, y, x + button_w, y + button_h), label, value))
+    return buttons
+
+
+def make_recent_buttons(recent_problems: list[str]) -> list[Button]:
+    buttons: list[Button] = []
+    x0 = 150
+    y0 = HEIGHT // 2 + 342
+    button_w = 360
+    button_h = 28
+    gap_x = 20
+    gap_y = 8
+    for idx, value in enumerate(recent_problems[:MAX_RECENT_PROBLEMS]):
+        col = idx % 3
+        row = idx // 3
+        x = x0 + col * (button_w + gap_x)
+        y = y0 + row * (button_h + gap_y)
+        buttons.append(Button((x, y, x + button_w, y + button_h), value, value))
+    return buttons
+
+
+def draw_editor(equation_text: str, cursor_index: int, recent_problems: list[str], message: str | None = None) -> np.ndarray:
     image = blank_canvas()
     cv2.rectangle(image, (72, 46), (WIDTH - 72, 136), PANEL, -1)
     cv2.rectangle(image, (72, 46), (WIDTH - 72, 136), PANEL_EDGE, 1)
@@ -2509,28 +2858,37 @@ def draw_editor(equation_text: str, cursor_index: int, message: str | None = Non
     cv2.rectangle(image, (150, HEIGHT // 2 - 74), (WIDTH - 150, HEIGHT // 2 + 42), INPUT_BORDER, 1)
     visible_text = equation_text
     input_width = WIDTH - 364
-    while cv2.getTextSize(visible_text, FONT, 1.1, 2)[0][0] > input_width and len(visible_text) > 4:
+    while get_text_sprite(visible_text, TEXT, 1.1).width > input_width and len(visible_text) > 4:
         visible_text = visible_text[1:]
-    cv2.putText(image, visible_text or " ", (182, HEIGHT // 2 + 4), FONT, 1.1, TEXT, 2, cv2.LINE_AA)
+    draw_text_alpha(image, visible_text or " ", (182, HEIGHT // 2 + 4), TEXT, 1.0, scale=1.1)
 
     cursor_prefix = equation_text[:cursor_index]
     if len(visible_text) < len(equation_text):
         hidden_count = len(equation_text) - len(visible_text)
         cursor_prefix = equation_text[max(hidden_count, 0) : cursor_index]
-    cursor_x = 182 + cv2.getTextSize(cursor_prefix, FONT, 1.1, 2)[0][0] + 6
+    cursor_x = 182 + get_text_sprite(cursor_prefix, TEXT, 1.1).width + 6
     cursor_x = min(WIDTH - 166, max(182, cursor_x))
     cv2.line(image, (cursor_x, HEIGHT // 2 - 42), (cursor_x, HEIGHT // 2 + 12), ACCENT, 2, cv2.LINE_AA)
 
-    cv2.rectangle(image, (150, HEIGHT // 2 + 88), (WIDTH - 150, HEIGHT // 2 + 206), PANEL, -1)
-    cv2.rectangle(image, (150, HEIGHT // 2 + 88), (WIDTH - 150, HEIGHT // 2 + 206), PANEL_EDGE, 1)
-    cv2.putText(image, "Formula Derivation Library", (176, HEIGHT // 2 + 118), FONT, 0.58, MUTED, 1, cv2.LINE_AA)
-    draw_button(image, (176, HEIGHT // 2 + 138, 355, HEIGHT // 2 + 188), "Classical Physics")
-    draw_button(image, (384, HEIGHT // 2 + 138, 563, HEIGHT // 2 + 188), "Modern Physics")
-    put_text_fit(image, "Or type: solve 2x+3=11   diff x^3+2x   int[0,1] x^2   graph y=x^2, sin(x)", 594, HEIGHT // 2 + 168, WIDTH - 770, SOFT, 0.45, min_scale=0.32)
-    put_text_fit(image, "Enter solve   arrows move cursor   Backspace delete   q or Esc quit", WIDTH // 2 - 310, HEIGHT - 52, 700, MUTED, INFO_SCALE)
+    for button in make_template_buttons():
+        draw_button(image, button.rect, button.label)
+
+    cv2.rectangle(image, (150, HEIGHT // 2 + 240), (WIDTH - 150, HEIGHT // 2 + 324), PANEL, -1)
+    cv2.rectangle(image, (150, HEIGHT // 2 + 240), (WIDTH - 150, HEIGHT // 2 + 324), PANEL_EDGE, 1)
+    cv2.putText(image, "Formula Derivation Library", (176, HEIGHT // 2 + 270), FONT, 0.58, MUTED, 1, cv2.LINE_AA)
+    draw_button(image, (176, HEIGHT // 2 + 286, 355, HEIGHT // 2 + 314), "Classical Physics")
+    draw_button(image, (384, HEIGHT // 2 + 286, 563, HEIGHT // 2 + 314), "Modern Physics")
+    put_text_fit(image, "Natural input works: 2x, x², √x, π, sin(x), x^2", 594, HEIGHT // 2 + 307, WIDTH - 770, SOFT, 0.45, min_scale=0.32)
+
+    if recent_problems:
+        cv2.putText(image, "Recent Problems", (156, HEIGHT // 2 + 336), FONT, 0.48, MUTED, 1, cv2.LINE_AA)
+        for button in make_recent_buttons(recent_problems):
+            draw_button(image, button.rect, button.label)
+
+    put_text_fit(image, "Enter solve   Left/Right cursor   in playback: Left/Right step   q or Esc quit", WIDTH // 2 - 430, HEIGHT - 52, 860, MUTED, INFO_SCALE)
     put_text_fit(image, "Press n for a fresh blank editor", WIDTH // 2 - 145, HEIGHT - 80, 380, MUTED, INFO_SCALE)
     if message:
-        cv2.putText(image, message, (WIDTH // 2 - min(420, 7 * len(message)), HEIGHT // 2 + 252), FONT, 0.64, ERROR, 1, cv2.LINE_AA)
+        put_text_fit(image, message, 150, HEIGHT - 108, WIDTH - 300, ERROR, 0.58, min_scale=0.36)
     return image
 
 
@@ -2601,10 +2959,53 @@ def consume_click() -> tuple[int, int] | None:
     return point
 
 
+def consume_drag_delta() -> tuple[int, int]:
+    global MOUSE_DRAG_DELTA
+    delta = MOUSE_DRAG_DELTA
+    MOUSE_DRAG_DELTA = (0, 0)
+    return delta
+
+
+def consume_wheel_delta() -> int:
+    global MOUSE_WHEEL_DELTA
+    delta = MOUSE_WHEEL_DELTA
+    MOUSE_WHEEL_DELTA = 0
+    return delta
+
+
 def on_mouse(event: int, x: int, y: int, flags: int, param: object) -> None:
-    global LAST_CLICK
+    global LAST_CLICK, MOUSE_IS_DOWN, LAST_MOUSE_POS, MOUSE_DRAG_DELTA, MOUSE_WHEEL_DELTA
     if event == cv2.EVENT_LBUTTONDOWN:
         LAST_CLICK = (x, y)
+        MOUSE_IS_DOWN = True
+        LAST_MOUSE_POS = (x, y)
+    elif event == cv2.EVENT_LBUTTONUP:
+        MOUSE_IS_DOWN = False
+        LAST_MOUSE_POS = None
+    elif event == cv2.EVENT_MOUSEMOVE and MOUSE_IS_DOWN and LAST_MOUSE_POS is not None:
+        dx = x - LAST_MOUSE_POS[0]
+        dy = y - LAST_MOUSE_POS[1]
+        MOUSE_DRAG_DELTA = (MOUSE_DRAG_DELTA[0] + dx, MOUSE_DRAG_DELTA[1] + dy)
+        LAST_MOUSE_POS = (x, y)
+    elif event == cv2.EVENT_MOUSEWHEEL:
+        try:
+            MOUSE_WHEEL_DELTA += 1 if cv2.getMouseWheelDelta(flags) > 0 else -1
+        except Exception:
+            MOUSE_WHEEL_DELTA += 1 if flags > 0 else -1
+
+
+def update_model_view_from_input(view: Model3DView) -> None:
+    dx, dy = consume_drag_delta()
+    wheel = consume_wheel_delta()
+    if dx or dy:
+        view.yaw += dx * 0.008
+        view.pitch = float(np.clip(view.pitch + dy * 0.006, math.radians(18.0), math.radians(82.0)))
+    if wheel:
+        view.zoom = float(np.clip(view.zoom * (1.0 + 0.10 * wheel), 0.45, 2.8))
+
+
+def advance_slice(view: Model3DView, amount: float) -> None:
+    view.slice_value = float(np.clip(view.slice_value + amount, 0.0, 1.0))
 
 
 def normalize_key(key: int) -> str:
@@ -2652,13 +3053,17 @@ def main() -> None:
     cursor_index = len(equation_text)
     formula_text = ""
     graph_spec: GraphSpec | None = None
+    model3d_spec: Model3DSpec | None = None
     selected_branch = ""
     selected_category = ""
+    recent_problems: list[str] = []
 
     while True:
         click = consume_click()
+        if mode == "play" and model3d_spec is not None:
+            update_model_view_from_input(model3d_view)
         if mode == "edit":
-            frame = draw_editor(equation_text, cursor_index, error_message)
+            frame = draw_editor(equation_text, cursor_index, recent_problems, error_message)
         elif mode == "library_branch":
             branch_buttons = make_buttons(list(FORMULA_LIBRARY.keys()), 250)
             frame = draw_library_screen(
@@ -2685,9 +3090,9 @@ def main() -> None:
                 "click a formula   b back   n editor   q quit",
             )
         elif step_index >= len(steps) - 1:
-            frame = draw_static_step(steps, max(0, len(steps) - 1), steps[-1], equation_text, formula_text, paused, frames_per_step, graph_spec)
+            frame = draw_static_step(steps, max(0, len(steps) - 1), steps[-1], equation_text, formula_text, paused, frames_per_step, graph_spec, model3d_spec, model3d_view)
         else:
-            frame = draw_transition(steps, step_index, steps[step_index], steps[step_index + 1], equation_text, formula_text, frame_index, paused, hold_frames, frames_per_step, graph_spec)
+            frame = draw_transition(steps, step_index, steps[step_index], steps[step_index + 1], equation_text, formula_text, frame_index, paused, hold_frames, frames_per_step, graph_spec, model3d_spec, model3d_view)
 
         cv2.imshow(WINDOW_NAME, frame)
         key = normalize_key(cv2.waitKeyEx(FRAME_DELAY_MS))
@@ -2737,6 +3142,8 @@ def main() -> None:
                         equation_text = problem.display_text
                         formula_text = problem.formula_text
                         graph_spec = problem.graph_spec
+                        model3d_spec = problem.model3d_spec
+                        model3d_view = Model3DView()
                         mode = "play"
                         paused = False
                         step_index = 0
@@ -2751,16 +3158,31 @@ def main() -> None:
 
         if mode == "edit":
             if click:
-                if point_in_rect(click, (176, HEIGHT // 2 + 138, 355, HEIGHT // 2 + 188)):
-                    selected_branch = "Classical Physics"
-                    mode = "library_category"
-                    error_message = None
-                    continue
-                if point_in_rect(click, (384, HEIGHT // 2 + 138, 563, HEIGHT // 2 + 188)):
-                    selected_branch = "Modern Physics"
-                    mode = "library_category"
-                    error_message = None
-                    continue
+                for button in make_template_buttons():
+                    if point_in_rect(click, button.rect):
+                        equation_text = button.value
+                        cursor_index = len(equation_text)
+                        error_message = None
+                        break
+                else:
+                    for button in make_recent_buttons(recent_problems):
+                        if point_in_rect(click, button.rect):
+                            equation_text = button.value
+                            cursor_index = len(equation_text)
+                            error_message = None
+                            break
+                    else:
+                        if point_in_rect(click, (176, HEIGHT // 2 + 286, 355, HEIGHT // 2 + 314)):
+                            selected_branch = "Classical Physics"
+                            mode = "library_category"
+                            error_message = None
+                            continue
+                        if point_in_rect(click, (384, HEIGHT // 2 + 286, 563, HEIGHT // 2 + 314)):
+                            selected_branch = "Modern Physics"
+                            mode = "library_category"
+                            error_message = None
+                            continue
+                continue
             if key == "":
                 continue
             if key == "ENTER":
@@ -2770,6 +3192,10 @@ def main() -> None:
                     equation_text = problem.display_text
                     formula_text = problem.formula_text
                     graph_spec = problem.graph_spec
+                    model3d_spec = problem.model3d_spec
+                    model3d_view = Model3DView()
+                    recent_problems = [equation_text] + [item for item in recent_problems if item != equation_text]
+                    recent_problems = recent_problems[:MAX_RECENT_PROBLEMS]
                     error_message = None
                     mode = "play"
                     paused = False
@@ -2803,10 +3229,19 @@ def main() -> None:
 
         if key in ("p", " "):
             paused = not paused
+        elif key == "LEFT":
+            step_index = max(0, step_index - 1)
+            frame_index = 0
+            paused = True
+        elif key == "RIGHT":
+            step_index = min(max(0, len(steps) - 1), step_index + 1)
+            frame_index = 0
+            paused = True
         elif key == "r":
             step_index = 0
             frame_index = 0
             paused = False
+            model3d_view = Model3DView()
         elif key == "n":
             mode = "edit"
             error_message = None
@@ -2814,7 +3249,21 @@ def main() -> None:
             equation_text = ""
             cursor_index = 0
             graph_spec = None
+            model3d_spec = None
+            model3d_view = Model3DView()
             continue
+        elif model3d_spec is not None and key in ("x", "y", "z") and model3d_spec.kind == "triple":
+            model3d_view.slice_axis = key
+            paused = True
+        elif model3d_spec is not None and key == "a":
+            model3d_view.slice_axis = None
+            paused = True
+        elif model3d_spec is not None and key == ",":
+            advance_slice(model3d_view, -0.05)
+            paused = True
+        elif model3d_spec is not None and key == ".":
+            advance_slice(model3d_view, 0.05)
+            paused = True
         elif key == "[":
             frames_per_step = min(MAX_FRAMES_PER_STEP, frames_per_step + SPEED_STEP)
             hold_frames = max(8, frames_per_step // 7)
