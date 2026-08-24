@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+
+set -u
+
+project_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+repo_dir="$(CDPATH= cd -- "$project_dir/.." && pwd)"
+cmake_file="$project_dir/CMakeLists.txt"
+raylib_dir="$project_dir/third_party/raylib-src/src"
+raylib_lib="$raylib_dir/libraylib.a"
+build_dir="$project_dir/build-native"
+force_rebuild=0
+
+usage() {
+    printf '%s\n' \
+        "Usage:" \
+        "  ./CompPhysics/run <name>              Build if needed, then run" \
+        "  ./CompPhysics/run --rebuild <name>    Force a rebuild, then run" \
+        "  ./CompPhysics/run --list              List available visualizations" \
+        "  ./CompPhysics/run --build-all         Build every visualization" \
+        "  ./CompPhysics/run --install-launchers Create tab-completable app paths" \
+        "" \
+        "Examples:" \
+        "  ./CompPhysics/run dual_black_white_hole_viz" \
+        "  ./CompPhysics/run gravity/dual_black_white_hole_viz.cpp" \
+        "  ./CompPhysics/run hydrogen_orbital_explorer_viz_cpp"
+}
+
+target_rows() {
+    sed -nE 's/^[[:space:]]*add_executable\(([^ ]+)[[:space:]]+"([^"]+)"\).*/\1|\2/p' "$cmake_file"
+}
+
+install_launchers() {
+    local launcher_dir="$project_dir/apps"
+    local installed=0
+    mkdir -p "$launcher_dir"
+    while IFS='|' read -r target source; do
+        local name="${target%_cpp}"
+        local link_path="$launcher_dir/$name"
+        if [[ -e "$link_path" && ! -L "$link_path" ]]; then
+            printf 'Keeping existing non-link: %s\n' "$link_path" >&2
+            continue
+        fi
+        ln -sfn ../launch-viz "$link_path"
+        installed=$((installed + 1))
+    done < <(target_rows)
+    printf 'Installed %d tab-completable launchers in CompPhysics/apps/.\n' "$installed"
+}
+
+build_target() {
+    local target="$1"
+    local relative_source="$2"
+    local source_path="$project_dir/$relative_source"
+    local output_path="$build_dir/$target"
+    local rebuild="$force_rebuild"
+
+    if [[ ! -f "$source_path" ]]; then
+        printf 'Source file not found: %s\n' "$source_path" >&2
+        return 1
+    fi
+    if [[ ! -f "$raylib_lib" ]]; then
+        printf 'raylib library not found: %s\n' "$raylib_lib" >&2
+        printf 'Build the vendored raylib library first.\n' >&2
+        return 1
+    fi
+    if [[ ! -x "$output_path" || "$source_path" -nt "$output_path" || "$raylib_lib" -nt "$output_path" ]]; then
+        rebuild=1
+    fi
+    if [[ "$rebuild" -eq 0 ]] && find "$raylib_dir" -maxdepth 1 -name '*.h' -newer "$output_path" -print -quit | grep -q .; then
+        rebuild=1
+    fi
+
+    if [[ "$rebuild" -eq 1 ]]; then
+        mkdir -p "$build_dir"
+        printf 'Building %s...\n' "$target"
+        case "$(uname -s)" in
+            Darwin)
+                "${CXX:-clang++}" -std=c++17 "$source_path" -I"$raylib_dir" "$raylib_lib" \
+                    -framework IOKit -framework Cocoa -framework OpenGL -framework CoreVideo \
+                    -o "$output_path" || return 1
+                ;;
+            Linux)
+                "${CXX:-g++}" -std=c++17 "$source_path" -I"$raylib_dir" "$raylib_lib" \
+                    -lGL -lm -lpthread -ldl -lrt -lX11 -o "$output_path" || return 1
+                ;;
+            *)
+                printf 'Unsupported platform: %s\n' "$(uname -s)" >&2
+                return 1
+                ;;
+        esac
+    fi
+
+    BUILT_PATH="$output_path"
+    return 0
+}
+
+case "${1:-}" in
+    -h|--help|"")
+        usage
+        exit 0
+        ;;
+    --list)
+        target_rows | while IFS='|' read -r target source; do
+            printf '%-42s %s\n' "${target%_cpp}" "$source"
+        done
+        exit 0
+        ;;
+    --build-all)
+        failures=0
+        total=0
+        while IFS='|' read -r target source; do
+            total=$((total + 1))
+            if ! build_target "$target" "$source"; then
+                failures=$((failures + 1))
+            fi
+        done < <(target_rows)
+        printf 'Built %d targets; %d failed.\n' "$((total - failures))" "$failures"
+        [[ "$failures" -eq 0 ]]
+        exit $?
+        ;;
+    --install-launchers)
+        install_launchers
+        exit 0
+        ;;
+    --rebuild)
+        force_rebuild=1
+        shift
+        ;;
+esac
+
+query="${1:-}"
+if [[ -z "$query" ]]; then
+    usage
+    exit 2
+fi
+shift
+query="${query#./}"
+query="${query#CompPhysics/}"
+
+match_count=0
+selected_target=""
+selected_source=""
+while IFS='|' read -r target source; do
+    filename="${source##*/}"
+    stem="${filename%.cpp}"
+    if [[ "$query" == "$target" || "$query" == "${target%_cpp}" || "$query" == "$source" ||
+          "$query" == "$filename" || "$query" == "$stem" ]]; then
+        match_count=$((match_count + 1))
+        selected_target="$target"
+        selected_source="$source"
+    fi
+done < <(target_rows)
+
+if [[ "$match_count" -eq 0 ]]; then
+    printf 'No visualization matches "%s". Try: ./CompPhysics/run --list\n' "$query" >&2
+    exit 2
+fi
+if [[ "$match_count" -gt 1 ]]; then
+    printf 'More than one visualization matches "%s"; use its folder path.\n' "$query" >&2
+    exit 2
+fi
+
+if ! build_target "$selected_target" "$selected_source"; then
+    exit 1
+fi
+
+cd "$repo_dir"
+exec "$BUILT_PATH" "$@"

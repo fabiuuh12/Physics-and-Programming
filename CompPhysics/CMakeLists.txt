@@ -33,6 +33,9 @@ endif()
 add_executable(atom_viz_cpp "quantum/atom_viz.cpp")
 target_link_libraries(atom_viz_cpp PRIVATE raylib)
 
+add_executable(hydrogen_orbital_explorer_viz_cpp "quantum/hydrogen_orbital_explorer_viz.cpp")
+target_link_libraries(hydrogen_orbital_explorer_viz_cpp PRIVATE raylib)
+
 add_executable(atomic_bomb_viz_cpp "nuclear/atomic_bomb_viz.cpp")
 target_link_libraries(atomic_bomb_viz_cpp PRIVATE raylib)
 
@@ -182,6 +185,9 @@ target_link_libraries(maxwell_equations_viz_cpp PRIVATE raylib)
 
 add_executable(maxwell_wave_viz_cpp "electromagnetism/maxwell_wave_viz.cpp")
 target_link_libraries(maxwell_wave_viz_cpp PRIVATE raylib)
+
+add_executable(em_wave_field_lab_viz_cpp "electromagnetism/em_wave_field_lab_viz.cpp")
+target_link_libraries(em_wave_field_lab_viz_cpp PRIVATE raylib)
 
 add_executable(newton_laws_viz_cpp "mechanics/newton_laws_viz.cpp")
 target_link_libraries(newton_laws_viz_cpp PRIVATE raylib)

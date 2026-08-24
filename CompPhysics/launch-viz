@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -u
+
+invoked_name="$(basename -- "$0")"
+invoked_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+
+if [[ "$invoked_name" == "launch-viz" ]]; then
+    printf 'Run a visualization through CompPhysics/apps/, for example:\n' >&2
+    printf '  ./CompPhysics/apps/dual_black_white_hole_viz\n' >&2
+    exit 2
+fi
+
+project_dir="$(CDPATH= cd -- "$invoked_dir/.." && pwd)"
+exec "$project_dir/run" "$invoked_name" "$@"

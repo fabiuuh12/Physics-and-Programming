@@ -72,6 +72,36 @@ python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
 ## Build C++ Visualizations
 
+### Quick launcher (macOS/Linux)
+
+From the repository root, the project launcher finds a visualization, rebuilds it only when its source or raylib changes, and then runs it:
+
+```bash
+./CompPhysics/run dual_black_white_hole_viz
+./CompPhysics/run hydrogen_orbital_explorer_viz
+```
+
+Useful launcher commands:
+
+```bash
+./CompPhysics/run --list
+./CompPhysics/run --rebuild dual_black_white_hole_viz
+./CompPhysics/run --build-all
+```
+
+For normal shell tab completion, generate filesystem-backed launch names once:
+
+```bash
+./CompPhysics/run --install-launchers
+./CompPhysics/apps/dual<TAB>
+```
+
+These launch names use ordinary path completion and retain the launcher's automatic rebuild behavior.
+
+Compiled programs stay in `CompPhysics/build-native/`; source folders remain free of generated binaries.
+
+### CMake
+
 From this folder:
 
 ```bash
