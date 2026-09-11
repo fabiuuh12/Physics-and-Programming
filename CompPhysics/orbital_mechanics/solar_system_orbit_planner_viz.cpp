@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -146,15 +148,15 @@ void DrawGrid(Vector2 camera, float scale) {
 void DrawHud(float simTime, float timeScale, Vector2 burn, bool paused, bool followCraft, float zoom) {
     DrawRectangle(920, 48, 314, 306, Color{13, 21, 34, 236});
     DrawRectangleLines(920, 48, 314, 306, Color{82, 110, 146, 255});
-    DrawText("SOLAR SYSTEM PLANNER", 944, 76, 22, RAYWHITE);
-    DrawText(("time: " + Fixed(simTime, 1) + " y").c_str(), 944, 118, 18, Color{205, 224, 245, 255});
-    DrawText(("warp: " + Fixed(timeScale, 1) + "x").c_str(), 944, 146, 18, Color{205, 224, 245, 255});
-    DrawText(("burn dv: " + Fixed(Vector2Length(burn), 2)).c_str(), 944, 184, 18, Color{255, 232, 150, 255});
-    DrawText("prograde/radial preview", 944, 212, 18, Color{135, 245, 170, 255});
-    DrawText(paused ? "SPACE resume" : "SPACE pause", 944, 250, 17, Color{170, 184, 204, 255});
-    DrawText(followCraft ? "F follow: craft" : "F follow: sun", 944, 276, 17, Color{170, 184, 204, 255});
-    DrawText(("zoom: " + Fixed(zoom, 1)).c_str(), 944, 302, 17, Color{170, 184, 204, 255});
-    DrawText("ENTER applies burn", 944, 328, 17, Color{255, 232, 150, 255});
+    studio::text("SOLAR SYSTEM PLANNER", 944, 76, 22, RAYWHITE);
+    studio::text(("time: " + Fixed(simTime, 1) + " y").c_str(), 944, 118, 18, Color{205, 224, 245, 255});
+    studio::text(("warp: " + Fixed(timeScale, 1) + "x").c_str(), 944, 146, 18, Color{205, 224, 245, 255});
+    studio::text(("burn dv: " + Fixed(Vector2Length(burn), 2)).c_str(), 944, 184, 18, Color{255, 232, 150, 255});
+    studio::text("prograde/radial preview", 944, 212, 18, Color{135, 245, 170, 255});
+    studio::text(paused ? "SPACE resume" : "SPACE pause", 944, 250, 17, Color{170, 184, 204, 255});
+    studio::text(followCraft ? "F follow: craft" : "F follow: sun", 944, 276, 17, Color{170, 184, 204, 255});
+    studio::text(("zoom: " + Fixed(zoom, 1)).c_str(), 944, 302, 17, Color{170, 184, 204, 255});
+    studio::text("ENTER applies burn", 944, 328, 17, Color{255, 232, 150, 255});
 }
 
 }  // namespace
@@ -246,7 +248,7 @@ int main() {
             const Vector2 s = WorldToScreen(p, camera, scale);
             DrawCircleV(s, planet.visualRadius, planet.color);
             DrawCircleLinesV(s, planet.visualRadius + 9.0f, Color{planet.color.r, planet.color.g, planet.color.b, 70});
-            DrawText(planet.name.c_str(), static_cast<int>(s.x + planet.visualRadius + 7.0f), static_cast<int>(s.y - 8.0f), 14, Color{190, 202, 218, 255});
+            studio::text(planet.name.c_str(), static_cast<int>(s.x + planet.visualRadius + 7.0f), static_cast<int>(s.y - 8.0f), 14, Color{190, 202, 218, 255});
         }
 
         const Vector2 craftNow = WorldToScreen(craft.pos, camera, scale);
@@ -263,12 +265,14 @@ int main() {
             DrawCircleV(burnEnd, 7.0f, Color{255, 232, 100, 255});
         }
 
-        DrawText("Drag from spacecraft to draw a maneuver. Green path previews the trajectory.", 54, 52, 20, RAYWHITE);
-        DrawText("Mouse wheel zoom  +/- time warp  SPACE pause  ENTER apply burn  F follow  R reset", 54, kScreenHeight - 48, 18, Color{182, 195, 212, 255});
+        studio::text("Drag from spacecraft to draw a maneuver. Green path previews the trajectory.", 54, 52, 20, RAYWHITE);
+        studio::text("Mouse wheel zoom  +/- time warp  SPACE pause  ENTER apply burn  F follow  R reset", 54, kScreenHeight - 48, 18, Color{182, 195, 212, 255});
         DrawHud(simTime, timeScale, burn, paused, followCraft, zoom);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

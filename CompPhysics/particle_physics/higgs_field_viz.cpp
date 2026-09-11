@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -23,7 +24,8 @@ struct Traveler {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -178,20 +180,20 @@ int main() {
         DrawCubeWires({0.0f, 0.8f, 0.0f}, 11.0f, 1.8f, 11.0f, Color{120, 160, 210, 80});
         EndMode3D();
 
-        DrawText("Higgs Field (Conceptual)", 20, 18, 30, Color{235, 240, 252, 255});
-        DrawText("Non-zero field fills space. Particles that couple to it move as if they have inertia (mass).", 20, 54, 19, Color{168, 186, 214, 255});
-        DrawText("Mouse drag: orbit | wheel: zoom | UP/DOWN: coupling | SPACE: excite field | P: pause | R: reset", 20, 80, 18, Color{168, 186, 214, 255});
+        studio::title("Higgs Field (Conceptual)", studio::Style::Quantum);
+        studio::help("Mouse drag: orbit | wheel: zoom | UP/DOWN: coupling | SPACE: excite field | P: pause | R: reset");
 
-        DrawText("blue: no coupling (stays fast)", 20, 110, 19, Color{125, 215, 255, 255});
-        DrawText("orange: strong coupling (slower = larger effective mass)", 20, 134, 19, Color{255, 175, 105, 255});
+        studio::note("Conceptual field coupling / blue: uncoupled / orange: massive / illustrative motion");
 
         std::string hud = HudLine(strongCoupling, gammaSpeed, massiveSpeed, paused, pulseActive);
-        DrawText(hud.c_str(), 20, 164, 20, Color{255, 220, 130, 255});
-        DrawFPS(20, 194);
+        studio::readout(hud.c_str());
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

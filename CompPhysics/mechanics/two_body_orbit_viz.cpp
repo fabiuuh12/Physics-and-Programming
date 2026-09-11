@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -118,7 +119,8 @@ std::string HudText(float t, float speed, const Body& a, const Body& b, bool pau
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -181,6 +183,7 @@ int main() {
 
     ResetSystem(&a, &b, &trailA, &trailB);
 
+    const float initialEnergy=Kinetic(a)+Kinetic(b)+Potential(a,b);
     float simTime = 0.0f;
     float speed = 1.0f;
     bool paused = false;
@@ -200,7 +203,7 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
-            float frameDt = GetFrameTime() * speed;
+            float frameDt = std::min(GetFrameTime(),0.05f) * speed;
             int steps = std::max(1, static_cast<int>(std::ceil(frameDt / 0.006f)));
             float dt = frameDt / static_cast<float>(steps);
             for (int i = 0; i < steps; ++i) {
@@ -230,15 +233,20 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Two Body Orbit (Mutual Gravity)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | R reset", 20, 56, 20, Color{164, 183, 210, 255});
+        studio::title("Two Body Orbit (Mutual Gravity)", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | R reset");
         std::string hud = HudText(simTime, speed, a, b, paused);
-        DrawText(hud.c_str(), 20, 86, 21, Color{126, 224, 255, 255});
-        DrawFPS(20, 118);
+        studio::readout(hud.c_str());
+        float energy=Kinetic(a)+Kinetic(b)+Potential(a,b);
+        Vector3 momentum=Vector3Add(Vector3Scale(a.vel,a.mass),Vector3Scale(b.vel,b.mass));
+        studio::note(TextFormat("Relative energy drift %.2e / |total momentum| %.2e / softened gravity",std::abs((energy-initialEnergy)/initialEnergy),Vector3Length(momentum)));
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +13,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -105,15 +107,17 @@ int main() {
             "4: Ampere-Maxwell  curl B = mu0J + mu0eps0 dE/dt"
         };
 
-        DrawText("Maxwell Equations: Field Intuition", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | 1..4 equation mode | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
-        DrawText(labels[mode], 20, 82, 20, Color{190, 220, 255, 255});
-        if (paused) DrawText("[PAUSED]", 20, 110, 20, Color{255, 210, 150, 255});
-        DrawFPS(20, 138);
+        studio::title("Maxwell Equations: Field Intuition", studio::Style::Field);
+        studio::help("Hold left mouse: orbit | wheel: zoom | 1..4 equation mode | P pause | R reset");
+        studio::readout(labels[mode]);
+        if (paused) studio::note("[PAUSED]");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

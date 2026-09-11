@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -23,7 +24,8 @@ struct BurstParticle {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -276,20 +278,22 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Black Hole Merger (Inspiral -> Ringdown)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | , . warp | W warp | R reset", 20, 56, 20, Color{164, 183, 210, 255});
+        studio::title("Black Hole Merger (Inspiral -> Ringdown)", studio::Style::Observatory);
+        studio::help("Hold left mouse: orbit | wheel: zoom | +/- speed | P pause | , . warp | W warp | R reset");
         std::string hud = Hud(simT, speed, paused, merged);
-        DrawText(hud.c_str(), 20, 86, 21, Color{126, 224, 255, 255});
+        studio::readout(hud.c_str());
         std::ostringstream warpHud;
         warpHud << std::fixed << std::setprecision(2)
                 << "warp=" << warpScale
                 << "  warpVisible=" << (showWarp ? "yes" : "no");
-        DrawText(warpHud.str().c_str(), 20, 112, 20, Color{149, 201, 255, 255});
-        DrawFPS(20, 118);
+        studio::note(warpHud.str().c_str());
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

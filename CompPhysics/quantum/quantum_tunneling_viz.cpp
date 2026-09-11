@@ -1,167 +1,88 @@
 #include "raylib.h"
 #include "raymath.h"
-
+#include "../common/studio.h"
+#include "../common/quantum_solver.h"
 #include <algorithm>
 #include <cmath>
-#include <iomanip>
-#include <sstream>
-#include <string>
-
-namespace {
-
-constexpr int kScreenWidth = 1280;
-constexpr int kScreenHeight = 820;
-
-void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-        Vector2 d = GetMouseDelta();
-        *yaw -= d.x * 0.0035f;
-        *pitch += d.y * 0.0035f;
-        *pitch = std::clamp(*pitch, -1.35f, 1.35f);
-    }
-    *distance -= GetMouseWheelMove() * 0.6f;
-    *distance = std::clamp(*distance, 4.5f, 32.0f);
-
-    float cp = std::cos(*pitch);
-    Vector3 offset = {
-        *distance * cp * std::cos(*yaw),
-        *distance * std::sin(*pitch),
-        *distance * cp * std::sin(*yaw),
-    };
-    camera->position = Vector3Add(camera->target, offset);
-}
-
-float Gaussian(float x, float center, float sigma) {
-    float u = (x - center) / sigma;
-    return std::exp(-0.5f * u * u);
-}
-
-std::string Hud(float barrierH, float packetE, float transP, bool paused) {
-    std::ostringstream os;
-    os << std::fixed << std::setprecision(2)
-       << "Barrier=" << barrierH
-       << "  PacketE=" << packetE
-       << "  TransProb~" << transP;
-    if (paused) os << "  [PAUSED]";
-    return os.str();
-}
-
-}  // namespace
+#include <deque>
 
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "Quantum Tunneling 3D - C++ (raylib)");
+    InitWindow(1360,860,"Quantum tunneling / Wave laboratory");
     SetTargetFPS(60);
-
-    Camera3D camera{};
-    camera.position = {9.0f, 5.6f, 9.2f};
-    camera.target = {0.0f, 0.0f, 0.0f};
-    camera.up = {0.0f, 1.0f, 0.0f};
-    camera.fovy = 45.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
-
-    float camYaw = 0.86f;
-    float camPitch = 0.35f;
-    float camDistance = 14.0f;
-
-    float barrierCenter = 0.0f;
-    float barrierWidth = 1.0f;
-    float barrierHeight = 1.15f;
-
-    float packetEnergy = 0.80f;
-    float packetCenter = -5.8f;
-    float packetSpeed = 1.25f;
-    float sigma = 0.95f;
-
-    float timeScale = 1.0f;
-    bool paused = false;
-
+    Camera3D camera{{13,9,15},{0,0,0},{0,1,0},43,CAMERA_PERSPECTIVE};
+    float yaw=1.22f,pitch=0.60f,distance=27;
+    double energy=0.8,barrier=1.15;
+    float timeScale=1;
+    bool paused=false,phase=true;
+    physics::WavePacket packet;
+    physics::Clock clock;
+    packet.reset(energy,barrier);
+    std::deque<float> transmitted;
+    int samples=0;
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) {
-            barrierHeight = 1.15f;
-            packetEnergy = 0.80f;
-            packetCenter = -5.8f;
-            packetSpeed = 1.25f;
-            timeScale = 1.0f;
-            paused = false;
+        bool restart=IsKeyPressed(KEY_R);
+        if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_SPACE)) paused=!paused;
+        if (IsKeyPressed(KEY_V)) phase=!phase;
+        if (IsKeyPressed(KEY_LEFT_BRACKET)) { barrier=std::max(0.0,barrier-0.1); restart=true; }
+        if (IsKeyPressed(KEY_RIGHT_BRACKET)) { barrier=std::min(4.0,barrier+0.1); restart=true; }
+        if (IsKeyPressed(KEY_MINUS)) { energy=std::max(0.2,energy-0.1); restart=true; }
+        if (IsKeyPressed(KEY_EQUAL)) { energy=std::min(3.0,energy+0.1); restart=true; }
+        if (IsKeyPressed(KEY_COMMA)) timeScale=std::max(0.25f,timeScale/2);
+        if (IsKeyPressed(KEY_PERIOD)) timeScale=std::min(2.0f,timeScale*2);
+        if (restart) { packet.reset(energy,barrier); clock.reset(); transmitted.clear(); samples=0; paused=false; }
+        studio::pan(&camera,yaw,pitch,distance);
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !studio::panGesture()) {
+            Vector2 d=GetMouseDelta(); yaw-=d.x*0.004f;
+            pitch=std::clamp(pitch+d.y*0.004f,-1.35f,1.35f);
         }
-
-        if (IsKeyPressed(KEY_LEFT_BRACKET)) barrierHeight = std::max(0.35f, barrierHeight - 0.05f);
-        if (IsKeyPressed(KEY_RIGHT_BRACKET)) barrierHeight = std::min(2.5f, barrierHeight + 0.05f);
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) packetEnergy = std::max(0.25f, packetEnergy - 0.05f);
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) packetEnergy = std::min(2.4f, packetEnergy + 0.05f);
-        if (IsKeyPressed(KEY_COMMA)) timeScale = std::max(0.2f, timeScale - 0.2f);
-        if (IsKeyPressed(KEY_PERIOD)) timeScale = std::min(5.0f, timeScale + 0.2f);
-
-        UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
-
-        if (!paused) {
-            packetCenter += packetSpeed * GetFrameTime() * timeScale;
-            if (packetCenter > 8.0f) {
-                packetCenter = -5.8f;
+        distance=std::clamp(distance*std::exp(-GetMouseWheelMove()*0.06f),7.0f,60.0f);
+        camera.position=Vector3Add(camera.target,{distance*std::cos(pitch)*std::cos(yaw),distance*std::sin(pitch),distance*std::cos(pitch)*std::sin(yaw)});
+        if (!paused) clock.advance(std::min(GetFrameTime(),0.05f)*timeScale,[&](double) {
+            packet.step(); packet.step();
+            if (++samples%8==0) {
+                transmitted.push_back(float(packet.regions()[2]));
+                if (transmitted.size()>360) transmitted.pop_front();
             }
-        }
-
-        float decay = std::sqrt(std::max(0.0f, barrierHeight - packetEnergy)) * barrierWidth;
-        float transProb = std::exp(-2.0f * decay);
-
+        });
+        auto probabilities=packet.regions();
         BeginDrawing();
-        ClearBackground(Color{6, 9, 17, 255});
-
+        ClearBackground({14,16,28,255});
         BeginMode3D(camera);
-
-        DrawCube({barrierCenter, barrierHeight * 0.5f, 0.0f}, barrierWidth, barrierHeight, 3.6f, Color{200, 120, 130, 120});
-        DrawCubeWires({barrierCenter, barrierHeight * 0.5f, 0.0f}, barrierWidth, barrierHeight, 3.6f, Color{255, 170, 180, 200});
-
-        for (int i = 0; i < 96; ++i) {
-            float x = -8.0f + 16.0f * static_cast<float>(i) / 95.0f;
-
-            float incident = Gaussian(x, packetCenter, sigma);
-            float reflected = (1.0f - transProb) * Gaussian(x, -packetCenter - 0.8f, sigma * 1.08f);
-            float transmitted = transProb * Gaussian(x, packetCenter - 1.0f, sigma * 1.15f);
-
-            float envelope = 0.0f;
-            if (x < barrierCenter - barrierWidth * 0.5f) {
-                envelope = incident + reflected;
-            } else if (x > barrierCenter + barrierWidth * 0.5f) {
-                envelope = transmitted;
-            } else {
-                envelope = incident * std::exp(-1.9f * std::fabs(x - barrierCenter));
+        DrawLine3D({-12,0,0},{12,0,0},Color{131,139,162,180});
+        DrawCube({0,float(barrier)*0.5f,-0.65f},1,float(barrier),1.3f,Color{181,135,189,100});
+        DrawCubeWires({0,float(barrier)*0.5f,-0.65f},1,float(barrier),1.3f,Color{206,163,222,220});
+        for (int i=1;i<physics::WavePacket::count;++i) {
+            float x0=packet.x(i-1),x1=packet.x(i);
+            float density0=std::norm(packet.psi[i-1]),density1=std::norm(packet.psi[i]);
+            Color color=x1<-0.5f ? Color{174,181,247,255} : (x1>0.5f ? Color{117,221,193,255} : Color{239,203,135,255});
+            DrawLine3D({x0,5*density0,0},{x1,5*density1,0},color);
+            DrawLine3D({x1,0,0},{x1,5*density1,0},Fade(color,0.22f));
+            if (phase) {
+                DrawLine3D({x0,float(packet.psi[i-1].real()),-2},{x1,float(packet.psi[i].real()),-2},Color{120,185,235,210});
+                DrawLine3D({x0,float(packet.psi[i-1].imag()),-3},{x1,float(packet.psi[i].imag()),-3},Color{226,156,192,210});
             }
-
-            float y = 0.05f + 1.8f * envelope;
-            float phase = 8.0f * x - 4.0f * packetCenter;
-            float z = 0.45f * std::sin(phase) * envelope;
-
-            Color c = (x > barrierCenter + barrierWidth * 0.5f)
-                ? Color{110, 230, 255, 220}
-                : Color{160, 170, 255, 220};
-
-            DrawSphere({x, y, z}, 0.045f + 0.05f * envelope, c);
         }
-
-        for (int i = 0; i < 100; ++i) {
-            float x0 = -8.0f + 16.0f * static_cast<float>(i) / 100.0f;
-            float x1 = -8.0f + 16.0f * static_cast<float>(i + 1) / 100.0f;
-
-            float y0 = 0.02f + 0.25f * ((x0 < barrierCenter) ? 0.0f : transProb);
-            float y1 = 0.02f + 0.25f * ((x1 < barrierCenter) ? 0.0f : transProb);
-            DrawLine3D({x0, y0, -1.8f}, {x1, y1, -1.8f}, Color{255, 210, 120, 140});
-        }
-
+        for (int i=-12;i<=12;i+=2) DrawLine3D({float(i),-0.07f,0.1f},{float(i),-0.07f,-0.1f},Color{130,144,166,220});
         EndMode3D();
-
-        DrawText("Quantum Tunneling (Wave Packet vs Barrier)", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] barrier | +/- packet energy | , . time | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
-
-        std::string hud = Hud(barrierHeight, packetEnergy, transProb, paused);
-        DrawText(hud.c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-
-        DrawFPS(20, 112);
-
+        studio::title("Quantum tunneling / an evolving wavefunction",studio::Style::Quantum);
+        studio::readout(TextFormat("Carrier E %.2f   Barrier %.2f   t %.2f   Norm %.8f%s",energy,barrier,packet.time,packet.norm(),paused ? "   PAUSED" : ""));
+        studio::note("hbar = m = 1 / density height 5x / cyan real, pink imaginary / reflecting domain endpoints");
+        studio::help("Left drag orbit | wheel zoom | [ ] barrier | -/+ carrier energy (restarts) | V phase | , . speed | Space/P pause | R restart");
+        const char* labels[]={"LEFT OF BARRIER","INSIDE BARRIER","RIGHT OF BARRIER"};
+        const Color colors[]={{174,181,247,255},{239,203,135,255},{117,221,193,255}};
+        for (int i=0;i<3;++i) {
+            Rectangle r{26.0f+i*185,180,170,83};
+            studio::panel(r,Color{27,29,44,245});
+            studio::text(labels[i],r.x+13,r.y+12,11,colors[i]);
+            studio::text(TextFormat("%.1f %%",100*probabilities[i]),r.x+13,r.y+33,28,WHITE);
+        }
+        studio::plot({float(GetScreenWidth()-408),float(GetScreenHeight()-283),380,215},
+                     "Right-side probability / last 12 s",transmitted,0,1,colors[2]);
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
-
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -18,7 +19,8 @@ struct ShellPoint {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0034f;
         *pitch += d.y * 0.0034f;
@@ -133,29 +135,21 @@ int main() {
         DrawLine3D({-10.0f, 0.0f, 0.0f}, {10.0f, 0.0f, 0.0f}, Fade(SKYBLUE, 0.3f));  // ISM gradient axis.
         EndMode3D();
 
-        DrawRectangle(870, 516, 388, 236, Fade(Color{18, 26, 42, 255}, 0.92f));
-        DrawText("Shock Speed Proxy", 892, 536, 22, Color{220, 230, 244, 255});
-        for (int i = 1; i < static_cast<int>(shockHistory.size()); ++i) {
-            float s0 = std::min(16.0f, shockHistory[i - 1]);
-            float s1 = std::min(16.0f, shockHistory[i]);
-            int x0 = 900 + i - 1;
-            int x1 = 900 + i;
-            int y0 = 732 - static_cast<int>((s0 / 16.0f) * 166.0f);
-            int y1 = 732 - static_cast<int>((s1 / 16.0f) * 166.0f);
-            DrawLine(x0, y0, x1, y1, Color{130, 240, 188, 255});
-        }
+        studio::plot({float(GetScreenWidth()-408),float(GetScreenHeight()-293),380,225},
+                     "Shock speed proxy / sample history",shockHistory,0.0f,16.0f,Color{139,222,191,255});
 
-        DrawText("Supernova Remnant Expansion (Sedov-like)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse orbit | wheel zoom | Up/Down energy | Left/Right density | [ ] gradient | +/- time scale | P pause | R reset",
-                 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Supernova Remnant Expansion (Sedov-like)", studio::Style::Observatory);
+        studio::help("Mouse orbit | wheel zoom | Up/Down energy | Left/Right density | [ ] gradient | +/- time scale | P pause | R reset");
         char status[230];
         std::snprintf(status, sizeof(status), "E=%.2f  rho=%.2f  grad=%.2f  age=%.2f  R=%.2f%s",
                       energy, density, gradient, age, shellRadius, paused ? " [PAUSED]" : "");
-        DrawText(status, 20, 84, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+        studio::readout(status);
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

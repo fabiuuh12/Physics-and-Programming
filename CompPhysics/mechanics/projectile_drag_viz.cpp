@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -14,7 +16,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -43,7 +46,8 @@ int main() {
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
-    float camYaw = 0.8f, camPitch = 0.33f, camDistance = 15.0f;
+    float camYaw = 1.3f, camPitch = 0.45f, camDistance = 29.0f;
+    camera.target={9.0f,2.0f,0.0f};
 
     auto resetState = [&](Vector3* pNo, Vector3* vNo, Vector3* pDr, Vector3* vDr, std::deque<Vector3>* trNo, std::deque<Vector3>* trDr, float speed, float angleDeg) {
         float ang = angleDeg * PI / 180.0f;
@@ -58,6 +62,7 @@ int main() {
     float angleDeg = 44.0f;
     float dragK = 0.08f;
     bool paused = false;
+    physics::Clock clock;
 
     Vector3 pNo{}, vNo{}, pDr{}, vDr{};
     std::deque<Vector3> trNo, trDr;
@@ -65,7 +70,7 @@ int main() {
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) { paused = false; resetState(&pNo, &vNo, &pDr, &vDr, &trNo, &trDr, speed, angleDeg); }
+        if (IsKeyPressed(KEY_R)) { clock.reset(); paused = false; resetState(&pNo, &vNo, &pDr, &vDr, &trNo, &trDr, speed, angleDeg); }
         if (IsKeyPressed(KEY_LEFT_BRACKET)) dragK = std::max(0.0f, dragK - 0.01f);
         if (IsKeyPressed(KEY_RIGHT_BRACKET)) dragK = std::min(0.3f, dragK + 0.01f);
         if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) angleDeg = std::max(10.0f, angleDeg - 1.0f);
@@ -77,26 +82,23 @@ int main() {
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
-        if (!paused) {
-            float dt = GetFrameTime();
-            Vector3 g = {0.0f, -9.81f, 0.0f};
-
-            if (pNo.y > 0.0f) {
-                vNo = Vector3Add(vNo, Vector3Scale(g, dt));
-                pNo = Vector3Add(pNo, Vector3Scale(vNo, dt));
-                trNo.push_back(pNo);
-            }
-
-            if (pDr.y > 0.0f) {
-                Vector3 drag = Vector3Scale(vDr, -dragK * Vector3Length(vDr));
-                vDr = Vector3Add(vDr, Vector3Scale(Vector3Add(g, drag), dt));
-                pDr = Vector3Add(pDr, Vector3Scale(vDr, dt));
-                trDr.push_back(pDr);
-            }
-
-            if (trNo.size() > 1500) trNo.pop_front();
-            if (trDr.size() > 1500) trDr.pop_front();
-        }
+        if (!paused) clock.advance(GetFrameTime(),[&](double dt) {
+            auto advance=[&](Vector3& p,Vector3& v,double drag,std::deque<Vector3>& trail) {
+                if (p.y<=0) return;
+                Vector3 previous=p;
+                auto next=physics::projectileStep({p.x,p.y,v.x,v.y},drag,dt);
+                p.x=float(next[0]); p.y=float(next[1]);
+                v.x=float(next[2]); v.y=float(next[3]);
+                if (p.y<=0) {
+                    float fraction=previous.y/(previous.y-p.y);
+                    p.x=previous.x+fraction*(p.x-previous.x); p.y=0; v={0,0,0};
+                }
+                trail.push_back(p);
+                if (trail.size()>2400) trail.pop_front();
+            };
+            advance(pNo,vNo,0,trNo);
+            advance(pDr,vDr,dragK,trDr);
+        });
 
         BeginDrawing();
         ClearBackground(Color{6, 9, 16, 255});
@@ -111,8 +113,8 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Projectile Motion: Vacuum vs Air Drag", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] drag | +/- angle | , . speed | SPACE relaunch | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Projectile Motion: Vacuum vs Air Drag", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] drag | +/- angle | , . speed | SPACE relaunch | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(2)
@@ -120,12 +122,15 @@ int main() {
            << "  range(no drag)=" << std::max(0.0f, pNo.x)
            << "  range(drag)=" << std::max(0.0f, pDr.x);
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::note("Cyan: vacuum / amber: quadratic drag / fixed 240 Hz RK4 / landing range interpolated");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
 
 #include <algorithm>
 #include <cmath>
@@ -51,17 +53,17 @@ Vector2 CellToScreen(int x, int y, Rectangle plot, int cols, int rows) {
 
 void DrawAxes(Rectangle plot) {
     DrawRectangleLinesEx(plot, 2.0f, Color{190, 205, 220, 255});
-    DrawText("departure day", static_cast<int>(plot.x + plot.width * 0.40f), static_cast<int>(plot.y + plot.height + 38), 20, RAYWHITE);
-    DrawText("arrival day", static_cast<int>(plot.x - 90), static_cast<int>(plot.y - 34), 20, RAYWHITE);
+    studio::text("departure day", static_cast<int>(plot.x + plot.width * 0.40f), static_cast<int>(plot.y + plot.height + 38), 20, RAYWHITE);
+    studio::text("arrival day", static_cast<int>(plot.x - 90), static_cast<int>(plot.y - 34), 20, RAYWHITE);
     for (int i = 0; i <= 6; ++i) {
         float x = plot.x + i * plot.width / 6.0f;
         DrawLineV({x, plot.y + plot.height}, {x, plot.y + plot.height + 8}, Color{190, 205, 220, 255});
-        DrawText(TextFormat("%d", i * 60), static_cast<int>(x - 12), static_cast<int>(plot.y + plot.height + 13), 16, Color{165, 178, 195, 255});
+        studio::text(TextFormat("%d", i * 60), static_cast<int>(x - 12), static_cast<int>(plot.y + plot.height + 13), 16, Color{165, 178, 195, 255});
     }
     for (int i = 0; i <= 6; ++i) {
         float y = plot.y + plot.height - i * plot.height / 6.0f;
         DrawLineV({plot.x - 8, y}, {plot.x, y}, Color{190, 205, 220, 255});
-        DrawText(TextFormat("%d", i * 80 + 120), static_cast<int>(plot.x - 54), static_cast<int>(y - 8), 16, Color{165, 178, 195, 255});
+        studio::text(TextFormat("%d", i * 80 + 120), static_cast<int>(plot.x - 54), static_cast<int>(y - 8), 16, Color{165, 178, 195, 255});
     }
 }
 
@@ -92,6 +94,10 @@ int main() {
         if (IsKeyDown(KEY_W)) synodicPeriod += 60.0f * GetFrameTime();
         if (IsKeyDown(KEY_S)) synodicPeriod -= 60.0f * GetFrameTime();
 
+        if (studio::over(plot) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            selectedDeparture=(GetMouseX()-plot.x)/plot.width*360;
+            selectedArrival=120+(1-(GetMouseY()-plot.y)/plot.height)*480;
+        }
         selectedDeparture = std::clamp(selectedDeparture, 0.0f, 360.0f);
         selectedArrival = std::clamp(selectedArrival, 120.0f, 600.0f);
         synodicPeriod = std::clamp(synodicPeriod, 500.0f, 980.0f);
@@ -110,6 +116,11 @@ int main() {
             }
         }
 
+        if (IsKeyPressed(KEY_B)) {
+            selectedDeparture=(bestPoint.x-plot.x)/plot.width*360;
+            selectedArrival=120+(1-(bestPoint.y-plot.y)/plot.height)*480;
+        }
+        bool validSelection=selectedArrival>selectedDeparture+70;
         WindowResult selected = Evaluate(selectedDeparture, selectedArrival, synodicPeriod);
         const float sx = plot.x + selectedDeparture / 360.0f * plot.width;
         const float sy = plot.y + plot.height - (selectedArrival - 120.0f) / 480.0f * plot.height;
@@ -139,23 +150,30 @@ int main() {
         DrawLineV({plot.x, sy}, {plot.x + plot.width, sy}, Color{255, 255, 255, 145});
         DrawCircleV({sx, sy}, 8.0f, Color{255, 238, 120, 255});
 
-        DrawRectangle(900, 90, 305, 330, Color{15, 23, 36, 235});
-        DrawRectangleLines(900, 90, 305, 330, Color{91, 118, 150, 255});
-        DrawText("LAUNCH WINDOW", 930, 118, 24, RAYWHITE);
-        DrawText(("departure: " + Fixed(selectedDeparture, 0) + " d").c_str(), 930, 168, 19, Color{210, 230, 255, 255});
-        DrawText(("arrival:   " + Fixed(selectedArrival, 0) + " d").c_str(), 930, 196, 19, Color{210, 230, 255, 255});
-        DrawText(("tof:       " + Fixed(selected.tof, 0) + " d").c_str(), 930, 224, 19, Color{255, 235, 175, 255});
-        DrawText(("C3 index:  " + Fixed(selected.c3, 2)).c_str(), 930, 262, 19, Color{255, 235, 175, 255});
-        DrawText(("phase err: " + Fixed(selected.phaseError, 2)).c_str(), 930, 290, 19, Color{190, 220, 255, 255});
-        DrawText(("synodic:   " + Fixed(synodicPeriod, 0) + " d").c_str(), 930, 318, 19, Color{190, 220, 255, 255});
-        DrawText(("best C3:   " + Fixed(bestC3, 2)).c_str(), 930, 356, 19, Color{220, 255, 220, 255});
-        DrawText("white dot = best window", 930, 386, 16, Color{158, 170, 185, 255});
+        studio::panel({900,90,305,330},Color{20,29,43,245});
+        studio::text("LAUNCH WINDOW", 930, 118, 24, RAYWHITE);
+        studio::text(("departure: " + Fixed(selectedDeparture, 0) + " d").c_str(), 930, 168, 19, Color{210, 230, 255, 255});
+        studio::text(("arrival:   " + Fixed(selectedArrival, 0) + " d").c_str(), 930, 196, 19, Color{210, 230, 255, 255});
+        studio::text(("tof:       " + Fixed(selected.tof, 0) + " d").c_str(), 930, 224, 19, Color{255, 235, 175, 255});
+        studio::text(validSelection ? ("C3 index:  " + Fixed(selected.c3, 2)).c_str() : "Unavailable transfer", 930, 262, 19, Color{255, 235, 175, 255});
+        studio::text(("phase err: " + Fixed(selected.phaseError, 2)).c_str(), 930, 290, 19, Color{190, 220, 255, 255});
+        studio::text(("synodic:   " + Fixed(synodicPeriod, 0) + " d").c_str(), 930, 318, 19, Color{190, 220, 255, 255});
+        studio::text(("best C3:   " + Fixed(bestC3, 2)).c_str(), 930, 356, 19, Color{220, 255, 220, 255});
+        studio::text("white dot = best window", 930, 386, 16, Color{158, 170, 185, 255});
 
-        DrawText("LEFT/RIGHT departure  UP/DOWN arrival  W/S synodic period  R reset", 88, 724, 19, Color{190, 200, 214, 255});
-        DrawText("Synthetic porkchop map: lower C3 regions represent easier departure-energy windows.", 88, 754, 18, Color{142, 154, 170, 255});
+        studio::text("ENERGY INDEX",920,462,14,Color{181,201,214,255});
+        for (int i=0;i<260;++i) DrawRectangle(920+i,493,1,12,Heat(10+70*i/259.0f));
+        studio::text("10 / easier",920,516,15,Color{170,211,216,255});
+        studio::text("80+ / harder",1080,516,15,Color{226,176,153,255});
+        studio::text("Click/drag map to inspect",920,568,17,Color{195,208,220,255});
+        studio::text("B selects the best window",920,597,17,Color{195,208,220,255});
+        studio::text("LEFT/RIGHT departure  UP/DOWN arrival  W/S synodic period  R reset", 88, 724, 19, Color{190, 200, 214, 255});
+        studio::text("Synthetic porkchop map: lower C3 regions represent easier departure-energy windows.", 88, 754, 18, Color{142, 154, 170, 255});
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

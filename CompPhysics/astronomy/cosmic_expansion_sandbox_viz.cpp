@@ -1,4 +1,7 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
+#include <deque>
 #include "raymath.h"
 
 #include <algorithm>
@@ -11,7 +14,8 @@ constexpr int kW = 1280;
 constexpr int kH = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dist) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *dist);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -41,6 +45,10 @@ int main() {
     float a = 1.0f;
     float adot = 0.40f;
     bool paused = false;
+    bool atLimit=false;
+    physics::Clock clock;
+    std::deque<float> history;
+    int samples=0;
 
     std::vector<Vector3> comoving;
     for (int x = -4; x <= 4; ++x) {
@@ -53,22 +61,31 @@ int main() {
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) { omegaM = 0.30f; omegaL = 0.70f; a = 1.0f; adot = 0.40f; paused = false; }
+        if (IsKeyPressed(KEY_R)) { omegaM = 0.30f; omegaL = 0.70f; a = 1.0f; adot = 0.40f; paused = false; atLimit=false; clock.reset(); history.clear(); samples=0; }
         if (IsKeyDown(KEY_UP)) omegaL = std::min(1.4f, omegaL + 0.6f * GetFrameTime());
         if (IsKeyDown(KEY_DOWN)) omegaL = std::max(0.0f, omegaL - 0.6f * GetFrameTime());
         if (IsKeyDown(KEY_RIGHT)) omegaM = std::min(1.6f, omegaM + 0.6f * GetFrameTime());
         if (IsKeyDown(KEY_LEFT)) omegaM = std::max(0.0f, omegaM - 0.6f * GetFrameTime());
         UpdateOrbitCameraDragOnly(&cam, &yaw, &pitch, &dist);
 
-        if (!paused) {
-            float dt = GetFrameTime();
-            // Simple Friedmann-like toy dynamics: a'' = -0.5*Omega_m/a^2 + Omega_L*a
-            float addot = -0.5f * omegaM / std::max(0.1f, a * a) + omegaL * a;
-            adot += addot * dt * 0.35f;
-            a += adot * dt * 0.35f;
-            a = std::clamp(a, 0.25f, 5.0f);
-            if (a <= 0.26f || a >= 4.95f) adot *= -0.3f;
-        }
+        if (!paused && !atLimit) clock.advance(GetFrameTime(),[&](double step) {
+            if (atLimit) return;
+            float dt=float(step);
+            auto acceleration=[&](float scale) {
+                return 0.16f*(-0.5f*omegaM/(scale*scale)+omegaL*scale);
+            };
+            float oldAccel=acceleration(a);
+            float next=a+adot*dt+0.5f*oldAccel*dt*dt;
+            if (next<=0.25f || next>=5.0f) {
+                a=std::clamp(next,0.25f,5.0f); atLimit=true; paused=true;
+            } else {
+                adot+=0.5f*(oldAccel+acceleration(next))*dt;
+                a=next;
+            }
+            if (++samples%4==0) {
+                history.push_back(a); if (history.size()>480) history.pop_front();
+            }
+        });
 
         BeginDrawing();
         ClearBackground(Color{6, 10, 18, 255});
@@ -84,15 +101,21 @@ int main() {
         }
         EndMode3D();
 
-        DrawText("Cosmic Expansion Sandbox (matter vs dark energy)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | Left/Right Omega_m | Up/Down Omega_Lambda | P pause | R reset", 20, 54, 18, Color{160, 182, 210, 255});
+        studio::title("Cosmic Expansion Sandbox (matter vs dark energy)", studio::Style::Observatory);
+        studio::help("Mouse drag orbit | wheel zoom | Left/Right Omega_m | Up/Down Omega_Lambda | P pause | R reset");
         char s[260];
         std::snprintf(s, sizeof(s), "Omega_m=%.2f  Omega_Lambda=%.2f  a=%.2f  adot=%.2f%s", omegaM, omegaL, a, adot, paused ? "  [PAUSED]" : "");
-        DrawText(s, 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(s);
+        studio::note(atLimit ? "Display scale limit reached / R restarts / no artificial cosmological bounce"
+                             : "Matter + Lambda acceleration model / H0 = 0.4 / no radiation / initial a = 1");
+        studio::plot({float(GetScreenWidth()-388),float(GetScreenHeight()-278),360,210},
+                     "Scale factor / last 8 s",history,0,5,Color{232,194,134,255});
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

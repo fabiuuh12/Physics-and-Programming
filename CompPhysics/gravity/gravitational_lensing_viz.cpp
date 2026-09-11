@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -25,7 +26,8 @@ struct RayPath {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -184,15 +186,17 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Gravitational Lensing (Thin Lens Approximation)", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | arrows: move source | [ ] lens mass | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
+        studio::title("Gravitational Lensing (Thin Lens Approximation)", studio::Style::Observatory);
+        studio::help("Hold left mouse: orbit | wheel: zoom | arrows: move source | [ ] lens mass | P pause | R reset");
         std::string hud = Hud(lensStrength, sourcePos, hitCount);
-        DrawText(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
-        DrawFPS(20, 114);
+        studio::readout(hud.c_str());
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +14,8 @@ constexpr int kH = 820;
 constexpr float kG = 1.0f;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dist) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *dist);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -28,9 +31,7 @@ float TransitFlux(Vector3 planetPos, float starR, float planetR) {
     // Observer fixed on +X axis looking toward origin.
     if (planetPos.x < 0.0f) return 1.0f;
     float d = std::sqrt(planetPos.y * planetPos.y + planetPos.z * planetPos.z);
-    float overlap = std::max(0.0f, starR + planetR - d);
-    float frac = std::clamp(overlap / (2.0f * planetR), 0.0f, 1.0f);
-    return 1.0f - frac * frac * (planetR * planetR) / (starR * starR);
+    return float(1.0-physics::circleOverlap(d,starR,planetR)/(physics::pi*starR*starR));
 }
 }
 
@@ -50,6 +51,8 @@ int main() {
     float starR = 1.2f;
     float planetR = 0.26f;
     bool paused = false;
+    physics::Clock clock;
+    int samples=0;
 
     Vector3 p = {0.0f, 0.0f, 4.5f};
     Vector3 v = {5.1f, 0.0f, 0.0f};
@@ -63,7 +66,7 @@ int main() {
             fluxHistory.assign(360, 1.0f);
             starMass = 130.0f;
             planetR = 0.26f;
-            paused = false;
+            paused = false; clock.reset(); samples=0;
         }
         if (IsKeyDown(KEY_UP)) starMass = std::min(260.0f, starMass + 45.0f * GetFrameTime());
         if (IsKeyDown(KEY_DOWN)) starMass = std::max(35.0f, starMass - 45.0f * GetFrameTime());
@@ -72,17 +75,20 @@ int main() {
 
         UpdateOrbitCameraDragOnly(&cam, &yaw, &pitch, &dist);
 
-        if (!paused) {
-            float dt = GetFrameTime();
-            Vector3 r = Vector3Negate(p);
-            float rmag = std::max(0.35f, Vector3Length(r));
-            Vector3 a = Vector3Scale(r, kG * starMass / (rmag * rmag * rmag));
-            v = Vector3Add(v, Vector3Scale(a, dt));
-            p = Vector3Add(p, Vector3Scale(v, dt));
-            float flux = TransitFlux(p, starR, planetR);
-            fluxHistory.push_back(flux);
-            if (fluxHistory.size() > 360) fluxHistory.pop_front();
-        }
+        if (!paused) clock.advance(GetFrameTime(),[&](double step) {
+            float dt=float(step);
+            auto acceleration=[&](Vector3 position) {
+                float radius=std::max(0.35f,Vector3Length(position));
+                return Vector3Scale(position,-kG*starMass/(radius*radius*radius));
+            };
+            Vector3 a=acceleration(p);
+            p=Vector3Add(p,Vector3Add(Vector3Scale(v,dt),Vector3Scale(a,0.5f*dt*dt)));
+            v=Vector3Add(v,Vector3Scale(Vector3Add(a,acceleration(p)),0.5f*dt));
+            if (++samples%4==0) {
+                fluxHistory.push_back(TransitFlux(p,starR,planetR));
+                if (fluxHistory.size()>360) fluxHistory.pop_front();
+            }
+        });
 
         BeginDrawing();
         ClearBackground(Color{7, 10, 18, 255});
@@ -93,27 +99,21 @@ int main() {
         DrawGrid(20, 0.8f);
         EndMode3D();
 
-        DrawRectangle(880, 520, 360, 220, Fade(Color{20, 28, 44, 255}, 0.9f));
-        DrawText("Light Curve", 900, 536, 22, Color{220, 230, 244, 255});
-        for (int i = 1; i < (int)fluxHistory.size(); ++i) {
-            float f0 = fluxHistory[i - 1];
-            float f1 = fluxHistory[i];
-            int x0 = 900 + i - 1;
-            int x1 = 900 + i;
-            int y0 = 720 - (int)((f0 - 0.88f) / 0.14f * 160.0f);
-            int y1 = 720 - (int)((f1 - 0.88f) / 0.14f * 160.0f);
-            DrawLine(x0, y0, x1, y1, Color{120, 240, 170, 255});
-        }
+        studio::plot({float(GetScreenWidth()-398),float(GetScreenHeight()-293),370,225},
+                     "Relative stellar flux / last 6 s",fluxHistory,0.75f,1.01f,Color{142,226,185,255});
 
-        DrawText("Exoplanet Transit Lab (3D gravity orbit)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | Up/Down star mass | [ ] planet radius | P pause | R reset", 20, 54, 18, Color{160, 182, 210, 255});
+        studio::title("Exoplanet Transit Lab (3D gravity orbit)", studio::Style::Observatory);
+        studio::help("Mouse drag orbit | wheel zoom | Up/Down star mass | [ ] planet radius | P pause | R reset");
         char s[220];
         std::snprintf(s, sizeof(s), "M*=%.1f  Rp=%.2f  flux=%.4f%s", starMass, planetR, fluxHistory.back(), paused ? "  [PAUSED]" : "");
-        DrawText(s, 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(s);
+        studio::note("Uniform stellar disk / exact projected overlap / observer on +X / Verlet orbit");
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

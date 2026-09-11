@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +13,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -78,20 +80,22 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Schrodinger's Cat: Superposition to Measurement", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] prior P(alive) | M measure | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Schrodinger's Cat: Superposition to Measurement", studio::Style::Quantum);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] prior P(alive) | M measure | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(2)
            << "P(alive)=" << pAlive << "  P(dead)=" << (1.0f-pAlive)
            << "  state=" << (measured ? (alive ? "measured alive" : "measured dead") : "superposed");
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126,224,255,255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

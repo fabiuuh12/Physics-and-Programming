@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -26,7 +27,8 @@ struct StarParticle {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0034f;
         *pitch += d.y * 0.0034f;
@@ -90,7 +92,7 @@ void InitSystem(std::vector<StarParticle>* stars, CoreBody* c1, CoreBody* c2, fl
 }  // namespace
 
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "Galaxy Merger (Toy N-body) 3D - C++ (raylib)");
+    InitWindow(kScreenWidth, kScreenHeight, "Galaxy encounter / two cores and tracer disks 3D - C++ (raylib)");
     SetTargetFPS(60);
 
     Camera3D camera{};
@@ -156,7 +158,10 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
-            float dt = GetFrameTime() * simSpeed;
+            float frameDt=std::min(GetFrameTime(),0.05f)*simSpeed;
+            int steps=std::max(1,int(std::ceil(frameDt/0.003f)));
+            float dt=frameDt/steps;
+            for (int substep=0;substep<steps;++substep) {
             Vector3 d = Vector3Subtract(c2.pos, c1.pos);
             float r = std::max(1.4f, Vector3Length(d));
             Vector3 a1 = Vector3Scale(d, kG * c2.mass / (r * r * r));
@@ -178,6 +183,7 @@ int main() {
                 s.vel = Vector3Add(s.vel, Vector3Scale(a, dt));
                 s.pos = Vector3Add(s.pos, Vector3Scale(s.vel, dt));
             }
+            }
         }
 
         BeginDrawing();
@@ -195,19 +201,21 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Galaxy Merger (Toy N-body)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse orbit | wheel zoom | Up/Down mass ratio | Left/Right encounter speed | [ ] disk size | +/- sim speed | P pause | R reset",
-                 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Galaxy encounter / two cores and tracer disks", studio::Style::Observatory);
+        studio::help("Mouse orbit | wheel zoom | Up/Down mass ratio | Left/Right encounter speed | [ ] disk size | +/- sim speed | P pause | R reset");
 
         char status[220];
         std::snprintf(status, sizeof(status),
                       "M2/M1=%.2f  v_enc=%.2f  disk=%.1f  stars=%zu%s",
                       massRatio, encounterSpeed, diskScale, stars.size(), paused ? " [PAUSED]" : "");
-        DrawText(status, 20, 84, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+        studio::readout(status);
+        studio::note("Restricted gravity model / stars feel both cores, not each other / bounded integration substeps");
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

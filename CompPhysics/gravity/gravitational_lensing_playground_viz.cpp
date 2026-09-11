@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -10,7 +11,8 @@ constexpr int kW = 1280;
 constexpr int kH = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dist) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *dist);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -81,15 +83,17 @@ int main() {
         }
         EndMode3D();
 
-        DrawText("Gravitational Lensing Playground (3D ray deflection)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | Up/Down lens mass | WASD move lens in sky plane | P pause | R reset", 20, 54, 18, Color{160, 182, 210, 255});
+        studio::title("Gravitational Lensing Playground (3D ray deflection)", studio::Style::Observatory);
+        studio::help("Mouse drag orbit | wheel zoom | Up/Down lens mass | WASD move lens in sky plane | P pause | R reset");
         char s[220];
         std::snprintf(s, sizeof(s), "lens_mass=%.1f  lens_y=%.2f lens_z=%.2f%s", lensMass, lensPos.y, lensPos.z, paused ? "  [PAUSED]" : "");
-        DrawText(s, 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(s);
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -30,7 +30,7 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 | `mechanics/` | Classical mechanics, oscillators, drag, aerodynamics, and interactive hand labs |
 | `electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
 | `meteorology/` | Earth weather globe, atmospheric layers, wind, pressure, and storm-system visualizations |
-| `fluids/` | Channel flow and vortex visualization |
+| `fluids/` | Shallow-water sandbox, channel flow, and vortex visualization |
 | `waves/` | Helical waves, interference, standing-wave structure, and propagation intuition |
 | `plasma/` | Tokamak confinement visualization |
 | `relativity/` | Time dilation, Doppler effects, and Penrose diagram visualization |
@@ -79,6 +79,7 @@ From the repository root, the project launcher finds a visualization, rebuilds i
 ```bash
 ./CompPhysics/run dual_black_white_hole_viz
 ./CompPhysics/run hydrogen_orbital_explorer_viz
+./CompPhysics/run shallow_water_sandbox_viz
 ```
 
 Useful launcher commands:

@@ -68,6 +68,9 @@ build_target() {
     if [[ "$rebuild" -eq 0 ]] && find "$raylib_dir" -maxdepth 1 -name '*.h' -newer "$output_path" -print -quit | grep -q .; then
         rebuild=1
     fi
+    if [[ "$rebuild" -eq 0 && -d "$project_dir/common" ]] && find "$project_dir/common" -name '*.h' -newer "$output_path" -print -quit | grep -q .; then
+        rebuild=1
+    fi
 
     if [[ "$rebuild" -eq 1 ]]; then
         mkdir -p "$build_dir"

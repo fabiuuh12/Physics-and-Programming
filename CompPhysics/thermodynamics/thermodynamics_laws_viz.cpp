@@ -1,4 +1,7 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
+#include <array>
 #include "raymath.h"
 
 #include <algorithm>
@@ -20,7 +23,8 @@ struct GasParticle {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -50,6 +54,10 @@ int main() {
     std::mt19937 rng(42);
     std::uniform_real_distribution<float> ur(-1.0f, 1.0f);
 
+    std::normal_distribution<float> normal(0.0f,1.0f);
+    physics::Clock clock;
+    double impulseSum=0, pressureTime=0, measuredPressure=0;
+    bool pressureReady=false;
     float halfX = 2.4f;
     float halfY = 1.6f;
     float halfZ = 1.8f;
@@ -62,10 +70,14 @@ int main() {
         gas.clear();
         for (int i = 0; i < 240; ++i) {
             Vector3 p = {ur(rng) * halfX * 0.95f, ur(rng) * halfY * 0.95f + 0.8f, ur(rng) * halfZ * 0.95f};
-            Vector3 v = {ur(rng), ur(rng), ur(rng)};
-            v = Vector3Scale(Vector3Normalize(v), 1.2f * std::sqrt(temperature));
+            Vector3 v = {normal(rng), normal(rng), normal(rng)};
             gas.push_back({p, v});
         }
+        double v2=0;
+        for (const auto& p:gas) v2+=Vector3LengthSqr(p.vel);
+        float scale=std::sqrt(3.0*gas.size()*temperature/v2);
+        for (auto& p:gas) p.vel=Vector3Scale(p.vel,scale);
+        clock.reset(); impulseSum=0; pressureTime=0; measuredPressure=0; pressureReady=false;
     };
 
     reset();
@@ -74,36 +86,45 @@ int main() {
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
         if (IsKeyPressed(KEY_R)) { temperature = 1.0f; reset(); paused = false; }
+        float previousTemperature=temperature;
         if (IsKeyPressed(KEY_LEFT_BRACKET)) temperature = std::max(0.2f, temperature - 0.1f);
         if (IsKeyPressed(KEY_RIGHT_BRACKET)) temperature = std::min(4.0f, temperature + 0.1f);
 
-        for (GasParticle& g : gas) {
-            float current = Vector3Length(g.vel);
-            if (current > 1e-4f) {
-                g.vel = Vector3Scale(g.vel, (1.2f * std::sqrt(temperature)) / current);
-            }
+        if (temperature!=previousTemperature) {
+            float scale=std::sqrt(temperature/previousTemperature);
+            for (auto& g:gas) g.vel=Vector3Scale(g.vel,scale);
+            impulseSum=0; pressureTime=0; pressureReady=false;
         }
-
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
-
-        float momentumWall = 0.0f;
-        if (!paused) {
-            float dt = GetFrameTime();
-            for (GasParticle& gp : gas) {
-                gp.pos = Vector3Add(gp.pos, Vector3Scale(gp.vel, dt));
-
-                if (gp.pos.x < -halfX) { gp.pos.x = -halfX; momentumWall += 2.0f * std::fabs(gp.vel.x); gp.vel.x *= -1.0f; }
-                if (gp.pos.x > halfX)  { gp.pos.x = halfX;  momentumWall += 2.0f * std::fabs(gp.vel.x); gp.vel.x *= -1.0f; }
-                if (gp.pos.y < 0.8f - halfY) { gp.pos.y = 0.8f - halfY; momentumWall += 2.0f * std::fabs(gp.vel.y); gp.vel.y *= -1.0f; }
-                if (gp.pos.y > 0.8f + halfY) { gp.pos.y = 0.8f + halfY; momentumWall += 2.0f * std::fabs(gp.vel.y); gp.vel.y *= -1.0f; }
-                if (gp.pos.z < -halfZ) { gp.pos.z = -halfZ; momentumWall += 2.0f * std::fabs(gp.vel.z); gp.vel.z *= -1.0f; }
-                if (gp.pos.z > halfZ)  { gp.pos.z = halfZ;  momentumWall += 2.0f * std::fabs(gp.vel.z); gp.vel.z *= -1.0f; }
+        if (!paused) clock.advance(GetFrameTime(),[&](double dt) {
+            for (auto& gp:gas) {
+                auto bounce=[&](float& p,float& v,double lo,double hi) {
+                    double pp=p,vv=v;
+                    impulseSum+=physics::reflect(pp,vv,lo,hi,dt);
+                    p=float(pp); v=float(vv);
+                };
+                bounce(gp.pos.x,gp.vel.x,-halfX,halfX);
+                bounce(gp.pos.y,gp.vel.y,0.8f-halfY,0.8f+halfY);
+                bounce(gp.pos.z,gp.vel.z,-halfZ,halfZ);
             }
+            pressureTime+=dt;
+            if (pressureTime>=2.0) {
+                double area=8*(halfX*halfY+halfX*halfZ+halfY*halfZ);
+                measuredPressure=impulseSum/(area*pressureTime);
+                impulseSum=0; pressureTime=0; pressureReady=true;
+            }
+        });
+        double v2=0;
+        std::array<float,24> speeds{};
+        for (const auto& gp:gas) {
+            double speed=Vector3Length(gp.vel); v2+=speed*speed;
+            speeds[std::min(23,int(speed/8*24))]++;
         }
+        double kineticTemperature=v2/(3*gas.size());
 
         float volume = (2.0f * halfX) * (2.0f * halfY) * (2.0f * halfZ);
         float n = static_cast<float>(gas.size());
-        float pIdeal = n * temperature / std::max(0.1f, volume);
+        float pIdeal = n * kineticTemperature / std::max(0.1f, volume);
 
         BeginDrawing();
         ClearBackground(Color{7, 10, 16, 255});
@@ -121,23 +142,29 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Thermodynamics Laws: Ideal Gas in a Box", 20, 18, 29, Color{235, 240, 250, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] temperature | P pause | R reset", 20, 54, 18, Color{170, 184, 204, 255});
+        studio::title("Thermodynamics Laws: Ideal Gas in a Box", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] temperature | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(3)
            << "N=" << gas.size()
            << "  T=" << temperature
            << "  V=" << volume
-           << "  P~" << pIdeal
-           << "  PV/(NT)~" << (pIdeal * volume / std::max(0.001f, n * temperature));
+           << "  P(kinetic)=" << pIdeal
+           << "  P(wall,2s)=" << measuredPressure;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{200, 220, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::note(pressureReady ? "Unit mass / kB = 1 / wall pressure from measured collision impulses"
+                                   : "Measuring wall impulses... first pressure estimate after 2 simulated seconds");
+        studio::plot({float(GetScreenWidth()-388),float(GetScreenHeight()-278),360,210},
+                     "Speed histogram / 0 to 8 units",speeds,0,60,Color{235,182,123,255});
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,7 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
+#include <array>
 #include "raymath.h"
 
 #include <algorithm>
@@ -13,7 +16,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -41,14 +45,16 @@ int main() {
 
     float m=1.0f, k=10.0f, c=1.2f;
     float F0=4.0f, w=2.4f;
-    float x=1.0f, v=0.0f;
-    float t=0.0f;
+    double x=1.0, v=0.0;
+    physics::Clock clock;
+    int samples=0;
+    double t=0.0;
     bool paused=false;
     std::deque<float> hist;
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused=!paused;
-        if (IsKeyPressed(KEY_R)) { x=1.0f; v=0.0f; t=0.0f; paused=false; F0=4.0f; w=2.4f; c=1.2f; hist.clear(); }
+        if (IsKeyPressed(KEY_R)) { x=1.0f; v=0.0f; t=0.0f; paused=false; F0=4.0f; w=2.4f; c=1.2f; hist.clear(); clock.reset(); samples=0; }
         if (IsKeyPressed(KEY_LEFT_BRACKET)) w = std::max(0.2f, w-0.1f);
         if (IsKeyPressed(KEY_RIGHT_BRACKET)) w = std::min(8.0f, w+0.1f);
         if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) c = std::max(0.0f, c-0.1f);
@@ -56,15 +62,18 @@ int main() {
 
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
-        if (!paused) {
-            float dt = GetFrameTime();
-            float force = F0 * std::cos(w * t);
-            float a = (force - c*v - k*x) / m;
-            v += a * dt;
-            x += v * dt;
-            t += dt;
-            hist.push_back(x);
-            if (hist.size() > 500) hist.pop_front();
+        if (!paused) clock.advance(GetFrameTime(),[&](double dt) {
+            physics::oscillatorStep(x,v,t,dt,m,k,c,F0,w);
+            t+=dt;
+            if (++samples%4==0) {
+                hist.push_back(float(x));
+                if (hist.size()>480) hist.pop_front();
+            }
+        });
+        std::array<float,161> response{};
+        for (int i=0;i<161;++i) {
+            double omega=i*0.05;
+            response[i]=F0/std::max(1e-6,std::hypot(k-m*omega*omega,c*omega));
         }
 
         BeginDrawing();
@@ -72,7 +81,7 @@ int main() {
         BeginMode3D(camera);
 
         Vector3 anchor = {-3.4f, 0.5f, 0.0f};
-        Vector3 massPos = {-0.4f + x, 0.5f, 0.0f};
+        Vector3 massPos = {-0.4f + float(x), 0.5f, 0.0f};
 
         DrawCube(anchor, 0.2f, 1.0f, 1.0f, Color{120,150,190,255});
 
@@ -89,33 +98,27 @@ int main() {
 
         DrawCube(massPos, 0.45f, 0.45f, 0.45f, Color{255, 200, 120, 255});
 
-        float gx0 = -2.8f;
-        float gz = -1.5f;
-        float scaleX = 0.012f;
-        for (size_t i=1;i<hist.size();++i) {
-            float x0 = gx0 + (i-1)*scaleX;
-            float x1 = gx0 + i*scaleX;
-            float y0 = 0.2f + 0.45f*hist[i-1];
-            float y1 = 0.2f + 0.45f*hist[i];
-            DrawLine3D({x0,y0,gz}, {x1,y1,gz}, Color{120,220,255,200});
-        }
-
         EndMode3D();
 
-        DrawText("Damped Forced Oscillator (Driven Spring-Mass)", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] drive freq | +/- damping | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Damped Forced Oscillator (Driven Spring-Mass)", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] drive freq | +/- damping | P pause | R reset");
 
         float force = F0 * std::cos(w * t);
         std::ostringstream os;
         os << std::fixed << std::setprecision(3)
            << "x=" << x << "  v=" << v << "  F_drive=" << force << "  w=" << w << "  c=" << c;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126,224,255,255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::note(TextFormat("Natural frequency %.3f rad/s / energy %.3f / fixed 240 Hz RK4",std::sqrt(k/m),0.5*m*v*v+0.5*k*x*x));
+        studio::plot({float(GetScreenWidth()-388),175,360,205},"Steady amplitude / drive 0 to 8 rad/s",response,0,5,Color{230,190,125,255});
+        studio::plot({float(GetScreenWidth()-388),float(GetScreenHeight()-278),360,210},"Displacement / last 8 s",hist,-4,4,Color{134,211,226,255});
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

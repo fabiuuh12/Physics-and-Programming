@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -11,7 +12,8 @@ constexpr int kW = 1280;
 constexpr int kH = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dist) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *dist);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -52,9 +54,9 @@ int main() {
         UpdateOrbitCameraDragOnly(&cam, &yaw, &pitch, &dist);
 
         if (!paused) {
-            float dt = GetFrameTime();
+            float dt = std::min(GetFrameTime(),1.0f/60.0f);
             age += 0.08f * dt * std::pow(mass, 0.35f);
-            if (age > 1.4f) age = 0.0f;
+            if (age > 1.4f) { age = 0.0f; radius=1.8f; trail.clear(); }
 
             // Hydrostatic-like balance toy model: pressure support vs self-gravity.
             float grav = mass * mass / std::max(0.25f, radius * radius);
@@ -90,15 +92,18 @@ int main() {
         if (!trail.empty()) DrawSphere(trail.back(), 0.22f, Color{255, 235, 170, 255});
         EndMode3D();
 
-        DrawText("H-R Diagram Evolution (3D track with gravity-pressure balance)", 20, 18, 28, Color{232, 238, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | Up/Down stellar mass | P pause | R reset", 20, 54, 18, Color{160, 182, 210, 255});
+        studio::title("H-R Diagram Evolution (3D track with gravity-pressure balance)", studio::Style::Observatory);
+        studio::help("Mouse drag orbit | wheel zoom | Up/Down stellar mass | P pause | R reset");
         char s[220];
         std::snprintf(s, sizeof(s), "mass=%.2f Msun  radius=%.2f  age=%.2f%s", mass, radius, age, paused ? "  [PAUSED]" : "");
-        DrawText(s, 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(s);
+        studio::note("Illustrative track, not a stellar structure solver / X: cooling / Y: log luminosity / Z: age");
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

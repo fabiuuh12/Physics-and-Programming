@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -13,7 +14,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -147,21 +149,23 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Gravitational-Wave Interferometer (L-shaped)", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] strain | +/- GW freq | , . time scale | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Gravitational-Wave Interferometer (L-shaped)", studio::Style::Observatory);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] strain | +/- GW freq | , . time scale | P pause | R reset");
 
         std::string hud = Hud(strainAmp, gwFreq, Lx, Lz, paused);
-        DrawText(hud.c_str(), 20, 82, 20, Color{126, 224, 255, 255});
+        studio::readout(hud.c_str());
 
-        DrawText("Detector intensity", 20, 114, 18, Color{210, 220, 230, 255});
-        DrawRectangle(20, 138, 340, 24, Color{35, 45, 65, 255});
-        DrawRectangle(20, 138, static_cast<int>(340.0f * intensity), 24, Color{255, static_cast<unsigned char>(100 + 140 * intensity), 90, 255});
+        studio::note("Detector intensity");
+        DrawRectangle(26, 169, 340, 18, Color{35, 45, 65, 255});
+        DrawRectangle(26, 169, static_cast<int>(340.0f * intensity), 18, Color{255, static_cast<unsigned char>(100 + 140 * intensity), 90, 255});
 
-        DrawFPS(20, 172);
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -21,7 +22,8 @@ struct Star {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -158,16 +160,18 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Dark Matter: Galaxy Rotation Curves (3D)", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] halo | +/- time | G ghost(baryonic) | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
+        studio::title("Dark Matter: Galaxy Rotation Curves (3D)", studio::Style::Observatory);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] halo | +/- time | G ghost(baryonic) | P pause | R reset");
         std::string hud = Hud(haloStrength, timeScale, paused);
-        DrawText(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
-        DrawText("Blue stars: with dark matter halo | Red ghosts: baryonic-only speed", 20, 110, 18, Color{200, 180, 180, 255});
-        DrawFPS(20, 138);
+        studio::readout(hud.c_str());
+        studio::note("Blue stars: with dark matter halo | Red ghosts: baryonic-only speed");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -19,7 +20,8 @@ struct EjectaParticle {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0034f;
         *pitch += d.y * 0.0034f;
@@ -171,32 +173,24 @@ int main() {
         }
         EndMode3D();
 
-        DrawRectangle(876, 518, 382, 236, Fade(Color{18, 28, 44, 255}, 0.92f));
-        DrawText("Luminosity (GW + Kilonova)", 896, 536, 22, Color{220, 230, 244, 255});
-        for (int i = 1; i < static_cast<int>(luminosityHistory.size()); ++i) {
-            int x0 = 900 + i - 1;
-            int x1 = 900 + i;
-            float l0 = std::min(3.2f, luminosityHistory[i - 1]);
-            float l1 = std::min(3.2f, luminosityHistory[i]);
-            int y0 = 730 - static_cast<int>((l0 / 3.2f) * 164.0f);
-            int y1 = 730 - static_cast<int>((l1 / 3.2f) * 164.0f);
-            DrawLine(x0, y0, x1, y1, Color{130, 240, 188, 255});
-        }
+        studio::plot({float(GetScreenWidth()-408),float(GetScreenHeight()-293),380,225},
+                     "Illustrative luminosity / sample history",luminosityHistory,0.0f,3.2f,Color{139,222,191,255});
 
-        DrawText("Neutron Star Merger + Kilonova", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | Up/Down m2 | Left/Right inspiral | [ ] spin | P pause | R reset",
-                 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Neutron Star Merger + Kilonova", studio::Style::Observatory);
+        studio::help("Mouse drag orbit | wheel zoom | Up/Down m2 | Left/Right inspiral | [ ] spin | P pause | R reset");
 
         char status[220];
         std::snprintf(status, sizeof(status),
                       "m1=%.2f Msun  m2=%.2f Msun  sep=%.2f  state=%s%s",
                       m1, m2, sep, merged ? "post-merger" : "inspiral", paused ? " [PAUSED]" : "");
-        DrawText(status, 20, 84, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+        studio::readout(status);
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

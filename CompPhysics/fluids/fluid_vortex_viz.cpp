@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -13,7 +14,8 @@ constexpr int kScreenHeight = 820;
 struct Marker { Vector3 pos; std::deque<Vector3> trail; };
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -25,10 +27,7 @@ void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dis
     c->position = Vector3Add(c->target, {*distance * cp * std::cos(*yaw), *distance * std::sin(*pitch), *distance * cp * std::sin(*yaw)});
 }
 
-Vector3 VortexVel(Vector3 p, float strength) {
-    float r2 = p.x*p.x + p.z*p.z + 0.12f;
-    return {-strength * p.z / r2, 0.0f, strength * p.x / r2};
-}
+
 
 }
 
@@ -76,10 +75,15 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
-            float dt = GetFrameTime();
+            float dt = std::min(GetFrameTime(), 0.1f);
             for (auto& m : marks) {
-                Vector3 v = VortexVel(m.pos, strength);
-                m.pos = Vector3Add(m.pos, Vector3Scale(v, dt));
+                // The prescribed axisymmetric field has constant radius: integrate
+                // its angular velocity exactly to avoid artificial radial drift.
+                float r2=m.pos.x*m.pos.x+m.pos.z*m.pos.z;
+                float angle=strength*dt/(r2+0.12f);
+                float oldX=m.pos.x;
+                m.pos.x=oldX*std::cos(angle)-m.pos.z*std::sin(angle);
+                m.pos.z=oldX*std::sin(angle)+m.pos.z*std::cos(angle);
                 m.trail.push_back(m.pos);
                 if (m.trail.size() > 150) m.trail.pop_front();
             }
@@ -97,17 +101,20 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Fluid Vortex (Swirl Flow Field)", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] vortex strength | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Fluid Vortex (Swirl Flow Field)", studio::Style::Field);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] vortex strength | P pause | R reset");
 
         char buf[160];
         snprintf(buf, sizeof(buf), "strength=%.2f%s", strength, paused ? "  [PAUSED]" : "");
-        DrawText(buf, 20, 82, 20, Color{126,224,255,255});
-        DrawFPS(20, 110);
+        studio::readout(buf);
+        studio::note("Prescribed swirl / exact circular advection / no radial flow");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

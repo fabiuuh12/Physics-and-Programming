@@ -1,4 +1,8 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
+#include <deque>
+#include <array>
 #include "raymath.h"
 
 #include <algorithm>
@@ -15,7 +19,8 @@ constexpr int kScreenHeight = 820;
 struct Dot { Vector3 p; Vector3 v; };
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -54,6 +59,9 @@ int main() {
         }
     };
 
+    physics::Clock clock;
+    std::deque<float> mixingHistory;
+    int samples=0;
     bool wall = true;
     bool paused = false;
     reset();
@@ -61,24 +69,45 @@ int main() {
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused=!paused;
         if (IsKeyPressed(KEY_W)) wall = !wall;
-        if (IsKeyPressed(KEY_R)) { reset(); wall=true; paused=false; }
+        if (IsKeyPressed(KEY_R)) { reset(); wall=true; paused=false; clock.reset(); mixingHistory.clear(); samples=0; }
 
         UpdateOrbitCameraDragOnly(&camera,&camYaw,&camPitch,&camDistance);
 
-        if (!paused) {
-            float dt = GetFrameTime();
-            for (auto& d : dots) {
-                d.p = Vector3Add(d.p, Vector3Scale(d.v, dt));
-                if (d.p.x < -2.2f || d.p.x > 2.2f) d.v.x *= -1.0f;
-                if (d.p.y < -0.3f || d.p.y > 1.5f) d.v.y *= -1.0f;
-                if (d.p.z < -1.6f || d.p.z > 1.6f) d.v.z *= -1.0f;
-                if (wall && std::fabs(d.p.x) < 0.03f) d.v.x *= -1.0f;
+        auto mixingIndex=[&]() {
+            std::array<std::array<int,2>,16> bins{};
+            for (size_t i=0;i<dots.size();++i) {
+                const auto& p=dots[i].p;
+                int bx=std::clamp(int((p.x+2.2f)/4.4f*4),0,3);
+                int by=std::clamp(int((p.y+0.3f)/1.8f*2),0,1);
+                int bz=std::clamp(int((p.z+1.6f)/3.2f*2),0,1);
+                bins[bx+4*by+8*bz][i<110 ? 0 : 1]++;
             }
-        }
-
+            double mix=0;
+            for (const auto& bin : bins)
+                mix+=(bin[0]+bin[1])*physics::binaryEntropy(bin[0],bin[1]);
+            return float(mix/dots.size());
+        };
+        if (!paused) clock.advance(GetFrameTime(),[&](double dt) {
+            for (auto& d : dots) {
+                auto bounce=[&](float& p,float& v,double lo,double hi) {
+                    double pp=p,vv=v;
+                    physics::reflect(pp,vv,lo,hi,dt);
+                    p=float(pp); v=float(vv);
+                };
+                double lo=-2.2, hi=2.2;
+                if (wall) { if (d.p.x<0) hi=0; else lo=0; }
+                bounce(d.p.x,d.v.x,lo,hi);
+                bounce(d.p.y,d.v.y,-0.3,1.5);
+                bounce(d.p.z,d.v.z,-1.6,1.6);
+            }
+            if (++samples%8==0) {
+                mixingHistory.push_back(mixingIndex());
+                if (mixingHistory.size()>240) mixingHistory.pop_front();
+            }
+        });
+        float mix=mixingIndex();
         int leftCount=0;
-        for (auto& d : dots) if (d.p.x < 0.0f) leftCount++;
-        float mix = 1.0f - std::fabs(leftCount - 110.0f)/110.0f;
+        for (const auto& d : dots) if (d.p.x<0) ++leftCount;
 
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
@@ -93,19 +122,24 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Entropy and Mixing (Box Gas Model)", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | W toggle partition | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Entropy and Mixing (Box Gas Model)", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | W toggle partition | P pause | R reset");
 
         std::ostringstream os;
-        os << std::fixed << std::setprecision(2) << "left count=" << leftCount << "  mixing index=" << mix;
+        os << std::fixed << std::setprecision(2) << "left count=" << leftCount << "  local color mixing=" << mix;
         if (wall) os << "  [partition ON]";
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126,224,255,255});
-        DrawFPS(20,110);
+        studio::readout(os.str().c_str());
+        studio::note("Local color entropy in 16 bins / finite sampling / noninteracting gas");
+        studio::plot({float(GetScreenWidth()-388),float(GetScreenHeight()-278),360,210},
+                     "Color mixing / last 8 s",mixingHistory,0,1,Color{139,220,190,255});
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

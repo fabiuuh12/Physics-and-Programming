@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <array>
@@ -154,9 +155,13 @@ int main() {
     const std::vector<Nucleon> nucleus = MakeNucleus(rng);
     const std::vector<Electron> electrons = MakeElectrons(rng);
 
+    float yaw=0.8f,pitch=0.43f,distance=7.5f,t=0;
+    bool paused=false;
     while (!WindowShouldClose()) {
-        UpdateCamera(&camera, CAMERA_ORBITAL);
-        const float t = static_cast<float>(GetTime());
+        if (IsKeyPressed(KEY_P)) paused=!paused;
+        if (IsKeyPressed(KEY_R)) { t=0; camera.target={0,0,0}; yaw=0.8f; pitch=0.43f; distance=7.5f; }
+        studio::orbit(camera,yaw,pitch,distance);
+        if (!paused) t+=std::min(GetFrameTime(),0.1f);
 
         BeginDrawing();
         ClearBackground(Color{5, 8, 16, 255});
@@ -178,13 +183,16 @@ int main() {
 
         EndMode3D();
 
-        DrawText("3D Atom Visualization (intuitive model)", 20, 20, 24, Color{230, 236, 245, 255});
-        DrawText("Mouse drag: orbit camera | Mouse wheel: zoom | ESC: exit", 20, 54, 18, Color{170, 184, 204, 255});
-        DrawFPS(20, 80);
+        studio::title("3D Atom Visualization (intuitive model)", studio::Style::Quantum);
+        studio::help("Mouse drag: orbit camera | wheel: zoom | P: pause | R: reset | ESC: exit");
+        studio::note("Illustrative electron paths / use the orbital explorer for quantum probability clouds");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

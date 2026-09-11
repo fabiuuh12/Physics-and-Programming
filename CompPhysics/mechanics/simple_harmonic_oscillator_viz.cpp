@@ -1,4 +1,7 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
+#include <deque>
 #include "raymath.h"
 
 #include <cmath>
@@ -14,7 +17,7 @@ constexpr int kScreenHeight = 820;
 
 constexpr float kMass = 1.0f;
 constexpr float kSpringK = 4.0f;
-constexpr float kDt = 1.0f / 120.0f;
+
 
 constexpr float kAnchorX = -2.4f;
 constexpr float kBaseMassX = -0.2f;
@@ -103,8 +106,10 @@ int main() {
     bool paused = false;
     float speed = 1.0f;
 
-    std::vector<float> history;
-    history.reserve(2400);
+    std::deque<float> history;
+    physics::Clock clock;
+    int samples=0;
+    float yaw=1.05f,pitch=0.36f,distance=8;
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) {
@@ -119,24 +124,17 @@ int main() {
         if (IsKeyPressed(KEY_R)) {
             s = {1.0f, 0.0f};
             t = 0.0f;
-            history.clear();
+            history.clear(); clock.reset(); samples=0;
         }
 
-        UpdateCamera(&camera, CAMERA_ORBITAL);
+        studio::orbit(camera,yaw,pitch,distance);
 
-        if (!paused) {
-            const float frameDt = GetFrameTime() * speed;
-            int steps = std::max(1, static_cast<int>(std::ceil(frameDt / kDt)));
-            const float dt = frameDt / steps;
-            for (int i = 0; i < steps; ++i) {
-                s = Rk4Step(s, dt);
-                t += dt;
+        if (!paused) clock.advance(std::min(GetFrameTime(),0.025f)*speed,[&](double dt) {
+            s=Rk4Step(s,float(dt)); t+=float(dt);
+            if (++samples%4==0) {
+                history.push_back(s.x); if (history.size()>900) history.pop_front();
             }
-            history.push_back(s.x);
-            if (history.size() > 900) {
-                history.erase(history.begin());
-            }
-        }
+        });
 
         const float massX = kBaseMassX + s.x;
         const Vector3 anchor = {kAnchorX, 0.0f, 0.0f};
@@ -159,35 +157,21 @@ int main() {
 
         EndMode3D();
 
-        DrawText("3D Simple Harmonic Oscillator", 20, 18, 30, Color{230, 236, 245, 255});
-        DrawText("P: pause  R: reset  +/-: speed  Mouse drag/wheel: camera", 20, 56, 20, Color{165, 182, 205, 255});
+        studio::title("3D Simple Harmonic Oscillator", studio::Style::Instrument);
+        studio::help("P: pause  R: reset  +/-: speed  Mouse drag: orbit / wheel: zoom");
 
         const std::string hud = FormatHud(s, t, paused, speed);
-        DrawText(hud.c_str(), 20, 88, 20, Color{125, 230, 255, 255});
+        studio::readout(hud.c_str());
 
-        const int graphX = 20;
-        const int graphY = kScreenHeight - 180;
-        const int graphW = 500;
-        const int graphH = 140;
-        DrawRectangleLines(graphX, graphY, graphW, graphH, Color{80, 110, 145, 255});
-        DrawLine(graphX, graphY + graphH / 2, graphX + graphW, graphY + graphH / 2, Color{60, 80, 110, 255});
-
-        if (history.size() >= 2) {
-            for (size_t i = 1; i < history.size(); ++i) {
-                const float x0 = static_cast<float>(graphX) + static_cast<float>(i - 1) * graphW / 900.0f;
-                const float x1 = static_cast<float>(graphX) + static_cast<float>(i) * graphW / 900.0f;
-                const float y0 = graphY + graphH * 0.5f - history[i - 1] * 40.0f;
-                const float y1 = graphY + graphH * 0.5f - history[i] * 40.0f;
-                DrawLineV({x0, y0}, {x1, y1}, Color{125, 225, 255, 255});
-            }
-        }
-
-        DrawText("x(t)", graphX + 8, graphY + 8, 18, Color{170, 190, 220, 255});
-        DrawFPS(20, 120);
+        studio::plot({26,float(GetScreenHeight()-278),420,210},"Displacement / last 15 s",history,-1.2f,1.2f,Color{135,214,230,255});
+        studio::note("Fixed 240 Hz RK4 / mouse-driven camera / no automatic orbit");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +13,8 @@ constexpr int kScreenHeight = 820;
 constexpr float kPi = 3.14159265358979323846f;
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0034f;
         *pitch += d.y * 0.0034f;
@@ -88,8 +90,10 @@ int main() {
         float a2 = std::acos(std::clamp(Vector3DotProduct(antiMagnetic, observerDir), -1.0f, 1.0f));
         float intensity = std::exp(-(a1 * a1) / (2.0f * sigma * sigma)) + std::exp(-(a2 * a2) / (2.0f * sigma * sigma));
         intensity = std::min(1.0f, intensity);
-        pulseHistory.push_back(intensity);
-        if (pulseHistory.size() > 360) pulseHistory.pop_front();
+        if (!paused) {
+            pulseHistory.push_back(intensity);
+            if (pulseHistory.size()>360) pulseHistory.pop_front();
+        }
 
         BeginDrawing();
         ClearBackground(Color{6, 9, 16, 255});
@@ -125,28 +129,22 @@ int main() {
         }
         EndMode3D();
 
-        DrawRectangle(874, 516, 384, 236, Fade(Color{18, 26, 42, 255}, 0.92f));
-        DrawText("Pulse Profile (observer)", 894, 536, 22, Color{220, 230, 244, 255});
-        for (int i = 1; i < static_cast<int>(pulseHistory.size()); ++i) {
-            int x0 = 900 + i - 1;
-            int x1 = 900 + i;
-            int y0 = 730 - static_cast<int>(pulseHistory[i - 1] * 162.0f);
-            int y1 = 730 - static_cast<int>(pulseHistory[i] * 162.0f);
-            DrawLine(x0, y0, x1, y1, Color{130, 240, 186, 255});
-        }
+        studio::plot({float(GetScreenWidth()-408),float(GetScreenHeight()-293),380,225},
+                     "Observer intensity / sample history",pulseHistory,0.0f,1.0f,Color{139,222,191,255});
 
-        DrawText("Pulsar Beam Sweep + Observer Timing", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse orbit | wheel zoom | +/- spin Hz | [ ] tilt | , . beam width | P pause | R reset",
-                 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Pulsar Beam Sweep + Observer Timing", studio::Style::Observatory);
+        studio::help("Mouse orbit | wheel zoom | +/- spin Hz | [ ] tilt | , . beam width | P pause | R reset");
         char status[220];
         std::snprintf(status, sizeof(status), "spin=%.2f Hz  tilt=%.1f deg  beam=%.1f deg  pulse=%.3f%s",
                       spinHz, tiltDeg, beamWidthDeg, intensity, paused ? " [PAUSED]" : "");
-        DrawText(status, 20, 84, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+        studio::readout(status);
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

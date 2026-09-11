@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +14,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -26,7 +29,7 @@ void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dis
 
 float Gaussian(float x, float mu, float sigma) {
     float u = (x - mu) / sigma;
-    return std::exp(-0.5f * u * u) / std::max(0.001f, sigma);
+    return std::exp(-0.5f * u * u) / (std::sqrt(2.0f*PI)*sigma);
 }
 }
 
@@ -50,19 +53,24 @@ int main() {
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused=!paused;
-        if (IsKeyPressed(KEY_R)) { x0=-5.0f; p0=2.6f; sigma0=0.55f; paused=false; t=0.0f; }
+        if (IsKeyPressed(KEY_R)) { x0=-5.0f; p0=2.6f; sigma0=0.55f; paused=false; t=0.0f; camera.target.x=0.0f; }
         if (IsKeyPressed(KEY_LEFT_BRACKET)) sigma0 = std::max(0.2f, sigma0 - 0.05f);
         if (IsKeyPressed(KEY_RIGHT_BRACKET)) sigma0 = std::min(1.5f, sigma0 + 0.05f);
         if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) p0 = std::max(0.2f, p0 - 0.1f);
         if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) p0 = std::min(6.0f, p0 + 0.1f);
 
         UpdateOrbitCameraDragOnly(&camera,&camYaw,&camPitch,&camDistance);
-        if (!paused) t += GetFrameTime();
+        if (!paused) {
+            float dt=std::min(GetFrameTime(),0.1f);
+            t += dt;
+            camera.target.x += p0*dt;
+            camera.position.x += p0*dt;
+        }
 
-        float sigma = std::sqrt(sigma0*sigma0 + 0.22f*t*t/sigma0/sigma0);
-        float center = x0 + p0 * t * 0.55f;
+        float sigma = float(physics::packetSigma(sigma0,t));
+        float center = x0 + p0 * t;
         float dx = sigma;
-        float dp = 1.0f / std::max(0.05f, 2.0f*sigma);
+        float dp = 1.0f / std::max(0.05f, 2.0f*sigma0);
 
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
@@ -71,7 +79,7 @@ int main() {
 
 
         for (int i=0;i<160;++i) {
-            float x = -7.5f + 15.0f * i / 159.0f;
+            float x = center - 4.0f*sigma + 8.0f*sigma*i/159.0f;
             float p = Gaussian(x, center, sigma);
             float y = 0.1f + 2.6f * p;
             float z = 0.35f * std::sin(6.0f*x - 4.0f*t) * p;
@@ -83,20 +91,22 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Heisenberg Uncertainty: Wavepacket Spreading", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] sigma_x(0) | +/- momentum | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Heisenberg Uncertainty: Wavepacket Spreading", studio::Style::Quantum);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] sigma_x(0) | +/- momentum | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(3)
            << "x_center=" << center << "  sigma_x~" << dx << "  sigma_p~" << dp << "  product~" << dx*dp;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126,224,255,255});
-        DrawText("Orange bar: position spread  |  Yellow bar: momentum spread", 20, 110, 18, Color{190,205,225,255});
-        DrawFPS(20, 138);
+        studio::readout(os.str().c_str());
+        studio::note("hbar = m = 1 / Orange: position spread / Yellow: constant momentum spread");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +13,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -64,6 +66,7 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
         if (!paused) t += GetFrameTime();
 
+        k=omega; // Vacuum dispersion in normalized units c=1.
         BeginDrawing();
         ClearBackground(Color{6, 9, 16, 255});
         BeginMode3D(camera);
@@ -83,19 +86,21 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Maxwell Wave: E and B Orthogonal Fields", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] amplitude | +/- omega | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Maxwell Wave: E and B Orthogonal Fields", studio::Style::Field);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] amplitude | +/- omega | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(2) << "A=" << amp << "  k=" << k << "  omega=" << omega;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-        DrawText("Blue arrows: Electric field E  |  Orange arrows: Magnetic field B", 20, 110, 18, Color{190, 205, 225, 255});
-        DrawFPS(20, 138);
+        studio::readout(os.str().c_str());
+        studio::note("c = 1 / omega = k / Blue: E / Orange: B / propagation along +X");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

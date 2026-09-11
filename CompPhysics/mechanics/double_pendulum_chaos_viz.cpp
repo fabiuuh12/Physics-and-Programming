@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -95,7 +96,8 @@ State StepRK4(const State& s, float dt) {
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -169,6 +171,8 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
 
     State s{2.0f, 0.0f, 1.65f, 0.0f};
+    State companion=s; companion.t1+=0.001f;
+    std::deque<float> divergence;
     float simTime = 0.0f;
     float speed = 1.0f;
     bool paused = false;
@@ -188,6 +192,7 @@ int main() {
         if (IsKeyPressed(KEY_R)) {
             s = {2.0f, 0.0f, 1.65f, 0.0f};
             simTime = 0.0f;
+            companion=s; companion.t1+=0.001f; divergence.clear();
             trail.clear();
             Positions(s, &p1, &p2);
             trail.push_back(p2);
@@ -198,18 +203,25 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
-            float frameDt = GetFrameTime() * speed;
+            float frameDt = std::min(GetFrameTime(),0.05f) * speed;
             int steps = std::max(1, static_cast<int>(std::ceil(frameDt / 0.004f)));
             float dt = frameDt / static_cast<float>(steps);
             for (int i = 0; i < steps; ++i) {
                 s = StepRK4(s, dt);
+                companion=StepRK4(companion,dt);
                 simTime += dt;
             }
         }
 
         Positions(s, &p1, &p2);
-        trail.push_back(p2);
-        if (static_cast<int>(trail.size()) > kTrailMax) trail.pop_front();
+        Vector3 other1{},other2{};
+        Positions(companion,&other1,&other2);
+        if (!paused) {
+            trail.push_back(p2);
+            if (static_cast<int>(trail.size())>kTrailMax) trail.pop_front();
+            divergence.push_back(std::log10(std::max(1e-6f,Vector3Distance(p2,other2))));
+            if (divergence.size()>600) divergence.pop_front();
+        }
 
         BeginDrawing();
         ClearBackground(Color{6, 9, 16, 255});
@@ -226,18 +238,27 @@ int main() {
 
         DrawSphere(p1, 0.11f, Color{255, 190, 100, 255});
         DrawSphere(p2, 0.12f, Color{110, 220, 255, 255});
+        other1.z+=0.12f; other2.z+=0.12f;
+        DrawLine3D({0,0,0.12f},other1,Color{202,167,234,210});
+        DrawLine3D(other1,other2,Color{202,167,234,210});
+        DrawSphereWires(other2,0.13f,8,12,Color{202,167,234,255});
 
         EndMode3D();
 
-        DrawText("Double Pendulum Chaos (3D)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | R reset", 20, 56, 20, Color{164, 183, 210, 255});
+        studio::title("Double Pendulum Chaos (3D)", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | R reset");
         std::string hud = HudText(simTime, speed, s, paused);
-        DrawText(hud.c_str(), 20, 86, 21, Color{126, 224, 255, 255});
-        DrawFPS(20, 118);
+        studio::readout(hud.c_str());
+        studio::note("Purple comparison pendulum starts 0.001 rad away / same equations / trails freeze on pause");
+        studio::plot({float(GetScreenWidth()-388),float(GetScreenHeight()-278),360,210},
+                     "log10 bob separation / sample history",divergence,-6,1,Color{202,167,234,255});
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

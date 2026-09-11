@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -19,7 +20,8 @@ struct Wavefront {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -31,12 +33,12 @@ void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dis
     c->position = Vector3Add(c->target, {*distance * cp * std::cos(*yaw), *distance * std::sin(*pitch), *distance * cp * std::sin(*yaw)});
 }
 
-void DrawCircleXY(Vector3 c, float r, Color col) {
+void DrawWavefrontXZ(Vector3 c, float r, Color col) {
     int seg = 80;
     for (int i = 0; i < seg; ++i) {
         float a0 = 2.0f * PI * static_cast<float>(i) / seg;
         float a1 = 2.0f * PI * static_cast<float>(i + 1) / seg;
-        DrawLine3D({c.x, c.y + r * std::cos(a0), c.z + r * std::sin(a0)}, {c.x, c.y + r * std::cos(a1), c.z + r * std::sin(a1)}, col);
+        DrawLine3D({c.x + r * std::cos(a0), c.y, c.z + r * std::sin(a0)}, {c.x + r * std::cos(a1), c.y, c.z + r * std::sin(a1)}, col);
     }
 }
 
@@ -77,21 +79,21 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
-            float dt = GetFrameTime();
+            float dt = std::min(GetFrameTime(),0.1f);
             source.x += sourceSpeed * dt;
-            if (source.x > 5.5f) source.x = -5.5f;
-            if (source.x < -5.5f) source.x = 5.5f;
+            if (source.x > 5.5f) { source.x = -5.5f; waves.clear(); emitTimer=0; }
+            if (source.x < -5.5f) { source.x = 5.5f; waves.clear(); emitTimer=0; }
 
+            for (Wavefront& w : waves) w.radius+=waveSpeed*dt;
             emitTimer += dt;
             float period = 1.0f / sourceFreq;
             while (emitTimer >= period) {
                 emitTimer -= period;
-                waves.push_back({source, 0.02f});
+                Vector3 emission=source;
+                emission.x-=sourceSpeed*emitTimer;
+                waves.push_back({emission,waveSpeed*emitTimer});
             }
 
-            for (Wavefront& w : waves) {
-                w.radius += waveSpeed * dt;
-            }
             while (!waves.empty() && waves.front().radius > 18.0f) waves.pop_front();
         }
 
@@ -105,7 +107,7 @@ int main() {
         DrawLine3D({-6.0f, 0.7f, 0.0f}, {6.0f, 0.7f, 0.0f}, Color{120, 140, 180, 100});
 
         for (const Wavefront& w : waves) {
-            DrawCircleXY(w.center, w.radius, Color{130, 210, 255, 110});
+            DrawWavefrontXZ(w.center, w.radius, Color{130, 210, 255, 110});
         }
 
         DrawSphere(source, 0.2f, Color{255, 180, 110, 255});
@@ -115,20 +117,23 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Doppler Effect: Moving Source Wave Compression", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] source speed | +/- source freq | P pause | R reset", 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Doppler Effect: Moving Source Wave Compression", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] source speed | +/- source freq | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(2)
            << "v_source=" << sourceSpeed << "  v_wave=" << waveSpeed << "  f_source=" << sourceFreq
-           << "  f_ahead~" << observedAhead << "  f_behind~" << observedBehind;
+           << "  f(+X)=" << observedAhead << "  f(-X)=" << observedBehind;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::note("Classical sound-wave cross-section / fronts centered at emission / source wraps with a fresh train");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

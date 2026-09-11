@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +13,8 @@ constexpr int kScreenHeight = 820;
 constexpr float kPi = 3.14159265358979323846f;
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -136,31 +138,23 @@ int main() {
 
         EndMode3D();
 
-        DrawRectangle(870, 516, 390, 238, Fade(Color{18, 26, 44, 255}, 0.92f));
-        DrawText("Magnification Light Curve", 892, 536, 22, Color{220, 230, 244, 255});
-        for (int i = 1; i < static_cast<int>(magHistory.size()); ++i) {
-            float m0 = std::min(8.0f, magHistory[i - 1]);
-            float m1 = std::min(8.0f, magHistory[i]);
-            int x0 = 900 + i - 1;
-            int x1 = 900 + i;
-            int y0 = 732 - static_cast<int>(((m0 - 1.0f) / 7.0f) * 168.0f);
-            int y1 = 732 - static_cast<int>(((m1 - 1.0f) / 7.0f) * 168.0f);
-            DrawLine(x0, y0, x1, y1, Color{128, 240, 188, 255});
-        }
+        studio::plot({float(GetScreenWidth()-408),float(GetScreenHeight()-293),380,225},
+                     "Magnification / sample history",magHistory,1.0f,12.0f,Color{139,222,191,255});
 
-        DrawText("Gravitational Microlensing Event", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse orbit | wheel zoom | Up/Down mass | [ ] impact | Left/Right crossing | +/- drift | P pause | R reset",
-                 20, 54, 18, Color{164, 183, 210, 255});
+        studio::title("Gravitational Microlensing Event", studio::Style::Observatory);
+        studio::help("Mouse orbit | wheel zoom | Up/Down mass | [ ] impact | Left/Right crossing | +/- drift | P pause | R reset");
 
         char status[230];
         std::snprintf(status, sizeof(status), "M_lens=%.2f  u0=%.2f  tE=%.2f  A=%.3f%s",
                       lensMass, impact, crossingTime, mag, paused ? " [PAUSED]" : "");
-        DrawText(status, 20, 84, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 112);
+        studio::readout(status);
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

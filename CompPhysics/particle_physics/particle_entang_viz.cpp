@@ -1,4 +1,7 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
+#include <random>
 #include "raymath.h"
 
 #include <algorithm>
@@ -12,7 +15,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -40,22 +44,33 @@ int main() {
     float a = 0.0f;
     float b = PI/4.0f;
     bool paused = false;
-    float t = 0.0f;
+    physics::Clock clock;
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> uniform(0,1);
+    int trials=0,same=0,resultA=0,resultB=0,steps=0;
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_P)) paused = !paused;
-        if (IsKeyPressed(KEY_R)) { a=0.0f; b=PI/4.0f; paused=false; t=0.0f; }
+        if (IsKeyPressed(KEY_R)) { a=0.0f; b=PI/4.0f; paused=false; trials=same=steps=0; resultA=resultB=0; clock.reset(); rng.seed(42); }
+        float previousA=a,previousB=b;
         if (IsKeyPressed(KEY_LEFT)) a -= 0.06f;
         if (IsKeyPressed(KEY_RIGHT)) a += 0.06f;
         if (IsKeyPressed(KEY_DOWN)) b -= 0.06f;
         if (IsKeyPressed(KEY_UP)) b += 0.06f;
 
         UpdateOrbitCameraDragOnly(&camera,&camYaw,&camPitch,&camDistance);
-        if (!paused) t += GetFrameTime();
+        if (a!=previousA || b!=previousB) { trials=same=0; resultA=resultB=0; }
 
         float corr = -std::cos(2.0f*(a-b));
         float pSame = 0.5f * (1.0f + corr);
         float pDiff = 1.0f - pSame;
+        if (!paused) clock.advance(GetFrameTime(),[&](double) {
+            if (++steps%24!=0) return;
+            resultA=uniform(rng)<0.5f ? -1 : 1;
+            bool match=uniform(rng)<pSame;
+            resultB=match ? resultA : -resultA;
+            ++trials; if (match) ++same;
+        });
 
         BeginDrawing();
         ClearBackground(Color{6,9,16,255});
@@ -74,18 +89,25 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Entanglement Correlation (Singlet-like Model)", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | LEFT/RIGHT set analyzer A | UP/DOWN set analyzer B | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Polarization singlet / paired measurements", studio::Style::Quantum);
+        studio::help("Hold left mouse: orbit | wheel: zoom | LEFT/RIGHT set analyzer A | UP/DOWN set analyzer B | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(3) << "A=" << a << " rad  B=" << b << " rad  corr~" << corr << "  P(same)~" << pSame;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{126,224,255,255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::note("Photon polarization: E(A,B) = -cos(2(A-B)) / each local result is unbiased");
+        studio::panel({28,180,338,120},Color{29,29,46,245});
+        studio::text(TextFormat("A  %+d       B  %+d",resultA,resultB),46,196,26,Color{226,214,248,255});
+        studio::text(TextFormat("%d pairs / same %d",trials,same),46,234,18,Color{179,191,210,255});
+        studio::text(TextFormat("Measured correlation %.3f",trials ? 2.0*same/trials-1 : 0),46,263,16,Color{179,191,210,255});
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

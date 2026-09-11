@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -13,7 +14,8 @@ constexpr int kScreenHeight = 820;
 struct Marker { Vector3 pos; std::deque<Vector3> trail; };
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -77,12 +79,15 @@ int main() {
         UpdateOrbitCameraDragOnly(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
-            float dt = GetFrameTime();
+            float dt = std::min(GetFrameTime(), 0.1f);
             for (auto& m : markers) {
                 float yRel = (m.pos.y - 0.6f) / 1.2f; // -1..1
                 float u = umax * (1.0f - yRel * yRel); // parabolic profile
                 m.pos.x += u * dt;
-                if (m.pos.x > 5.2f) m.pos.x = -5.2f;
+                if (m.pos.x > 5.2f) {
+                    m.pos.x = -5.2f + std::fmod(m.pos.x + 5.2f, 10.4f);
+                    m.trail.clear(); // Never connect the outlet to the inlet.
+                }
                 m.trail.push_back(m.pos);
                 if (m.trail.size() > 120) m.trail.pop_front();
             }
@@ -100,17 +105,20 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Channel Flow (Laminar Poiseuille Profile)", 20, 18, 29, Color{232,238,248,255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] max center velocity | P pause | R reset", 20, 54, 18, Color{164,183,210,255});
+        studio::title("Channel Flow (Laminar Poiseuille Profile)", studio::Style::Field);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] max center velocity | P pause | R reset");
 
         char buf[180];
         snprintf(buf, sizeof(buf), "Umax=%.2f (center fastest, wall near zero)%s", umax, paused ? "  [PAUSED]" : "");
-        DrawText(buf, 20, 82, 20, Color{126,224,255,255});
-        DrawFPS(20, 110);
+        studio::readout(buf);
+        studio::note("Prescribed Poiseuille profile / tracers wrap at the outlet");
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

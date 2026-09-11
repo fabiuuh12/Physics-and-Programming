@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -13,7 +14,8 @@ constexpr int kScreenWidth = 1280;
 constexpr int kScreenHeight = 820;
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -94,8 +96,8 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Relativistic Time Dilation (Twin Clock Concept)", 20, 18, 29, Color{235, 240, 250, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | [ ] velocity beta=v/c | P pause | R reset", 20, 54, 18, Color{170, 184, 204, 255});
+        studio::title("Relativistic Time Dilation (Twin Clock Concept)", studio::Style::Instrument);
+        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] velocity beta=v/c | P pause | R reset");
 
         std::ostringstream os;
         os << std::fixed << std::setprecision(3)
@@ -104,12 +106,14 @@ int main() {
            << "  lab time=" << tLab
            << "  ship proper time=" << tShip;
         if (paused) os << "  [PAUSED]";
-        DrawText(os.str().c_str(), 20, 82, 20, Color{200, 220, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(os.str().c_str());
+        studio::fps();
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

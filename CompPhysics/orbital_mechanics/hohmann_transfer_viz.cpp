@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include "../common/studio.h"
+#include "../common/physics_models.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -60,18 +62,17 @@ void DrawPanel(float r1, float r2, float progress, bool paused) {
     const float transferTime = kPi * std::sqrt((a * a * a) / kMu);
     const float phase = kPi - std::sqrt(kMu / (r2 * r2 * r2)) * transferTime;
 
-    DrawRectangle(935, 55, 300, 300, Color{15, 23, 36, 232});
-    DrawRectangleLines(935, 55, 300, 300, Color{90, 122, 150, 255});
-    DrawText("HOHMANN TRANSFER", 958, 82, 22, Color{235, 244, 255, 255});
-    DrawText(("parking r: " + Fixed(r1, 2)).c_str(), 958, 124, 18, Color{170, 215, 255, 255});
-    DrawText(("target r:  " + Fixed(r2, 2)).c_str(), 958, 150, 18, Color{180, 255, 190, 255});
-    DrawText(("transfer a: " + Fixed(a, 2)).c_str(), 958, 176, 18, RAYWHITE);
-    DrawText(("burn 1 dv: " + Fixed(std::fabs(dv1))).c_str(), 958, 212, 18, Color{255, 210, 135, 255});
-    DrawText(("burn 2 dv: " + Fixed(std::fabs(dv2))).c_str(), 958, 238, 18, Color{255, 210, 135, 255});
-    DrawText(("total dv:  " + Fixed(std::fabs(dv1) + std::fabs(dv2))).c_str(), 958, 264, 18, Color{255, 238, 180, 255});
-    DrawText(("phase: " + Fixed(phase * 180.0f / kPi, 1) + " deg").c_str(), 958, 300, 18, Color{210, 230, 255, 255});
-    DrawText(paused ? "SPACE animate" : "SPACE pause", 958, 326, 16, Color{155, 166, 180, 255});
-    DrawText(("transfer: " + Fixed(progress * 100.0f, 0) + "%").c_str(), 70, 70, 20, RAYWHITE);
+    studio::panel({935,55,300,300},Color{20,29,43,245});
+    studio::text("HOHMANN TRANSFER", 958, 82, 22, Color{235, 244, 255, 255});
+    studio::text(("parking r: " + Fixed(r1, 2)).c_str(), 958, 124, 18, Color{170, 215, 255, 255});
+    studio::text(("target r:  " + Fixed(r2, 2)).c_str(), 958, 150, 18, Color{180, 255, 190, 255});
+    studio::text(("transfer a: " + Fixed(a, 2)).c_str(), 958, 176, 18, RAYWHITE);
+    studio::text(("burn 1 dv: " + Fixed(std::fabs(dv1))).c_str(), 958, 212, 18, Color{255, 210, 135, 255});
+    studio::text(("burn 2 dv: " + Fixed(std::fabs(dv2))).c_str(), 958, 238, 18, Color{255, 210, 135, 255});
+    studio::text(("total dv:  " + Fixed(std::fabs(dv1) + std::fabs(dv2))).c_str(), 958, 264, 18, Color{255, 238, 180, 255});
+    studio::text(("phase: " + Fixed(phase * 180.0f / kPi, 1) + " deg").c_str(), 958, 300, 18, Color{210, 230, 255, 255});
+    studio::text(paused ? "SPACE animate" : "SPACE pause", 958, 326, 16, Color{155, 166, 180, 255});
+    studio::text(("transfer: " + Fixed(progress * 100.0f, 0) + "%").c_str(), 70, 70, 20, RAYWHITE);
 }
 
 }  // namespace
@@ -106,8 +107,11 @@ int main() {
         if (progress > 1.0f) progress -= 1.0f;
         if (progress < 0.0f) progress += 1.0f;
 
-        const float scale = 88.0f;
-        const float theta = progress * kPi;
+        const float scale=std::min(88.0f,310.0f/std::max(r1,r2));
+        const float eccentricity=(r2-r1)/(r2+r1);
+        const float eccentricAnomaly=physics::eccentricAnomaly(progress*kPi,eccentricity);
+        const float theta=2*std::atan2(std::sqrt(1+eccentricity)*std::sin(eccentricAnomaly/2),
+                                      std::sqrt(1-eccentricity)*std::cos(eccentricAnomaly/2));
         const Vector2 craft = TransferPoint(r1, r2, theta, scale);
         const Vector2 burn1 = TransferPoint(r1, r2, 0.0f, scale);
         const Vector2 burn2 = TransferPoint(r1, r2, kPi, scale);
@@ -128,19 +132,27 @@ int main() {
         DrawCircleLinesV(ScreenCenter(), 38.0f, Color{255, 232, 170, 150});
         DrawCircleV(burn1, 7.0f, Color{255, 105, 97, 255});
         DrawCircleV(burn2, 7.0f, Color{120, 220, 255, 255});
+        const float semimajor=0.5f*(r1+r2);
+        const float transferTime=kPi*std::sqrt(semimajor*semimajor*semimajor/kMu);
+        const float targetOmega=std::sqrt(kMu/(r2*r2*r2));
+        const float targetAngle=kPi-targetOmega*transferTime*(1-progress);
+        DrawCircleV(OrbitPoint(r2,targetAngle,scale),7,Color{139,237,171,255});
         DrawCircleV(craft, 9.0f, Color{245, 246, 255, 255});
         DrawLineV(craft, {craft.x - 24.0f * std::sin(theta), craft.y + 24.0f * std::cos(theta)}, Color{245, 246, 255, 175});
 
-        DrawText("BURN 1", static_cast<int>(burn1.x + 14), static_cast<int>(burn1.y - 10), 16, Color{255, 170, 160, 255});
-        DrawText("BURN 2", static_cast<int>(burn2.x - 76), static_cast<int>(burn2.y - 10), 16, Color{155, 230, 255, 255});
-        DrawText("parking orbit", 72, 110, 18, Color{115, 195, 255, 255});
-        DrawText("target orbit", 72, 136, 18, Color{135, 245, 155, 255});
-        DrawText("LEFT/RIGHT target  UP/DOWN parking  A/D scrub  R reset", 70, kScreenHeight - 52, 18, Color{185, 195, 210, 255});
+        studio::text("BURN 1", static_cast<int>(burn1.x + 14), static_cast<int>(burn1.y - 10), 16, Color{255, 170, 160, 255});
+        studio::text("BURN 2", static_cast<int>(burn2.x - 76), static_cast<int>(burn2.y - 10), 16, Color{155, 230, 255, 255});
+        studio::text("parking orbit", 72, 110, 18, Color{115, 195, 255, 255});
+        studio::text("target orbit", 72, 136, 18, Color{135, 245, 155, 255});
+        studio::text("LEFT/RIGHT target  UP/DOWN parking  A/D scrub  R reset", 70, kScreenHeight - 52, 18, Color{185, 195, 210, 255});
 
         DrawPanel(r1, r2, progress, paused);
+        studio::text("Kepler-timed transfer / green marker: destination",70,32,18,Color{168,187,203,255});
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -13,7 +14,8 @@ constexpr int kH = 820;
 struct Particle { Vector3 p; Vector3 v; };
 
 void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dist) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(c, *yaw, *pitch, *dist);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -94,15 +96,17 @@ int main() {
         }
         EndMode3D();
 
-        DrawText("Black Hole Accretion Disk + Relativistic Beaming", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | Up/Down BH mass | P pause | R reset", 20, 54, 18, Color{160, 182, 210, 255});
+        studio::title("Black Hole Accretion Disk + Relativistic Beaming", studio::Style::Observatory);
+        studio::help("Mouse drag orbit | wheel zoom | Up/Down BH mass | P pause | R reset");
         char s[220];
         std::snprintf(s, sizeof(s), "M_BH=%.1f%s", mass, paused ? "  [PAUSED]" : "");
-        DrawText(s, 20, 82, 20, Color{126, 224, 255, 255});
-        DrawFPS(20, 110);
+        studio::readout(s);
+        studio::fps();
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }
