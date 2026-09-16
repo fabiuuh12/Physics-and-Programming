@@ -52,6 +52,7 @@ These are good first demos for a computational physics or simulation reviewer:
 
 | Target | Source | Preview | Why it is relevant |
 | --- | --- | --- | --- |
+| `engine_airflow_viz_cpp` | `fluids/engine_airflow_viz.cpp` | 3D engine airflow lab | Explore isolated turbo, twin-screw supercharger and cylinder cutaways |
 | `shallow_water_sandbox_viz_cpp` | `fluids/shallow_water_sandbox_viz.cpp` | Interactive water lab | Conservative shallow-water solver, clickable experiments, free camera translation |
 | `quantum_tunneling_viz_cpp` | `quantum/quantum_tunneling_viz.cpp` | Evolving wavefunction | Crank-Nicolson scattering, phase curves, and probability diagnostics |
 | `damped_forced_oscillator_viz_cpp` | `mechanics/damped_forced_oscillator_viz.cpp` | Resonance experiment | Fixed-step dynamics, response curve, and displacement history |

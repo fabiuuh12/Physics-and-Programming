@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(raylib CONFIG REQUIRED)
 
+add_executable(engine_airflow_viz_cpp "fluids/engine_airflow_viz.cpp")
+target_link_libraries(engine_airflow_viz_cpp PRIVATE raylib)
+
 add_executable(shallow_water_sandbox_viz_cpp "fluids/shallow_water_sandbox_viz.cpp")
 target_link_libraries(shallow_water_sandbox_viz_cpp PRIVATE raylib)
 
