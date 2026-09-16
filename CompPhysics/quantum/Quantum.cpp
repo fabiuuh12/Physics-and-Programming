@@ -39,6 +39,7 @@ void DrawPotentialWell(float a, float w, float V0) {
 }
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Quantum Potential + States 3D - C++ (raylib)");
     SetTargetFPS(60);
 

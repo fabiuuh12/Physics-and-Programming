@@ -56,6 +56,7 @@ std::string Hud(float amp1, float amp2, float omega, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Quantum Wave Superposition 3D - C++ (raylib)");
     SetTargetFPS(60);
 

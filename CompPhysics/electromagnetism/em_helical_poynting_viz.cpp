@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -19,7 +20,8 @@ enum class PolarizationMode {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         const Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -129,6 +131,7 @@ std::string HudLine(PolarizationMode mode, bool rightHanded, float amplitude, fl
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Helical EM Wave + Poynting Flow 3D - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -228,26 +231,28 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Helical EM Wave + Poynting Flow", 20, 18, 31, Color{235, 240, 252, 255});
-        DrawText("The electric and magnetic fields rotate as the wave propagates along +x. The green arrows show forward energy transport via the Poynting vector.", 20, 56, 18, Color{170, 186, 214, 255});
-        DrawText("Mouse drag: orbit | wheel: zoom | 1 linear | 2 circular | 3 elliptical | H handedness", 20, 84, 17, Color{170, 186, 214, 255});
-        DrawText("[ ] amplitude | +/- omega | , . wave number | ; ' ellipticity | P pause | R reset", 20, 108, 17, Color{170, 186, 214, 255});
+        studio::text("Helical EM Wave + Poynting Flow", 20, 18, 31, Color{235, 240, 252, 255});
+        studio::text("The electric and magnetic fields rotate as the wave propagates along +x. The green arrows show forward energy transport via the Poynting vector.", 20, 56, 18, Color{170, 186, 214, 255});
+        studio::text("Mouse drag: orbit | wheel: zoom / Shift+drag: pan | 1 linear | 2 circular | 3 elliptical | H handedness", 20, 84, 17, Color{170, 186, 214, 255});
+        studio::text("[ ] amplitude | +/- omega | , . wave number | ; ' ellipticity | P pause | R reset", 20, 108, 17, Color{170, 186, 214, 255});
 
         const std::string hud = HudLine(mode, rightHanded, amplitude, waveNumber, omega, paused);
-        DrawText(hud.c_str(), 20, 138, 20, Color{130, 225, 255, 255});
+        studio::text(hud.c_str(), 20, 138, 20, Color{130, 225, 255, 255});
 
         DrawRectangleRounded({1010.0f, 20.0f, 322.0f, 118.0f}, 0.08f, 14, Color{10, 18, 31, 205});
         DrawRectangleRoundedLinesEx({1010.0f, 20.0f, 322.0f, 118.0f}, 0.08f, 14, 2.0f, Color{49, 79, 113, 255});
-        DrawText("cyan helix", 1030, 38, 17, Color{110, 225, 255, 255});
-        DrawText("electric field E", 1030, 60, 16, Color{178, 193, 216, 255});
-        DrawText("orange helix", 1030, 84, 17, Color{255, 175, 115, 255});
-        DrawText("magnetic field B", 1030, 106, 16, Color{178, 193, 216, 255});
+        studio::text("cyan helix", 1030, 38, 17, Color{110, 225, 255, 255});
+        studio::text("electric field E", 1030, 60, 16, Color{178, 193, 216, 255});
+        studio::text("orange helix", 1030, 84, 17, Color{255, 175, 115, 255});
+        studio::text("magnetic field B", 1030, 106, 16, Color{178, 193, 216, 255});
 
-        DrawText("green arrows below axis: Poynting vector S = E x B", 20, kScreenHeight - 44, 17, Color{170, 255, 180, 255});
+        studio::text("green arrows below axis: Poynting vector S = E x B", 20, kScreenHeight - 44, 17, Color{170, 255, 180, 255});
         DrawFPS(20, 166);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

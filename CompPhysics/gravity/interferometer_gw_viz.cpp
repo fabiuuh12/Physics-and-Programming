@@ -52,6 +52,7 @@ std::string Hud(float strainAmp, float gwFreq, float lX, float lZ, bool paused) 
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Interferometer GW Visualization 3D - C++ (raylib)");
     SetTargetFPS(60);
 

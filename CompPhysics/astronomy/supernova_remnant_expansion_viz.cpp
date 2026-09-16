@@ -52,6 +52,7 @@ std::vector<ShellPoint> BuildShellPoints(int n) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Supernova Remnant Expansion 3D - C++ (raylib)");
     SetTargetFPS(60);
 

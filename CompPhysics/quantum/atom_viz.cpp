@@ -141,6 +141,7 @@ void DrawElectronTrail(const Electron& e, float tNow, float duration, int sample
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "3D Atom Visualization - C++ (raylib)");
     SetTargetFPS(60);
 

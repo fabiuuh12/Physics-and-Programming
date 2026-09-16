@@ -109,6 +109,7 @@ std::string Hud(float lensStrength, Vector3 sourcePos, int hitCount) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Gravitational Lensing 3D - C++ (raylib)");
     SetTargetFPS(60);
 

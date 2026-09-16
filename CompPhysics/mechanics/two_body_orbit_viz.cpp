@@ -166,6 +166,7 @@ void ResetSystem(Body* a, Body* b, std::deque<Vector3>* trailA, std::deque<Vecto
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Two Body Orbit 3D - C++ (raylib)");
     SetTargetFPS(60);
 

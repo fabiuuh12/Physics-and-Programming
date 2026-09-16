@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -210,6 +211,7 @@ void DrawBackdropStars(const Camera3D& camera) {
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Black Hole Particle Field - C++ (raylib)");
     SetWindowMinSize(980, 620);
     SetTargetFPS(120);
@@ -258,12 +260,14 @@ int main() {
         EndMode3D();
 
         DrawRectangle(12, 12, 350, 86, Fade(BLACK, 0.28f));
-        DrawText("Black Hole Particle Field", 24, 24, 28, Color{234, 240, 252, 255});
-        DrawText("Mouse drag: 360 orbit   Wheel: zoom", 24, 58, 20, Color{162, 184, 220, 255});
+        studio::text("Black Hole Particle Field", 24, 24, 28, Color{234, 240, 252, 255});
+        studio::text("Mouse drag: 360 orbit   Wheel: zoom", 24, 58, 20, Color{162, 184, 220, 255});
         DrawFPS(GetScreenWidth() - 98, 18);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

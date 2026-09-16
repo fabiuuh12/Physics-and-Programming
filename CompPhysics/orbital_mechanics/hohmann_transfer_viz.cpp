@@ -78,6 +78,7 @@ void DrawPanel(float r1, float r2, float progress, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Orbital Mechanics - Hohmann Transfer");
     SetTargetFPS(60);
 

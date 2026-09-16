@@ -39,6 +39,7 @@ void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dis
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Thermodynamics Gas Laws 3D - C++ (raylib)");
     SetTargetFPS(60);
 

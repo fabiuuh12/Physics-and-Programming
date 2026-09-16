@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -136,7 +137,8 @@ std::optional<LiveControls> LoadLiveControls() {
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -230,6 +232,7 @@ std::string Hud(float throatRadius, float flare, int particles, bool paused) {
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Wormhole 3D Visualization - C++ (raylib)");
     SetWindowMinSize(kWindowMinWidth, kWindowMinHeight);
     SetTargetFPS(60);
@@ -406,16 +409,18 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Wormhole Tunnel (Morris-Thorne Style Visual)", 20, 18, 29, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | drag edge: resize | [ ] throat | +/- flare | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
+        studio::text("Wormhole Tunnel (Morris-Thorne Style Visual)", 20, 18, 29, Color{232, 238, 248, 255});
+        studio::text("Hold left mouse: orbit | wheel: zoom / Shift+drag: pan | drag edge: resize | [ ] throat | +/- flare | P pause | R reset", 20, 54, 19, Color{164, 183, 210, 255});
         std::string hud = Hud(throatRadius, flare, static_cast<int>(flow.size()), paused);
-        DrawText(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
-        DrawText(bridgeStatus.c_str(), 20, 108, 19, Color{152, 234, 198, 255});
+        studio::text(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
+        studio::text(bridgeStatus.c_str(), 20, 108, 19, Color{152, 234, 198, 255});
         DrawFPS(20, 136);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -7,6 +7,7 @@
 #include <deque>
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(1360,860,"Quantum tunneling / Wave laboratory");
     SetTargetFPS(60);
     Camera3D camera{{13,9,15},{0,0,0},{0,1,0},43,CAMERA_PERSPECTIVE};

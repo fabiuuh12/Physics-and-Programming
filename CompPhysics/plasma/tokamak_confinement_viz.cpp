@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -391,8 +392,8 @@ void DrawDiagnostics(float time) {
 
 void DrawHud(float power, float q, float current, float density, bool paused, bool cutaway, bool magneticLines) {
     DrawRectangle(0, 0, GetScreenWidth(), 136, Color{5, 8, 14, 215});
-    DrawText("Graphically Advanced Tokamak Fusion Reactor", 24, 18, 32, Color{240, 246, 255, 255});
-    DrawText("Mouse orbit | wheel zoom | [ ] plasma power | , . field current | C cutaway | M field lines | P pause | R reset",
+    studio::text("Graphically Advanced Tokamak Fusion Reactor", 24, 18, 32, Color{240, 246, 255, 255});
+    studio::text("Mouse orbit | wheel zoom | [ ] plasma power | , . field current | C cutaway | M field lines | P pause | R reset",
              24, 58, 18, Color{178, 195, 222, 255});
 
     std::ostringstream os;
@@ -403,13 +404,13 @@ void DrawHud(float power, float q, float current, float density, bool paused, bo
     if (cutaway) os << "   [CUTAWAY]";
     if (magneticLines) os << "   [FIELD LINES]";
     if (paused) os << "   [PAUSED]";
-    DrawText(os.str().c_str(), 24, 90, 20, Color{255, 218, 142, 255});
+    studio::text(os.str().c_str(), 24, 90, 20, Color{255, 218, 142, 255});
 
     const int x = GetScreenWidth() - 378;
     const int y = 24;
     const int w = 240;
     auto bar = [&](int row, const char* label, float value, Color color) {
-        DrawText(label, x, y + row * 28 - 2, 16, Color{194, 210, 232, 255});
+        studio::text(label, x, y + row * 28 - 2, 16, Color{194, 210, 232, 255});
         DrawRectangle(x + 116, y + row * 28, w, 14, Color{26, 34, 48, 245});
         DrawRectangle(x + 116, y + row * 28, static_cast<int>(w * std::clamp(value, 0.0f, 1.0f)), 14, color);
         DrawRectangleLines(x + 116, y + row * 28, w, 14, Color{110, 136, 166, 170});
@@ -423,6 +424,7 @@ void DrawHud(float power, float q, float current, float density, bool paused, bo
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Tokamak Fusion Reactor 3D - C++ (raylib)");
     SetWindowMinSize(1100, 720);
     SetTargetFPS(120);
@@ -494,8 +496,10 @@ int main() {
         DrawFPS(GetScreenWidth() - 100, 18);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

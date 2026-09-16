@@ -69,6 +69,7 @@ std::string HudLine(float strongCoupling, float masslessSpeed, float massiveSpee
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Higgs Field Visualization 3D - C++ (raylib)");
     SetTargetFPS(60);
 

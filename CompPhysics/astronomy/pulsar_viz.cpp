@@ -86,6 +86,7 @@ std::string Hud(float simTime, float spinRate, float tiltDeg, float pulse, bool 
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Pulsar 3D Visualization - C++ (raylib)");
     SetTargetFPS(60);
 

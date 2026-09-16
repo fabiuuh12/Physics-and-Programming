@@ -202,6 +202,7 @@ int main(int argc, char** argv) {
     if (argc>1 && std::strcmp(argv[1],"--self-test")==0) return selfTest();
     bool smoke=argc>1 && std::strcmp(argv[1],"--smoke-test")==0;
     SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(1360,900,"Shallow Water | Interactive Fluid Lab");
     SetWindowMinSize(1050,720);
     SetTargetFPS(60);

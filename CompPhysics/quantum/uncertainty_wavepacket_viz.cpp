@@ -34,6 +34,7 @@ float Gaussian(float x, float mu, float sigma) {
 }
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Uncertainty Wavepacket 3D - C++ (raylib)");
     SetTargetFPS(60);
 

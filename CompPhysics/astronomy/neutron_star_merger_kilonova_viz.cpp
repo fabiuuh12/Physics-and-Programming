@@ -55,6 +55,7 @@ std::vector<EjectaParticle> BuildEjectaField(int n) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Neutron Star Merger + Kilonova 3D - C++ (raylib)");
     SetTargetFPS(60);
 

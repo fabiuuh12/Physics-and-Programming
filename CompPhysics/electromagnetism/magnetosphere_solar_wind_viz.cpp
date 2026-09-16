@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -150,6 +151,7 @@ void UpdateWindParticles(std::vector<WindParticle>* particles, float dt, float t
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Magnetosphere Solar Wind 3D - C++ (raylib)");
     SetWindowMinSize(980, 640);
     SetTargetFPS(120);
@@ -194,13 +196,15 @@ int main() {
         EndMode3D();
 
         DrawRectangle(14, 14, 470, 92, Fade(BLACK, 0.28f));
-        DrawText("Magnetosphere vs Solar Wind", 26, 24, 30, Color{234, 241, 252, 255});
-        DrawText("Solar wind compresses the dayside field and stretches the nightside magnetotail.", 26, 58, 19, Color{170, 192, 223, 255});
-        DrawText("Mouse orbit | wheel zoom", 26, 82, 18, Color{132, 220, 255, 255});
+        studio::text("Magnetosphere vs Solar Wind", 26, 24, 30, Color{234, 241, 252, 255});
+        studio::text("Solar wind compresses the dayside field and stretches the nightside magnetotail.", 26, 58, 19, Color{170, 192, 223, 255});
+        studio::text("Mouse orbit | wheel zoom", 26, 82, 18, Color{132, 220, 255, 255});
         DrawFPS(GetScreenWidth() - 96, 18);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

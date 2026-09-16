@@ -91,6 +91,7 @@ std::string FormatHud(const State& s, float t, bool paused, float speed) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "3D Simple Harmonic Oscillator - C++ (raylib)");
     SetTargetFPS(60);
 

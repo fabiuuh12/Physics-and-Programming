@@ -92,6 +92,7 @@ void InitSystem(std::vector<StarParticle>* stars, CoreBody* c1, CoreBody* c2, fl
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Galaxy encounter / two cores and tracer disks 3D - C++ (raylib)");
     SetTargetFPS(60);
 

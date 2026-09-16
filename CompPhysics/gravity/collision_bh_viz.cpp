@@ -154,6 +154,7 @@ void DrawWarpSheetBinary(Vector3 bh1, Vector3 bh2, bool merged, float warpScale,
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Black Hole Collision 3D - C++ (raylib)");
     SetTargetFPS(60);
 

@@ -70,6 +70,7 @@ void DrawAxes(Rectangle plot) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Orbital Mechanics - Launch Window Porkchop");
     SetTargetFPS(60);
 

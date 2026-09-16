@@ -36,6 +36,7 @@ void DrawTrail(const std::deque<Vector3>& tr, Color c) {
 } // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Projectile Motion with Drag 3D - C++ (raylib)");
     SetTargetFPS(60);
 

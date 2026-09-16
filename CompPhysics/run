@@ -62,7 +62,7 @@ build_target() {
         printf 'Build the vendored raylib library first.\n' >&2
         return 1
     fi
-    if [[ ! -x "$output_path" || "$source_path" -nt "$output_path" || "$raylib_lib" -nt "$output_path" ]]; then
+    if [[ ! -x "$output_path" || "$source_path" -nt "$output_path" || "$raylib_lib" -nt "$output_path" || "$project_dir/run" -nt "$output_path" ]]; then
         rebuild=1
     fi
     if [[ "$rebuild" -eq 0 ]] && find "$raylib_dir" -maxdepth 1 -name '*.h' -newer "$output_path" -print -quit | grep -q .; then
@@ -77,12 +77,12 @@ build_target() {
         printf 'Building %s...\n' "$target"
         case "$(uname -s)" in
             Darwin)
-                "${CXX:-clang++}" -std=c++17 "$source_path" -I"$raylib_dir" "$raylib_lib" \
+                "${CXX:-clang++}" -std=c++17 -O2 "$source_path" -I"$raylib_dir" "$raylib_lib" \
                     -framework IOKit -framework Cocoa -framework OpenGL -framework CoreVideo \
                     -o "$output_path" || return 1
                 ;;
             Linux)
-                "${CXX:-g++}" -std=c++17 "$source_path" -I"$raylib_dir" "$raylib_lib" \
+                "${CXX:-g++}" -std=c++17 -O2 "$source_path" -I"$raylib_dir" "$raylib_lib" \
                     -lGL -lm -lpthread -ldl -lrt -lX11 -o "$output_path" || return 1
                 ;;
             *)

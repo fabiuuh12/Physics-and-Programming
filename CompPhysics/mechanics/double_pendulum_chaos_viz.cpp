@@ -160,6 +160,7 @@ std::string HudText(float t, float speed, const State& s, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Double Pendulum Chaos 3D - C++ (raylib)");
     SetTargetFPS(60);
 

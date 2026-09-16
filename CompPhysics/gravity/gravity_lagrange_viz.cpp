@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -32,7 +33,8 @@ struct Probe {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -267,6 +269,7 @@ std::string Hud(float mu, float speed, float sheetScale, bool paused, bool activ
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Lagrange Points + Gravity Potential Sheet 3D - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -362,25 +365,27 @@ int main() {
         std::array<const char*, 5> labels = {"L1", "L2", "L3", "L4", "L5"};
         for (int i = 0; i < 5; ++i) {
             Vector2 s = GetWorldToScreen(points[i], camera);
-            DrawText(labels[i], static_cast<int>(s.x) - 8, static_cast<int>(s.y) - 10, 18, Color{225, 235, 250, 240});
+            studio::text(labels[i], static_cast<int>(s.x) - 8, static_cast<int>(s.y) - 10, 18, Color{225, 235, 250, 240});
         }
 
-        DrawText("Lagrange Points in a Rotating Two-Body Gravity Field", 20, 18, 30, Color{232, 238, 248, 255});
+        studio::text("Lagrange Points in a Rotating Two-Body Gravity Field", 20, 18, 30, Color{232, 238, 248, 255});
         if (showHelp) {
-            DrawText("Hold left mouse: orbit | wheel: zoom | 1..5 launch probe | [ ] mass ratio | +/- speed | , . warp | W sheet | T trails | P pause | R reset | H help",
+            studio::text("Hold left mouse: orbit | wheel: zoom / Shift+drag: pan | 1..5 launch probe | [ ] mass ratio | +/- speed | , . warp | W sheet | T trails | P pause | R reset | H help",
                      20, 54, 18, Color{164, 183, 210, 255});
         } else {
-            DrawText("Press H to show controls", 20, 54, 18, Color{164, 183, 210, 255});
+            studio::text("Press H to show controls", 20, 54, 18, Color{164, 183, 210, 255});
         }
 
         std::string hud = Hud(mu, speed, sheetScale, paused, probe.active);
-        DrawText(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
-        DrawText("L4/L5 are generally stable, L1/L2/L3 are saddle points", 20, 110, 18, Color{192, 206, 226, 255});
+        studio::text(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
+        studio::text("L4/L5 are generally stable, L1/L2/L3 are saddle points", 20, 110, 18, Color{192, 206, 226, 255});
         DrawFPS(20, 138);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

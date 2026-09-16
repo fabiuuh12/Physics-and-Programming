@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -257,17 +258,18 @@ void DrawMetricRuler(const std::vector<Landmark>& landmarks, MetricMode mode, in
         DrawLine(x, top - 8, x, top + 8, selected ? landmarks[i].color : Fade(landmarks[i].color, 0.50f));
         DrawCircle(x, top, selected ? 6.0f : 4.0f, selected ? landmarks[i].color : Fade(landmarks[i].color, 0.65f));
         if (selected || i == 0 || i == static_cast<int>(landmarks.size()) - 1 || i == 4 || i == 7) {
-            DrawText(landmarks[i].name, x - 42, top + 16, 14, selected ? Color{235, 240, 248, 255} : Color{160, 176, 204, 255});
+            studio::text(landmarks[i].name, x - 42, top + 16, 14, selected ? Color{235, 240, 248, 255} : Color{160, 176, 204, 255});
         }
     }
 
-    DrawText(MetricName(mode), left - 2, top - 38, 20, Color{228, 236, 246, 255});
-    DrawText("log-scaled scene radius, but metric focus can switch to time or redshift", left - 2, top + height, 16, Color{148, 164, 188, 255});
+    studio::text(MetricName(mode), left - 2, top - 38, 20, Color{228, 236, 246, 255});
+    studio::text("log-scaled scene radius, but metric focus can switch to time or redshift", left - 2, top + height, 16, Color{148, 164, 188, 255});
 }
 
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Observable Universe Scale Explorer - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -374,13 +376,13 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Observable Universe Scale Explorer", 28, 22, 34, Color{234, 239, 248, 255});
-        DrawText("Mouse drag orbit | wheel zoom | 1 distance | 2 lookback | 3 redshift | Left/Right scrub | Space autoplay | R reset", 28, 60, 18, Color{154, 176, 205, 255});
-        DrawText("This is a log-radius teaching model: outer shells represent present-day scale, not a literal galaxy map.", 28, 86, 18, Color{138, 156, 182, 255});
+        studio::text("Observable Universe Scale Explorer", 28, 22, 34, Color{234, 239, 248, 255});
+        studio::text("Mouse drag orbit | wheel zoom | 1 distance | 2 lookback | 3 redshift | Left/Right scrub | Space autoplay | R reset", 28, 60, 18, Color{154, 176, 205, 255});
+        studio::text("This is a log-radius teaching model: outer shells represent present-day scale, not a literal galaxy map.", 28, 86, 18, Color{138, 156, 182, 255});
 
         DrawRectangleRounded(Rectangle{24.0f, 132.0f, 436.0f, 214.0f}, 0.12f, 10, Fade(Color{16, 22, 34, 255}, 0.92f));
-        DrawText(selected.name, 46, 154, 28, selected.color);
-        DrawText(selected.note, 46, 188, 20, Color{182, 196, 220, 255});
+        studio::text(selected.name, 46, 154, 28, selected.color);
+        studio::text(selected.note, 46, 188, 20, Color{182, 196, 220, 255});
 
         char line[256];
         char distanceBuf[64];
@@ -391,24 +393,24 @@ int main() {
         FormatRedshift(selected.redshift, redshiftBuf, sizeof(redshiftBuf));
 
         std::snprintf(line, sizeof(line), "Distance now: %s", distanceBuf);
-        DrawText(line, 46, 228, 21, Color{226, 232, 242, 255});
+        studio::text(line, 46, 228, 21, Color{226, 232, 242, 255});
         std::snprintf(line, sizeof(line), "Lookback time: %s", lookbackBuf);
-        DrawText(line, 46, 256, 21, Color{226, 232, 242, 255});
+        studio::text(line, 46, 256, 21, Color{226, 232, 242, 255});
         std::snprintf(line, sizeof(line), "Redshift: %s", redshiftBuf);
-        DrawText(line, 46, 284, 21, Color{226, 232, 242, 255});
+        studio::text(line, 46, 284, 21, Color{226, 232, 242, 255});
 
         const char* focusMetric = MetricName(mode);
         std::snprintf(line, sizeof(line), "Focus mode: %s", focusMetric);
-        DrawText(line, 46, 316, 20, Color{148, 220, 255, 255});
+        studio::text(line, 46, 316, 20, Color{148, 220, 255, 255});
 
         DrawRectangleRounded(Rectangle{1130.0f, 142.0f, 344.0f, 226.0f}, 0.12f, 10, Fade(Color{16, 22, 34, 255}, 0.92f));
-        DrawText("Landmark Labels", 1152, 164, 24, Color{226, 232, 244, 255});
-        DrawText("Screen labels stay attached to one marker on each shell.", 1152, 196, 18, Color{148, 164, 188, 255});
-        DrawText("Inner scene = local neighborhood", 1152, 236, 18, Color{176, 188, 212, 255});
-        DrawText("Outer scene = large-scale cosmic structure", 1152, 262, 18, Color{176, 188, 212, 255});
-        DrawText("Final shell = cosmic microwave background", 1152, 288, 18, Color{176, 188, 212, 255});
-        DrawText("Autoplay sweeps the selected metric and snaps", 1152, 328, 18, Color{176, 188, 212, 255});
-        DrawText("the focus shell to the nearest landmark.", 1152, 352, 18, Color{176, 188, 212, 255});
+        studio::text("Landmark Labels", 1152, 164, 24, Color{226, 232, 244, 255});
+        studio::text("Screen labels stay attached to one marker on each shell.", 1152, 196, 18, Color{148, 164, 188, 255});
+        studio::text("Inner scene = local neighborhood", 1152, 236, 18, Color{176, 188, 212, 255});
+        studio::text("Outer scene = large-scale cosmic structure", 1152, 262, 18, Color{176, 188, 212, 255});
+        studio::text("Final shell = cosmic microwave background", 1152, 288, 18, Color{176, 188, 212, 255});
+        studio::text("Autoplay sweeps the selected metric and snaps", 1152, 328, 18, Color{176, 188, 212, 255});
+        studio::text("the focus shell to the nearest landmark.", 1152, 352, 18, Color{176, 188, 212, 255});
 
         for (int i = 0; i < static_cast<int>(landmarks.size()); ++i) {
             const Landmark& landmark = landmarks[i];
@@ -423,15 +425,17 @@ int main() {
             const int offsetX = selectedLabel ? 22 : 16;
             const int offsetY = selectedLabel ? -20 : -14;
             DrawLineEx(screen, {screen.x + static_cast<float>(offsetX), screen.y + static_cast<float>(offsetY)}, selectedLabel ? 2.4f : 1.5f, selectedLabel ? landmark.color : Fade(landmark.color, 0.55f));
-            DrawText(landmark.name, static_cast<int>(screen.x) + offsetX + 6, static_cast<int>(screen.y) + offsetY - 10, selectedLabel ? 18 : 15, selectedLabel ? Color{238, 244, 252, 255} : Color{164, 178, 204, 255});
+            studio::text(landmark.name, static_cast<int>(screen.x) + offsetX + 6, static_cast<int>(screen.y) + offsetY - 10, selectedLabel ? 18 : 15, selectedLabel ? Color{238, 244, 252, 255} : Color{164, 178, 204, 255});
         }
 
         DrawMetricRuler(landmarks, mode, selectedIndex);
         DrawFPS(24, kScreenHeight - 36);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

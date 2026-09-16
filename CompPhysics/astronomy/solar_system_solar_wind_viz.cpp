@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -275,6 +276,7 @@ void DrawBackdropStars(const std::vector<BackdropStar>& stars) {
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Solar System Solar Wind 3D - C++ (raylib)");
     SetWindowMinSize(1024, 660);
     SetTargetFPS(120);
@@ -343,13 +345,15 @@ int main() {
         EndMode3D();
 
         DrawRectangle(14, 14, 560, 92, Fade(BLACK, 0.28f));
-        DrawText("Solar System + Solar Wind", 26, 24, 30, Color{234, 241, 252, 255});
-        DrawText("The Sun emits pulsed particle bands while planets bend, shield, or trail the flow.", 26, 58, 19, Color{170, 192, 223, 255});
-        DrawText(TextFormat("Mouse orbit | wheel zoom | - / + speed | P pause | R reset | speed %.1fx%s", simSpeed, paused ? " [PAUSED]" : ""), 26, 82, 18, Color{132, 220, 255, 255});
+        studio::text("Solar System + Solar Wind", 26, 24, 30, Color{234, 241, 252, 255});
+        studio::text("The Sun emits pulsed particle bands while planets bend, shield, or trail the flow.", 26, 58, 19, Color{170, 192, 223, 255});
+        studio::text(TextFormat("Mouse orbit | wheel zoom | - / + speed | P pause | R reset | speed %.1fx%s", simSpeed, paused ? " [PAUSED]" : ""), 26, 82, 18, Color{132, 220, 255, 255});
         DrawFPS(GetScreenWidth() - 96, 18);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

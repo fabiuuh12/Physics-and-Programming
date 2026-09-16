@@ -10,7 +10,8 @@ This project is best presented as a scientific visualization and simulation port
 - 3D camera control, scene composition, and live simulation state
 - Numerical intuition across orbital mechanics, waves, fields, fluids, plasma, relativity, and quantum probability
 - Python/C++ workflow separation for computer-vision input bridges and compiled visualizers
-- Testable mathematical helpers for selected numerical models
+- Testable numerical kernels for trajectories, oscillators, transit geometry,
+  gas-wall collisions, Gaussian packets, and time-dependent quantum scattering
 - Clear domain organization for a large set of exploratory simulations
 
 ## Suggested Review Path
@@ -26,6 +27,10 @@ This project is best presented as a scientific visualization and simulation port
    - `plasma/tokamak_confinement_viz.cpp`
 4. Run one built target from `build-native/` or rebuild it from source.
 5. Run `python3 -m pytest` to verify the Python numerical helper tests.
+
+The tests also compile and execute the rendering-independent C++ model checks
+when a C++17 compiler is available. See [UPGRADE_NOTES.md](UPGRADE_NOTES.md) for
+the refreshed demos and graphics validation workflow.
 
 ## Best Talking Points
 

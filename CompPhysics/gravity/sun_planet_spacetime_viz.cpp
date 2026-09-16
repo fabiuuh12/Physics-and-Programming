@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -130,7 +131,8 @@ std::optional<LiveControls> LoadLiveControls() {
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -235,6 +237,7 @@ std::string Hud(const SimState& s, float period, float radiusA, float radiusB) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Sun-Planet Spacetime Curvature 3D - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -420,25 +423,27 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Planet Orbiting the Sun with Spacetime Curvature", 20, 18, 30, Color{232, 238, 248, 255});
+        studio::text("Planet Orbiting the Sun with Spacetime Curvature", 20, 18, 30, Color{232, 238, 248, 255});
         if (sim.showHelp) {
-            DrawText("Hold left mouse: orbit camera | wheel: zoom | +/- speed | [ ] warp | P pause | R reset | H help",
+            studio::text("Hold left mouse: orbit camera | wheel: zoom / Shift+drag: pan | +/- speed | [ ] warp | P pause | R reset | H help",
                      20, 56, 19, Color{164, 183, 210, 255});
-            DrawText("Webcam bridge: pinch-line zoom+camera | right single/double: warp+/speed+ | left single/double: warp-/speed-",
+            studio::text("Webcam bridge: pinch-line zoom+camera | right single/double: warp+/speed+ | left single/double: warp-/speed-",
                      20, 80, 19, Color{164, 215, 198, 255});
         } else {
-            DrawText("Press H to show controls", 20, 56, 19, Color{164, 183, 210, 255});
+            studio::text("Press H to show controls", 20, 56, 19, Color{164, 183, 210, 255});
         }
 
         float orbitalPeriod = 2.0f * kPi / kOmega;
         std::string hud = Hud(sim, orbitalPeriod, kOrbitA, kOrbitB);
-        DrawText(hud.c_str(), 20, 108, 21, Color{126, 224, 255, 255});
-        DrawText(bridgeStatus.c_str(), 20, 134, 19, Color{152, 234, 198, 255});
+        studio::text(hud.c_str(), 20, 108, 21, Color{126, 224, 255, 255});
+        studio::text(bridgeStatus.c_str(), 20, 134, 19, Color{152, 234, 198, 255});
         DrawFPS(20, 160);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

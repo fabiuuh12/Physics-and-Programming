@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -283,6 +284,7 @@ std::string HudLine(WaveMode mode,
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Helical Wave Laboratory 3D - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -403,27 +405,29 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Helical Wave Laboratory", 20, 18, 32, Color{235, 241, 252, 255});
-        DrawText("A 3D lab for circular polarization, counter-rotating helices, standing waves, and plasma-like torsion.", 20, 56, 18, Color{172, 190, 218, 255});
-        DrawText("Mouse drag: orbit | wheel: zoom | 1 light | 2 interference | 3 standing | 4 plasma | Q/E handedness", 20, 86, 17, Color{172, 190, 218, 255});
-        DrawText("W/S amplitude | A/D wave number | Z/X phase | +/- speed | [ ] ellipticity | F arrows | T particles | Space pause | R reset", 20, 112, 17, Color{172, 190, 218, 255});
+        studio::text("Helical Wave Laboratory", 20, 18, 32, Color{235, 241, 252, 255});
+        studio::text("A 3D lab for circular polarization, counter-rotating helices, standing waves, and plasma-like torsion.", 20, 56, 18, Color{172, 190, 218, 255});
+        studio::text("Mouse drag: orbit | wheel: zoom | 1 light | 2 interference | 3 standing | 4 plasma | Q/E handedness", 20, 86, 17, Color{172, 190, 218, 255});
+        studio::text("W/S amplitude | A/D wave number | Z/X phase | +/- speed | [ ] ellipticity | F arrows | T particles | Space pause | R reset", 20, 112, 17, Color{172, 190, 218, 255});
 
         const std::string hud = HudLine(mode, amplitude, waveNumber, omega, phaseOffset, ellipticity, rightHanded, paused);
-        DrawText(hud.c_str(), 20, 144, 19, Color{125, 230, 255, 255});
+        studio::text(hud.c_str(), 20, 144, 19, Color{125, 230, 255, 255});
 
         DrawRectangleRounded({1004.0f, 22.0f, 332.0f, 136.0f}, 0.08f, 14, Color{9, 17, 31, 210});
         DrawRectangleRoundedLinesEx({1004.0f, 22.0f, 332.0f, 136.0f}, 0.08f, 14, 2.0f, Color{52, 83, 124, 255});
-        DrawText("cyan: main helical displacement", 1024, 42, 16, Color{120, 235, 255, 255});
-        DrawText("pink: opposing helix in mode 2", 1024, 66, 16, Color{255, 145, 210, 255});
-        DrawText("green: local propagation/twist", 1024, 90, 16, Color{145, 255, 165, 255});
-        DrawText("dots: tracer particles in the tunnel", 1024, 114, 16, Color{185, 205, 230, 255});
+        studio::text("cyan: main helical displacement", 1024, 42, 16, Color{120, 235, 255, 255});
+        studio::text("pink: opposing helix in mode 2", 1024, 66, 16, Color{255, 145, 210, 255});
+        studio::text("green: local propagation/twist", 1024, 90, 16, Color{145, 255, 165, 255});
+        studio::text("dots: tracer particles in the tunnel", 1024, 114, 16, Color{185, 205, 230, 255});
 
-        DrawText("Best capture modes: 2 for interference braids, 3 for nodes, 4 for animated plasma torsion.", 20, kScreenHeight - 42, 17, Color{170, 205, 245, 255});
+        studio::text("Best capture modes: 2 for interference braids, 3 for nodes, 4 for animated plasma torsion.", 20, kScreenHeight - 42, 17, Color{170, 205, 245, 255});
         DrawFPS(20, 174);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

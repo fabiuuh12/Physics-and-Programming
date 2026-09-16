@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -396,10 +397,10 @@ void DrawCurvePanel(Rectangle panel, const GalaxyParams& params, GravityModel ac
         DrawCircleV(mapPoint(params.probeRadius, v), 4.8f, Brighten(ModelColor(model), 0.14f));
     }
 
-    DrawText("Rotation Curves", static_cast<int>(panel.x + 18), static_cast<int>(panel.y + 14), 28, Color{235, 240, 248, 255});
-    DrawText("toy galaxy: same luminous matter, different gravity assumptions", static_cast<int>(panel.x + 18), static_cast<int>(panel.y + 42), 17, Color{158, 184, 220, 255});
-    DrawText("radius", static_cast<int>(plot.x + plot.width - 42), static_cast<int>(plot.y + plot.height + 10), 16, Color{188, 202, 224, 255});
-    DrawText("speed", static_cast<int>(plot.x - 42), static_cast<int>(plot.y - 6), 16, Color{188, 202, 224, 255});
+    studio::text("Rotation Curves", static_cast<int>(panel.x + 18), static_cast<int>(panel.y + 14), 28, Color{235, 240, 248, 255});
+    studio::text("toy galaxy: same luminous matter, different gravity assumptions", static_cast<int>(panel.x + 18), static_cast<int>(panel.y + 42), 17, Color{158, 184, 220, 255});
+    studio::text("radius", static_cast<int>(plot.x + plot.width - 42), static_cast<int>(plot.y + plot.height + 10), 16, Color{188, 202, 224, 255});
+    studio::text("speed", static_cast<int>(plot.x - 42), static_cast<int>(plot.y - 6), 16, Color{188, 202, 224, 255});
 
     for (int i = 0; i <= 5; ++i) {
         float r = maxRadius * static_cast<float>(i) / 5.0f;
@@ -408,8 +409,8 @@ void DrawCurvePanel(Rectangle panel, const GalaxyParams& params, GravityModel ac
         char yText[32];
         std::snprintf(xText, sizeof(xText), "%.0f", r);
         std::snprintf(yText, sizeof(yText), "%.1f", v);
-        DrawText(xText, static_cast<int>(plot.x + plot.width * static_cast<float>(i) / 5.0f - 8.0f), static_cast<int>(plot.y + plot.height + 8.0f), 15, Color{176, 188, 206, 255});
-        DrawText(yText, static_cast<int>(plot.x - 38.0f), static_cast<int>(plot.y + plot.height * static_cast<float>(i) / 5.0f - 8.0f), 15, Color{176, 188, 206, 255});
+        studio::text(xText, static_cast<int>(plot.x + plot.width * static_cast<float>(i) / 5.0f - 8.0f), static_cast<int>(plot.y + plot.height + 8.0f), 15, Color{176, 188, 206, 255});
+        studio::text(yText, static_cast<int>(plot.x - 38.0f), static_cast<int>(plot.y + plot.height * static_cast<float>(i) / 5.0f - 8.0f), 15, Color{176, 188, 206, 255});
     }
 
     int legendY = static_cast<int>(panel.y + panel.height - 44.0f);
@@ -418,11 +419,11 @@ void DrawCurvePanel(Rectangle panel, const GalaxyParams& params, GravityModel ac
         GravityModel model = static_cast<GravityModel>(modelIdx);
         Color color = ModelColor(model);
         DrawCircle(legendX, legendY, 7.0f, color);
-        DrawText(ModelName(model), legendX + 16, legendY - 9, 18, model == activeModel ? Brighten(color, 0.20f) : Color{224, 232, 244, 255});
+        studio::text(ModelName(model), legendX + 16, legendY - 9, 18, model == activeModel ? Brighten(color, 0.20f) : Color{224, 232, 244, 255});
         legendX += 180;
     }
     DrawCircle(legendX, legendY, 6.0f, Color{240, 244, 250, 255});
-    DrawText("toy observations", legendX + 14, legendY - 9, 18, Color{224, 232, 244, 255});
+    studio::text("toy observations", legendX + 14, legendY - 9, 18, Color{224, 232, 244, 255});
 }
 
 void DrawInfoPanel(const GalaxyParams& params, GravityModel activeModel, bool paused) {
@@ -430,9 +431,9 @@ void DrawInfoPanel(const GalaxyParams& params, GravityModel activeModel, bool pa
     DrawRectangleRounded(panel, 0.06f, 16, Fade(Color{8, 15, 30, 255}, 0.78f));
     DrawRectangleRoundedLinesEx(panel, 0.06f, 16, 1.5f, Fade(Color{118, 146, 186, 255}, 0.32f));
 
-    DrawText("Dark Matter vs MOND: Galaxy Rotation", 42, 36, 31, Color{235, 240, 248, 255});
-    DrawText("3D toy comparison of flat rotation curves", 42, 70, 18, Color{154, 186, 226, 255});
-    DrawText("Mouse orbit | wheel zoom | 1 baryons | 2 dark halo | 3 MOND | Left/Right probe | Q/A halo | W/S MOND a0 | +/- time | P pause | R reset",
+    studio::text("Dark Matter vs MOND: Galaxy Rotation", 42, 36, 31, Color{235, 240, 248, 255});
+    studio::text("3D toy comparison of flat rotation curves", 42, 70, 18, Color{154, 186, 226, 255});
+    studio::text("Mouse orbit | wheel zoom | 1 baryons | 2 dark halo | 3 MOND | Left/Right probe | Q/A halo | W/S MOND a0 | +/- time | P pause | R reset",
              42, 98, 18, Color{176, 193, 216, 255});
 
     char status[256];
@@ -447,12 +448,13 @@ void DrawInfoPanel(const GalaxyParams& params, GravityModel activeModel, bool pa
         params.timeScale,
         paused ? "   [PAUSED]" : ""
     );
-    DrawText(status, 42, 128, 19, Brighten(ModelColor(activeModel), 0.14f));
+    studio::text(status, 42, 128, 19, Brighten(ModelColor(activeModel), 0.14f));
 }
 
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Dark Matter vs MOND Galaxy Rotation - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -528,15 +530,17 @@ int main() {
 
         DrawRectangleRounded({940.0f, 406.0f, 548.0f, 120.0f}, 0.06f, 12, Fade(Color{8, 15, 30, 255}, 0.80f));
         DrawRectangleRoundedLinesEx({940.0f, 406.0f, 548.0f, 120.0f}, 0.06f, 12, 1.5f, Fade(Color{118, 146, 186, 255}, 0.30f));
-        DrawText("Interpretation", 960, 422, 25, Color{234, 240, 248, 255});
-        DrawText("Red falls away when only luminous matter gravitates.", 960, 456, 18, Color{255, 170, 162, 255});
-        DrawText("Blue stays flatter by adding an unseen halo around the galaxy.", 960, 482, 18, Color{126, 214, 255, 255});
-        DrawText("Gold stays flatter by modifying the low-acceleration law instead.", 960, 508, 18, Color{255, 215, 132, 255});
+        studio::text("Interpretation", 960, 422, 25, Color{234, 240, 248, 255});
+        studio::text("Red falls away when only luminous matter gravitates.", 960, 456, 18, Color{255, 170, 162, 255});
+        studio::text("Blue stays flatter by adding an unseen halo around the galaxy.", 960, 482, 18, Color{126, 214, 255, 255});
+        studio::text("Gold stays flatter by modifying the low-acceleration law instead.", 960, 508, 18, Color{255, 215, 132, 255});
 
         DrawFPS(28, kScreenHeight - 38);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -245,7 +246,7 @@ void DrawStatusBars(float corePower, float waterLevel, float demand, float rodDe
     const Color bg = {32, 41, 54, 240};
 
     auto bar = [&](int row, const char* label, float v, Color fill) {
-        DrawText(label, x, y + row * 32 - 2, 18, Color{205, 216, 230, 255});
+        studio::text(label, x, y + row * 32 - 2, 18, Color{205, 216, 230, 255});
         DrawRectangle(x + 128, y + row * 32, w, h, bg);
         DrawRectangle(x + 128, y + row * 32, static_cast<int>(w * std::clamp(v, 0.0f, 1.0f)), h, fill);
         DrawRectangleLines(x + 128, y + row * 32, w, h, Color{125, 145, 168, 180});
@@ -271,6 +272,7 @@ std::string Hud(float corePower, float demand, float rodDepth, float waterLevel,
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Nuclear Power Plant 3D Simulation - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -377,17 +379,19 @@ int main() {
         EndMode3D();
 
         DrawRectangle(0, 0, kScreenWidth, 122, Color{7, 10, 16, 190});
-        DrawText("Nuclear Power Plant 3D Simulation", 24, 18, 30, Color{238, 244, 250, 255});
-        DrawText("Left mouse: orbit | wheel: zoom | UP/DOWN rods | LEFT/RIGHT grid demand | C cutaway | P pause | R reset",
+        studio::text("Nuclear Power Plant 3D Simulation", 24, 18, 30, Color{238, 244, 250, 255});
+        studio::text("Left mouse: orbit | wheel: zoom | UP/DOWN rods | LEFT/RIGHT grid demand | C cutaway | P pause | R reset",
                  24, 56, 18, Color{176, 190, 210, 255});
-        DrawText(Hud(corePower, targetDemand, rodDepth, waterLevel, paused, cutaway).c_str(), 24, 84, 19, Color{255, 215, 142, 255});
+        studio::text(Hud(corePower, targetDemand, rodDepth, waterLevel, paused, cutaway).c_str(), 24, 84, 19, Color{255, 215, 142, 255});
 
         DrawStatusBars(corePower, waterLevel, targetDemand, rodDepth);
         DrawFPS(kScreenWidth - 98, 18);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

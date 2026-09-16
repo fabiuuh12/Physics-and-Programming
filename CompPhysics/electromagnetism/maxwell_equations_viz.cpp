@@ -37,6 +37,7 @@ void DrawArrow(Vector3 a, Vector3 b, Color c) {
 } // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Maxwell Equations Field Intuition 3D - C++ (raylib)");
     SetTargetFPS(60);
 

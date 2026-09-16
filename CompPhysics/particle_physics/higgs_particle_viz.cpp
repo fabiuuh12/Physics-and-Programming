@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -30,7 +31,8 @@ struct DecayProduct {
 };
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 d = GetMouseDelta();
         *yaw -= d.x * 0.0035f;
         *pitch += d.y * 0.0035f;
@@ -92,6 +94,7 @@ std::string Hud(Stage stage, bool autoCycle, int productCount, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Higgs Particle Visualization 3D - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -230,18 +233,20 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Higgs Particle Event (Conceptual Collider View)", 20, 18, 30, Color{236, 241, 250, 255});
-        DrawText("Two proton bunches collide, briefly form a Higgs boson, then decay into detectable products.", 20, 54, 19, Color{166, 186, 212, 255});
-        DrawText("Mouse drag: orbit | wheel: zoom | SPACE: trigger event | A: auto cycle | P: pause | R: reset", 20, 80, 18, Color{166, 186, 212, 255});
-        DrawText("Yellow lines: photons (gamma gamma) | cyan/magenta: other charged decay products", 20, 108, 19, Color{255, 213, 140, 255});
+        studio::text("Higgs Particle Event (Conceptual Collider View)", 20, 18, 30, Color{236, 241, 250, 255});
+        studio::text("Two proton bunches collide, briefly form a Higgs boson, then decay into detectable products.", 20, 54, 19, Color{166, 186, 212, 255});
+        studio::text("Mouse drag: orbit | wheel: zoom / Shift+drag: pan | SPACE: trigger event | A: auto cycle | P: pause | R: reset", 20, 80, 18, Color{166, 186, 212, 255});
+        studio::text("Yellow lines: photons (gamma gamma) | cyan/magenta: other charged decay products", 20, 108, 19, Color{255, 213, 140, 255});
 
         std::string hud = Hud(stage, autoCycle, static_cast<int>(products.size()), paused);
-        DrawText(hud.c_str(), 20, 138, 20, Color{132, 224, 255, 255});
+        studio::text(hud.c_str(), 20, 138, 20, Color{132, 224, 255, 255});
         DrawFPS(20, 168);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

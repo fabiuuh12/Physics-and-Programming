@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -194,7 +195,8 @@ std::string HudText(float t, float speed, int particles, int swallowed, bool pau
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -377,6 +379,7 @@ void DrawLensedBackground(const std::vector<BackgroundStar>& stars,
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Black Hole 3D Visualization - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -591,21 +594,23 @@ int main() {
 
         EndMode3D();
 
-        DrawText("Black Hole + Accretion Disk (3D)", 20, 18, 30, Color{232, 238, 248, 255});
-        DrawText("Hold left mouse: orbit | wheel: zoom | P pause | +/- speed | [ ] density | , . warp | W warp | R reset", 20, 54, 20, Color{164, 183, 210, 255});
+        studio::text("Black Hole + Accretion Disk (3D)", 20, 18, 30, Color{232, 238, 248, 255});
+        studio::text("Hold left mouse: orbit | wheel: zoom / Shift+drag: pan | P pause | +/- speed | [ ] density | , . warp | W warp | R reset", 20, 54, 20, Color{164, 183, 210, 255});
         const std::string hud = HudText(simTime, speed, static_cast<int>(disk.size()), swallowed, paused);
-        DrawText(hud.c_str(), 20, 84, 21, Color{126, 224, 255, 255});
+        studio::text(hud.c_str(), 20, 84, 21, Color{126, 224, 255, 255});
         std::ostringstream warpHud;
         warpHud << std::fixed << std::setprecision(2)
                 << "warp=" << warpScale
                 << "  warpVisible=" << (showWarp ? "yes" : "no");
-        DrawText(warpHud.str().c_str(), 20, 110, 20, Color{149, 201, 255, 255});
-        DrawText(bridgeStatus.c_str(), 20, 136, 19, Color{152, 234, 198, 255});
+        studio::text(warpHud.str().c_str(), 20, 110, 20, Color{149, 201, 255, 255});
+        studio::text(bridgeStatus.c_str(), 20, 136, 19, Color{152, 234, 198, 255});
         DrawFPS(20, 162);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

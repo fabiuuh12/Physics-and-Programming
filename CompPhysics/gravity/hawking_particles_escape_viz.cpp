@@ -27,6 +27,7 @@ void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* dis
 }
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Hawking Particles Escape 3D - C++ (raylib)");
     SetTargetFPS(60);
 

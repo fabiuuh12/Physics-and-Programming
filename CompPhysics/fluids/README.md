@@ -14,11 +14,22 @@ release a wet-bed dam break, or watch flow pass through a narrow gate.
 | Control | Action |
 | --- | --- |
 | Left click water | Create a localized mound by redistributing existing water |
-| Right mouse drag / wheel | Orbit / zoom |
+| Right mouse drag / wheel | Orbit around the focus point / zoom |
+| WASD | Translate the camera across the basin, relative to the view |
+| Q / E | Move down / up |
+| Middle drag or Shift + left drag | Pan in the screen plane |
+| Shift + right drag | Pan across the horizontal plane |
+| Shift | Move faster with the keyboard |
+| F / T | Return to home view / look from above |
 | Space / R | Pause / reset current scene |
 | 0 / 1 / 2 / 3 | Still water / ripple / dam break / narrow gate |
 | C / V | Toggle depth vs speed colors / velocity arrows |
 | - / = | Halve / double simulation speed (0.25–2x) |
+| H | Show / hide the compact controls guide |
+
+The light experiment panel has clickable presets and surface-view controls.
+The floating transport bar controls pause, reset, and help. Clicking these
+panels does not disturb the water or rotate the camera.
 
 The model solves the two-dimensional, depth-averaged shallow-water equations
 on a 64 by 48 finite-volume grid. State variables are depth and the two

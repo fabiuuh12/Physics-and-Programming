@@ -162,6 +162,7 @@ void DrawHud(float simTime, float timeScale, Vector2 burn, bool paused, bool fol
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Orbital Mechanics - Solar System Orbit Planner");
     SetTargetFPS(60);
 

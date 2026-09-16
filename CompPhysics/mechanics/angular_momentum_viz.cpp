@@ -62,6 +62,7 @@ void DrawArrow(const Vector3& from, const Vector3& to, Color color) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Angular Momentum Conservation 3D - C++ (raylib)");
     SetTargetFPS(60);
 

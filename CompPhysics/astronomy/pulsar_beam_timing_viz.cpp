@@ -38,6 +38,7 @@ void BuildOrthoBasis(Vector3 axis, Vector3* u, Vector3* v) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Pulsar Beam Sweep + Timing 3D - C++ (raylib)");
     SetTargetFPS(60);
 

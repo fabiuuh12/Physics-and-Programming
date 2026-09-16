@@ -36,6 +36,7 @@ float TransitFlux(Vector3 planetPos, float starR, float planetR) {
 }
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kW, kH, "Exoplanet Transit Lab 3D - C++ (raylib)");
     SetTargetFPS(60);
 

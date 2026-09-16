@@ -6,6 +6,9 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 
 ## Highlights
 
+See [Upgrade notes](UPGRADE_NOTES.md) for the simulation refresh, numerical
+improvements, controls, validation commands, and per-demo change inventory.
+
 - **Orbital and gravitational dynamics:** two-body orbits, three-body motion, Lagrange points, gravitational lensing, microlensing, spacetime visualizations, black hole accretion, and gravitational wave interferometer intuition.
 - **Field and continuum physics:** magnetospheres, solar wind, Maxwell waves, Poynting vector energy flow, plasma confinement, and fluid vortex/channel flow.
 - **Mechanics and controls intuition:** projectile drag, aerodynamics, angular momentum, harmonic oscillators, chaotic pendulums, and hand-tracked interactive labs.
@@ -49,6 +52,9 @@ These are good first demos for a computational physics or simulation reviewer:
 
 | Target | Source | Preview | Why it is relevant |
 | --- | --- | --- | --- |
+| `shallow_water_sandbox_viz_cpp` | `fluids/shallow_water_sandbox_viz.cpp` | Interactive water lab | Conservative shallow-water solver, clickable experiments, free camera translation |
+| `quantum_tunneling_viz_cpp` | `quantum/quantum_tunneling_viz.cpp` | Evolving wavefunction | Crank-Nicolson scattering, phase curves, and probability diagnostics |
+| `damped_forced_oscillator_viz_cpp` | `mechanics/damped_forced_oscillator_viz.cpp` | Resonance experiment | Fixed-step dynamics, response curve, and displacement history |
 | `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Visualizes aerodynamic intuition and force behavior |
 | `hohmann_transfer_viz_cpp` | `orbital_mechanics/hohmann_transfer_viz.cpp` | Add `media/hohmann-transfer.gif` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
 | `launch_window_porkchop_viz_cpp` | `orbital_mechanics/launch_window_porkchop_viz.cpp` | Add `media/launch-window-porkchop.png` | Visualizes departure/arrival trade space for mission planning |
@@ -100,6 +106,10 @@ For normal shell tab completion, generate filesystem-backed launch names once:
 These launch names use ordinary path completion and retain the launcher's automatic rebuild behavior.
 
 Compiled programs stay in `CompPhysics/build-native/`; source folders remain free of generated binaries.
+
+The launcher builds with `-O2` and also rebuilds when shared headers or its own
+build recipe change. Refreshed demos load the bundled, OFL-licensed Inter font;
+no font download is needed at runtime.
 
 ### CMake
 

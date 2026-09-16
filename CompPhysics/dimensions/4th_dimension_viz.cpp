@@ -66,6 +66,7 @@ std::string Hud(float speed4D, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "4D Hypercube Projection 3D - C++ (raylib)");
     SetTargetFPS(60);
 

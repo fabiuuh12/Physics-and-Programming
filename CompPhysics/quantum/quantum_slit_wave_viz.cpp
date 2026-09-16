@@ -59,6 +59,7 @@ std::string Hud(float slitSep, float wavelength, float freq, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Double Slit Quantum Wave 3D - C++ (raylib)");
     SetTargetFPS(60);
 

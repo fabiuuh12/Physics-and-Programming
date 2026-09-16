@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -302,6 +303,7 @@ void DrawContinents() {
 
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Earth Weather Globe - Meteorology Visualization");
     SetWindowMinSize(980, 640);
     SetTargetFPS(120);
@@ -366,11 +368,11 @@ int main() {
         EndMode3D();
 
         DrawRectangle(14, 14, 560, 146, Fade(BLACK, 0.32f));
-        DrawText("Earth Weather Globe", 28, 26, 32, Color{238, 244, 252, 255});
-        DrawText("Synthetic meteorology: pressure waves, temperature bands, jet streams, cyclones, cloud cover.", 28, 62, 18, Color{176, 198, 224, 255});
-        DrawText("Mouse orbit | wheel zoom | 1 temperature | 2 pressure | 3 wind | +/- speed | Space pause | R reset", 28, 90, 18, Color{132, 226, 255, 255});
+        studio::text("Earth Weather Globe", 28, 26, 32, Color{238, 244, 252, 255});
+        studio::text("Synthetic meteorology: pressure waves, temperature bands, jet streams, cyclones, cloud cover.", 28, 62, 18, Color{176, 198, 224, 255});
+        studio::text("Mouse orbit | wheel zoom | 1 temperature | 2 pressure | 3 wind | +/- speed | Space pause | R reset", 28, 90, 18, Color{132, 226, 255, 255});
 
-        DrawText(TextFormat("Temp %s   Pressure %s   Wind %s   Time x%.2f",
+        studio::text(TextFormat("Temp %s   Pressure %s   Wind %s   Time x%.2f",
                             showTemperature ? "on" : "off",
                             showPressure ? "on" : "off",
                             showWind ? "on" : "off",
@@ -378,15 +380,17 @@ int main() {
                  28, 120, 18, Color{230, 238, 246, 255});
 
         DrawRectangle(GetScreenWidth() - 280, 18, 252, 116, Fade(BLACK, 0.28f));
-        DrawText("Layer Readout", GetScreenWidth() - 260, 30, 22, Color{238, 244, 252, 255});
-        DrawText("Blue/red: low/high pressure", GetScreenWidth() - 260, 60, 17, Color{210, 224, 238, 255});
-        DrawText("Cyan lines: jet streams", GetScreenWidth() - 260, 84, 17, Color{160, 232, 255, 255});
-        DrawText("White spirals: storm systems", GetScreenWidth() - 260, 108, 17, Color{238, 244, 252, 255});
+        studio::text("Layer Readout", GetScreenWidth() - 260, 30, 22, Color{238, 244, 252, 255});
+        studio::text("Blue/red: low/high pressure", GetScreenWidth() - 260, 60, 17, Color{210, 224, 238, 255});
+        studio::text("Cyan lines: jet streams", GetScreenWidth() - 260, 84, 17, Color{160, 232, 255, 255});
+        studio::text("White spirals: storm systems", GetScreenWidth() - 260, 108, 17, Color{238, 244, 252, 255});
 
         DrawFPS(GetScreenWidth() - 96, GetScreenHeight() - 34);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

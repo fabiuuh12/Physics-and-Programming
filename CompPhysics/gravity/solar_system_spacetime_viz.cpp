@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
@@ -138,7 +139,8 @@ std::optional<LiveControls> LoadLiveControls() {
 }
 
 void UpdateOrbitCameraDragOnly(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    studio::pan(camera, *yaw, *pitch, *distance);
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0035f;
@@ -254,6 +256,7 @@ std::string Hud(float simTimeYears, float speed, float warpScale, bool paused) {
 }  // namespace
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kScreenWidth, kScreenHeight, "Solar System Spacetime Curvature 3D - C++ (raylib)");
     SetTargetFPS(60);
 
@@ -450,25 +453,27 @@ int main() {
         if (showLabels) {
             for (const Planet& p : planets) {
                 Vector2 s = GetWorldToScreen({p.pos.x, p.pos.y + p.radius + 0.2f, p.pos.z}, camera);
-                DrawText(p.name, static_cast<int>(s.x), static_cast<int>(s.y), 16, Color{220, 230, 245, 230});
+                studio::text(p.name, static_cast<int>(s.x), static_cast<int>(s.y), 16, Color{220, 230, 245, 230});
             }
         }
 
-        DrawText("Solar System with Combined Spacetime Curvature", 20, 18, 30, Color{232, 238, 248, 255});
+        studio::text("Solar System with Combined Spacetime Curvature", 20, 18, 30, Color{232, 238, 248, 255});
         if (showHelp) {
-            DrawText("Hold left mouse: orbit | wheel: zoom | +/- speed | [ ] warp | P pause | R reset | T trails | L labels | H help",
+            studio::text("Hold left mouse: orbit | wheel: zoom / Shift+drag: pan | +/- speed | [ ] warp | P pause | R reset | T trails | L labels | H help",
                      20, 54, 19, Color{164, 183, 210, 255});
         } else {
-            DrawText("Press H to show controls", 20, 54, 19, Color{164, 183, 210, 255});
+            studio::text("Press H to show controls", 20, 54, 19, Color{164, 183, 210, 255});
         }
         std::string hud = Hud(simTimeYears, speed, warpScale, paused);
-        DrawText(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
-        DrawText(bridgeStatus.c_str(), 20, 108, 19, Color{152, 234, 198, 255});
+        studio::text(hud.c_str(), 20, 82, 21, Color{126, 224, 255, 255});
+        studio::text(bridgeStatus.c_str(), 20, 108, 19, Color{152, 234, 198, 255});
         DrawFPS(20, 136);
 
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

@@ -36,6 +36,7 @@ Vector3 DeflectedRay(Vector3 src, Vector3 lensPos, float lensMass, float t) {
 }
 
 int main() {
+    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kW, kH, "Gravitational Lensing Playground 3D - C++ (raylib)");
     SetTargetFPS(60);
 
