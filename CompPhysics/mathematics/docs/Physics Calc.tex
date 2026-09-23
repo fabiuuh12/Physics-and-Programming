@@ -41,8 +41,6 @@
 \newcommand{\kb}{k_{\mathrm B}}
 \newcommand{\eps}{\varepsilon_0}
 \newcommand{\mun}{\mu_0}
-\newcommand{\chapterbridge}[1]{\medskip\noindent\textit{#1}\par\medskip}
-\newcommand{\chapternotation}[1]{\begin{quote}\small\textbf{Reading the symbols.} #1\end{quote}}
 \newcommand{\chaptervisual}[4]{
 \begin{figure}[tb]
 \centering
@@ -65,6 +63,7 @@
 \newtheorem{example}{Worked example}[chapter]
 \newtheorem*{pitfall}{Common pitfall}
 \newtheorem*{connection}{Connection}
+\newcommand{\learningcheck}[1]{\subsection*{Try it yourself}\noindent #1\par}
 \title{Physics Calc\\\large Mathematical Foundations, Classical Theory, and Modern Physics}
 \author{Physics and Programming}
 \date{September 2026}
@@ -104,56 +103,69 @@ Symbols are defined locally because different subjects traditionally reuse the s
 
 Every substantial equation should be read in three passes. First ask what physical relationship the equation states. Next identify what every symbol means, including its units, sign convention, and whether it is fixed or changing. Finally ask what happens when one parameter is increased, set to zero, or taken to a limiting value. The prose will define symbols before or immediately after they appear; a reader should never have to infer the meaning of a symbol from typography alone.
 
+\section*{Where to begin and how to continue}
+You can begin this book knowing only basic algebra, graphs, and the idea of an angle. No calculus or previous physics course is assumed. If a symbol is unfamiliar, read its nearby definition and work through the example before trying to memorize it. The first four chapters use everyday motion to introduce measurement, slopes, areas, arrows, and forces. They are a complete first route through the subject: pause there and practice until you can explain each idea in words and with a sketch.
+
+The next four chapters revisit measurement and build a mathematical toolkit. Measurement, derivatives, and spatial geometry support the classical mechanics chapters that follow. Modes, differential equations, and probability become increasingly useful in later parts of the book. On a first reading, you can leave the sections on tensors, Green functions, and entropy maximization until a later chapter points you back to them. The subject parts then grow from mechanics and waves to heat, electricity, relativity, quantum physics, and applications. The advanced chapters assume the earlier physical ideas even when their mathematics is new.
+
+At the end of a chapter, try its short questions before reading on. If you cannot answer one, revisit the worked example and draw the situation yourself. The review problems near the end of the book combine ideas from several chapters. Each pass is meant to increase what you can explain and predict, rather than simply increase the number of formulas you have seen.
+
 \mainmatter
 \part{First Steps: Physics and Mathematics}
 \chapter{What a physical model is}
 \chaptervisual{the first physical model}{an object, a measurement, and a question}{choose variables, units, and an approximation}{a prediction that can be checked}
-\chapterbridge{This opening chapter establishes the habit that will guide the entire book: begin with a physical question, choose a model, and return to the measurement after the mathematics has done its work. Every later chapter will repeat this loop with more powerful tools.}
-\chapternotation{$x$ denotes a measured position or length, $t$ a time, and a symbol such as $C$ a dimensionless or calibrated constant. A positive direction must be chosen before signs have meaning; a negative result then means the measured quantity points opposite to that choice.}
-Physics begins with a concrete question: how far did something move, how long did it take, or how much energy changed hands? We do not begin by naming every advanced mathematical tool. We begin by deciding what is being measured, what can be ignored for now, and what observation would tell us whether the model worked.
+Physics begins with a concrete question: how far did something move, how long did it take, or how much energy changed hands? We decide what to measure, what can be ignored for now, and what observation would tell us whether a model worked. Then we use mathematics to make a prediction and return to the measurement to test it. Every later chapter repeats this process with more powerful tools.
 
 \section{Quantities, units, and estimates}
 A physical quantity combines a number with a unit. Five meters and five seconds have different meanings even though both begin with the number five. A unit conversion changes the number and the unit together without changing the physical quantity:
 \begin{equation}
 3.0\,\mathrm{m}=300\,\mathrm{cm},\qquad 2.0\,\mathrm{min}=120\,\mathrm{s}.
 \end{equation}
-Before calculating, estimate the answer. A person walks roughly one meter per second, a classroom is a few meters across, and a car travels tens of meters in a second on a highway. Estimates catch missing factors and impossible answers before detailed algebra hides them.
+Before calculating, estimate the answer. A person walks roughly one meter per second, a classroom is a few meters across, and a car travels tens of meters in a second on a highway. Estimates catch missing factors and impossible answers before detailed algebra hides them. We will use $x$ for a measured position and $t$ for time when we study motion.
+
+\begin{example}[A walk across a room]
+Suppose a room is about $6\,\mathrm m$ long and you cross it in about $5\,\mathrm s$. Distance divided by time gives an average speed of $6/5\approx1.2\,\mathrm{m/s}$. The result has units of length per time, which is exactly what speed should have. Walking faster for part of the trip and slower for another part would leave this average unchanged, so the model does not tell us your speed at each moment.
+\end{example}
 
 \section{Graphs and proportional reasoning}
-A graph is a picture of how one quantity changes with another. A straight line through the origin represents direct proportionality, $y=Cx$. Doubling $x$ doubles $y$. A horizontal line means that the plotted quantity remains constant, while a curved line tells us that the rate of change itself is changing.
+A graph is a picture of how one quantity changes with another. A straight line through the origin represents direct proportionality, $y=Cx$, where $C$ is the constant that sets the line's steepness. Doubling $x$ doubles $y$. A horizontal line means that the plotted quantity remains constant, while a curved line tells us that the rate of change itself is changing.
 
 For a pendulum in the small-angle regime, dimensional reasoning suggests $T\propto\sqrt{\ell/g}$. This is not yet a complete derivation, but it already predicts that a longer pendulum swings more slowly and a stronger gravitational field makes it swing faster. Good physics often begins with this kind of reliable partial answer.
 
 \section{A first model and its limits}
-A model is a deliberately simplified description. Treating a thrown ball as a point particle ignores its size and spin; ignoring air resistance removes a force; assuming constant gravity limits the height range. These choices are not mistakes when they are stated and tested. They become mistakes when a result is used outside the regime that supported it.
+A model is a deliberately simplified description. Treating a thrown ball as a point particle ignores its size and spin; ignoring air resistance removes a force; assuming constant gravity limits the height range. These choices are useful when they are stated and tested. A result becomes unreliable when it is used outside the regime that supported it. For motion along a line, choose a positive direction before assigning signs: a negative displacement then means motion opposite to that choice.
 
 At the end of every first calculation, ask four questions: Are the units correct? Is the sign sensible? Does the result behave correctly when a parameter becomes very large or very small? What effect did the model leave out?
 
+\learningcheck{A friend walks $12\,\mathrm m$ in $10\,\mathrm s$. Estimate the average speed and give its units. Then name one reason that this number might not describe the friend's speed at every instant. For a graph $y=Cx$, sketch what happens when $C$ doubles.}
+
 \chapter{Change and accumulation}
 \chaptervisual{change and accumulation}{a position graph and small intervals}{slope for local change and area for accumulation}{velocity, displacement, and average rate}
-\chapterbridge{The previous chapter asked how to turn an observation into a model. Here we add the first mathematical language needed to describe a changing observation. The slope and area introduced here will return as force, flux, probability, and action.}
-\chapternotation{$x(t)$ is position, $v=\dd x/\dd t$ is signed velocity, and $a=\dd v/\dd t$ is acceleration. The variable $t$ is the independent time coordinate; $x(t_0)$ is an initial condition. A derivative describes a local rate, while an integral adds signed contributions over an interval.}
-The first mathematics of motion is the language of change. A derivative describes what is happening now; an integral adds many small contributions into a total. We will use only the one-variable ideas needed to describe ordinary motion before expanding to fields and several coordinates later.
+The previous chapter turned an observation into a model. To describe something that changes, we now need two ideas from graphs: slope tells us how fast a quantity changes, and area helps us add small changes into a total. We will learn these ideas through motion along a line before using them for fields and several coordinates later.
 
 \section{Average and instantaneous change}
-If a cyclist travels a distance $\Delta x$ during a time $\Delta t$, the average velocity is $\Delta x/\Delta t$. To ask for the velocity at one instant, examine smaller and smaller intervals around that instant:
+Let $x(t)$ be a cyclist's position at time $t$. If the position changes by $\Delta x$ during a time $\Delta t$, the average velocity is $\Delta x/\Delta t$. To ask for the signed velocity $v(t)$ at one instant, examine smaller and smaller intervals around that instant:
 \begin{equation}
 v(t)=\lim_{\Delta t\to0}\frac{x(t+\Delta t)-x(t)}{\Delta t}=\od{x}{t}.
 \end{equation}
 On a graph, this is the slope of the tangent line. A steep slope means rapid motion; a negative slope means that the chosen coordinate is decreasing.
 
-Acceleration is the rate at which velocity changes,
+\begin{example}[Reading a slope before taking a limit]
+If a position graph goes from $(t,x)=(0\,\mathrm s,2\,\mathrm m)$ to $(4\,\mathrm s,10\,\mathrm m)$ along a straight line, its slope is $(10-2)/(4-0)=2\,\mathrm{m/s}$. The line has the same slope everywhere, so its instantaneous velocity is also $2\,\mathrm{m/s}$. A curved position graph can have the same average slope between these endpoints but a different slope at each instant.
+\end{example}
+
+Acceleration, written $a(t)$, is the rate at which velocity changes:
 \begin{equation}
 a(t)=\od{v}{t}=\frac{\dd^2x}{\dd t^2}.
 \end{equation}
 The second derivative is not ``distance traveled twice.'' It measures how the velocity changes. A car moving at constant speed around a bend has acceleration because its velocity direction changes even when its speed does not.
 
 \section{Area under a graph}
-If velocity is known, a short time interval contributes approximately $v(t)\dd t$ to the displacement. Adding all those contributions gives
+If velocity is known, a short time interval contributes approximately $v(t)\dd t$ to the displacement. Adding all those signed contributions from an initial time $t_0$ gives
 \begin{equation}
 x(t)-x(t_0)=\int_{t_0}^{t}v(s)\dd s.
 \end{equation}
-The integral is the signed area under the velocity-time graph. Motion in the negative direction contributes negative area, so displacement and total distance are different quantities.
+The integral is the signed area under the velocity-time graph. Motion in the negative direction contributes negative area, so displacement and total distance are different quantities. The starting position $x(t_0)$ tells us where to place the entire motion on the position axis.
 
 \section{The first differential equation}
 An equation such as $\dot x=v$ is a rule for how a quantity changes. It does not determine one unique motion until an initial value is supplied. If $v$ is constant and $x(0)=x_0$, integration gives
@@ -162,20 +174,28 @@ x(t)=x_0+vt.
 \end{equation}
 This is the basic pattern of an initial-value problem: a local rule plus enough starting information determines a particular history.
 
+\learningcheck{A cyclist's position changes from $2\,\mathrm m$ to $14\,\mathrm m$ in $4\,\mathrm s$. Find the average velocity. Sketch a position graph that has this average velocity but is steeper near the end. If $v(t)=-2\,\mathrm{m/s}$ for three seconds, what is the signed displacement?}
+
 \chapter{Vectors and first motion models}
 \chaptervisual{vectors and motion}{a position arrow and coordinate axes}{components, addition, and time derivatives}{a trajectory with direction and speed}
-\chapterbridge{A single number was enough for motion along a line. The moment direction matters, the same ideas must be carried by arrows. We will use these vectors first for motion, then recognize them again in forces, fields, fluids, and spacetime.}
-\chapternotation{$\vect r$ is the position vector, $\vect v$ its time derivative, and $\vect a$ the derivative of velocity. The components $x,y,z$ depend on the chosen axes, while the vector represents the geometric quantity. A dot product measures parallel alignment; a cross product measures perpendicular rotational tendency.}
-Motion is not always one-dimensional. A vector records both size and direction. We will first use vectors geometrically, then differentiate their components to describe motion in a plane or in space.
+Along a straight line, a signed number can tell us where an object is. On a map, we need to say how far east or west and how far north or south. An arrow, called a vector, carries both size and direction. We will use vectors to describe motion in a plane, then meet them again when we study forces, fields, and fluids.
 
 \section{Components and directions}
-In a fixed Cartesian basis, a position is $\vect r=x\hat{\vect i}+y\hat{\vect j}+z\hat{\vect k}$. Addition is performed component by component. The length is
+Choose three perpendicular axes. The position vector $\vect r$ points from the origin to an object. Its components $x$, $y$, and $z$ tell us how far to move along each axis:
+\begin{equation}
+\vect r=x\hat{\vect i}+y\hat{\vect j}+z\hat{\vect k}.
+\end{equation}
+Here $\hat{\vect i}$, $\hat{\vect j}$, and $\hat{\vect k}$ are unit arrows along the axes. We add vectors component by component. The vector stays the same if we rotate the axes, although its components change. Its length is
 \begin{equation}
 |\vect r|=\sqrt{x^2+y^2+z^2},
 \end{equation}
-and the dot product $\vect a\cdot\vect b$ measures how much one vector points along another. A zero dot product means perpendicular directions.
+For two vectors, the dot product $\vect a\cdot\vect b$ measures how much they point along the same direction. It is zero when the vectors are perpendicular.
 
-Velocity and acceleration are vector derivatives:
+\begin{example}[Two steps in different directions]
+Walk $3\,\mathrm m$ east and then $4\,\mathrm m$ north. Your displacement is the arrow $(3,4)\,\mathrm m$. Its length is $\sqrt{3^2+4^2}=5\,\mathrm m$, although you walked a total distance of $7\,\mathrm m$. Distance adds the lengths of the path segments; displacement joins the starting point to the ending point.
+\end{example}
+
+When the position vector changes with time, its rate of change is the velocity vector $\vect v$. The rate of change of velocity is the acceleration vector $\vect a$:
 \begin{equation}
 \vect v=\od{\vect r}{t},\qquad \vect a=\od{\vect v}{t}.
 \end{equation}
@@ -192,18 +212,22 @@ These equations are not universal motion formulas. They apply only while acceler
 \section{A first visual experiment}
 Launch a projectile with a chosen initial speed and angle. Display its position, velocity arrow, and acceleration arrow at the same time. The path curves because the velocity changes; the acceleration arrow remains constant in the ideal model. Then add drag and observe precisely which assumption stops working.
 
+\learningcheck{An object begins with horizontal velocity $3\,\mathrm{m/s}$ and zero vertical velocity. With vertical acceleration $-10\,\mathrm{m/s^2}$, find its velocity components after $2\,\mathrm s$. Sketch the velocity and acceleration arrows. Explain why the horizontal component did not change in this model.}
+
 \chapter{First forces and oscillations}
 \chaptervisual{first forces and oscillations}{a force diagram and a displaced spring}{Newton's law and a linear restoring approximation}{motion, energy exchange, and a period}
-\chapterbridge{We now turn the earlier language of change into a physical law. Newton's equation will become our first example of a local rule that predicts a complete history, and the spring will become a recurring pattern throughout the rest of the book.}
-\chapternotation{$\vect F_{\rm net}$ is the vector sum of forces, $m$ is mass, and $\vect a$ is acceleration. In $F=-kx$, $k>0$ is stiffness and $x$ is displacement from equilibrium; the minus sign means the force points back toward equilibrium. In $x=A\cos(\omega t+\phi)$, $A$ is amplitude, $\omega$ angular frequency, and $\phi$ initial phase.}
-Now connect the first mathematical tools to a physical cause. A force changes momentum. Near a stable equilibrium, many systems behave like a spring, which gives the first important differential equation beyond constant-acceleration motion.
+The earlier chapters described motion. We now ask what changes it. A force changes an object's momentum, and Newton's law connects the total force to its acceleration. A spring will give us a first example of how that local rule predicts an entire motion.
 
 \section{Newton's second law}
-For a constant-mass object,
+Draw every force acting on a constant-mass object and add their arrows to get the net force $\vect F_{\rm net}$. If its mass is $m$ and acceleration is $\vect a$, Newton's second law says
 \begin{equation}
 \vect F_{\rm net}=m\vect a.
 \end{equation}
-Draw the object and the forces before writing components. A force diagram prevents us from quietly inventing a direction or assuming that the normal force must equal the weight.
+The force diagram helps us choose directions before writing components. It also prevents us from assuming, without checking, that the normal force must equal the weight.
+
+\begin{example}[Pushing a cart]
+Push a $2\,\mathrm{kg}$ cart to the right with $8\,\mathrm N$ while friction acts to the left with $2\,\mathrm N$. Choosing right as positive, the net horizontal force is $8-2=6\,\mathrm N$. Newton's law gives $a=6/2=3\,\mathrm{m/s^2}$ to the right. If friction grew to $8\,\mathrm N$, the net force and acceleration would be zero, even though you would still be pushing.
+\end{example}
 
 \section{Work and energy}
 Dot Newton's law with displacement velocity to obtain
@@ -213,26 +237,27 @@ Dot Newton's law with displacement velocity to obtain
 After integration, work changes kinetic energy. If a force comes from a time-independent potential, $E=K+V$ is constant. Energy is useful because it can answer a speed question without solving the entire trajectory.
 
 \section{The spring as a first oscillation}
-For a spring force $F=-kx$, Newton's law becomes
+Measure the displacement $x$ from the spring's relaxed position and choose positive $x$ to point away from it. The spring pulls back with force $F=-kx$, where $k>0$ is its stiffness. The minus sign says the force points toward the relaxed position. Newton's law then becomes
 \begin{equation}
 m\ddot x+kx=0,
 \qquad \omega=\sqrt{k/m},
 \qquad x(t)=A\cos(\omega t+\phi).
 \end{equation}
-The motion repeatedly exchanges kinetic and potential energy. This is the first model that will later reappear as a circuit, a wave mode, a molecular vibration, an electromagnetic mode, and a quantum oscillator.
+The solution says that the displacement repeats: $A$ is the greatest distance from equilibrium, $\omega$ sets the rate of oscillation, and $\phi$ sets where in the cycle the motion begins. Kinetic and potential energy trade places as the spring moves. Later, the same pattern will describe a circuit, a wave mode, and a molecular vibration.
 
 \section{Checkpoint before the deeper pass}
-At this point a reader should be able to interpret a graph's slope, calculate an area, add vectors, draw a force diagram, use Newton's law, and explain why a spring oscillates. The following foundations chapter develops the same tools more deeply, but it is no longer the only route into the subject.
+At this point a reader should be able to interpret a graph's slope, calculate an area, add vectors, draw a force diagram, use Newton's law, and explain why a spring oscillates. The following foundations chapters develop these tools more deeply, but the first four chapters already give a complete introduction to the basic physical argument.
+
+\learningcheck{A $2\,\mathrm{kg}$ cart experiences a net horizontal force of $6\,\mathrm N$. Draw the force direction and find its acceleration. If the cart starts at rest and the force remains constant for $3\,\mathrm s$, find its speed. Then explain in words why the formula for a spring force contains a minus sign.}
 
 \part{Mathematical and Physical Foundations: Second Pass}
 \chapter{Scales, dimensions, and measurement}
 \chaptervisual{scales and measurement}{measured quantities and uncertainties}{units, dimensions, and dimensionless ratios}{a testable estimate with error bars}
-\chapterbridge{The first pass showed how a model grows from an observation. We now slow down and make the checks behind that process systematic: dimensions, scale, approximation, and uncertainty. These habits will let us recognize when the more advanced mathematics later in the book is being used responsibly.}
-\chapternotation{$M,L,T$ denote the base dimensions mass, length, and time; square brackets such as $[v]$ mean “dimensions of.” Dimensionless ratios such as $v/c$ or $\theta$ control approximations. In uncertainty formulas, $\sigma$ is a standard deviation and $C_{ij}$ is a covariance; covariance can be positive or negative because two measured quantities may vary together or in opposition.}
+The first pass showed how a model grows from an observation. We now slow down and make the checks behind that process systematic: dimensions, scale, approximation, and uncertainty. These habits will let us recognize when the more advanced mathematics later in the book is being used responsibly.
 Before we describe how anything moves, let us ask what a physical prediction actually contains. A number alone is rarely enough: we need a unit, an estimate of uncertainty, and a statement of the conditions under which the number means something. These habits will guide every calculation in this book. We begin with dimensions because they let you question an equation even before you know how to solve it.
 
 \section{Physical quantities and dimensional analysis}
-Imagine predicting how long a pendulum takes to swing. You could begin by solving its equation of motion, but you already know something valuable: the answer must have the dimensions of time. Our first task is to use that requirement to narrow the possible answers. Keep the distinction between a dimension and a unit in mind: a distance can be measured in meters or kilometers, while remaining a length in either case.
+Imagine predicting how long a pendulum takes to swing. You could begin by solving its equation of motion, but you already know something valuable: the answer must have the dimensions of time. Our first task is to use that requirement to narrow the possible answers. Keep the distinction between a dimension and a unit in mind: a distance can be measured in meters or kilometers, while remaining a length in either case. $M,L,T$ denote the base dimensions mass, length, and time; square brackets such as $[v]$ mean ``dimensions of.'' Dimensionless ratios such as $v/c$ or $\theta$ control approximations.
 
 A physical quantity is a number times a unit. Its dimension is independent of the chosen unit system. The mechanical base dimensions are mass $M$, length $L$, and time $T$; SI also includes electric current, temperature, amount of substance, and luminous intensity. For example,
 \begin{equation}
@@ -269,7 +294,7 @@ For a pendulum, the relevant expansion is
 The second expression answers a more useful question than simply asking whether $\theta$ is small: it estimates the fractional error in replacing the restoring factor $\sin\theta$ by $\theta$. Angles must be in radians. At $\theta=0.1$, the leading relative correction is about $0.0017$. This estimates the local restoring-force error; the accumulated error in a trajectory or period requires its own analysis.
 
 \section{Uncertainty and data}
-Suppose you repeat a timing measurement and obtain slightly different answers. Averaging helps with independent fluctuations, but it will not repair a clock that runs consistently slow. We therefore separate random variation from systematic error before using statistics. When measured quantities enter a formula, the next question is how sensitively the answer depends on each input.
+Suppose you repeat a timing measurement and obtain slightly different answers. Averaging helps with independent fluctuations, but it will not repair a clock that runs consistently slow. We therefore separate random variation from systematic error before using statistics. When measured quantities enter a formula, the next question is how sensitively the answer depends on each input. In uncertainty formulas, $\sigma$ is a standard deviation and $C_{ij}$ is a covariance; covariance can be positive or negative because two measured quantities may vary together or in opposition.
 
 For $N$ independent observations with finite variance, the sample mean is $\bar x=N^{-1}\sum_i x_i$ and its estimated standard error is $s/\sqrt N$, where
 \begin{equation}
@@ -299,18 +324,19 @@ Square this expression and average. With zero-mean fluctuations, $\avg{\delta x_
 \end{equation}
 The minus sign in $\partial v/\partial t=-d/t^2$ disappears upon squaring. This is why independent fractional errors add in quadrature even when one quantity is in a denominator.
 
-\chapter{Calculus, vectors, and differential equations}
-\chaptervisual{calculus and differential equations}{a changing position or field}{differentiate, integrate, or solve a local equation}{a rate, accumulated quantity, or trajectory}
-\chapterbridge{The derivative and integral from the first pass now acquire companions. Vectors let change happen in space, and differential equations let local laws describe fields as well as particles. We will meet these ideas repeatedly before asking the reader to use their full power.}
-\chapternotation{$f$ is a scalar field, $\vect A$ a vector field, and $\grad$ the spatial derivative operator. Divergence measures local outflow, curl measures local circulation, and $\lap=\grad\cdot\grad$ measures curvature or spreading. In a PDE, $t$ is usually time, while $\vect r$ or $(x,y,z)$ labels position.}
-Calculus becomes much easier to remember when each operation answers a physical question. A derivative asks how something changes locally. An integral asks how many small contributions accumulate. A differential equation states a local rule and asks us to reconstruct the whole motion or field. In this chapter we build that language, including the geometry needed when a system occupies space rather than a single line.
+\learningcheck{A length of $2.0\,\mathrm m$ is measured with an uncertainty of $0.1\,\mathrm m$. What is the fractional uncertainty? A timing device always reads $0.2\,\mathrm s$ too high. Explain why repeating the measurement does not remove that error.}
+
+\chapter{Calculus, vectors, and spatial geometry}
+\chaptervisual{calculus and spatial geometry}{a changing position or field}{differentiate, integrate, and choose coordinates}{a rate, accumulated quantity, or flux}
+The derivative and integral from the first pass now acquire companions. Vectors let change happen in space, while geometry tells us how to measure an area or volume. Read through coordinates on a first pass; the section on tensors prepares for later chapters on stress and spacetime.
+Calculus becomes much easier to remember when each operation answers a physical question. A derivative asks how something changes locally. An integral asks how many small contributions accumulate. Here we build that language for quantities spread through space, including the geometry needed when a system occupies more than a single line.
 
 \section{Derivatives, integrals, and conservation}
 Begin with a position record $x(t)$. Over a finite interval, $\Delta x/\Delta t$ is an average velocity. To define velocity at one instant, shrink the interval while keeping track of the limiting ratio:
 \begin{equation}
 v(t)=\lim_{\Delta t\to0}\frac{x(t+\Delta t)-x(t)}{\Delta t}.
 \end{equation}
-The derivative does not require the particle to move at constant speed. It gives the slope of the position curve precisely when that slope is changing. Once you know the slope at every instant, integration rebuilds the displacement, with one initial position needed to locate the entire trajectory.
+The derivative does not require the particle to move at constant speed. It gives the slope of the position curve precisely when that slope is changing. Once you know the slope at every instant, integration rebuilds the displacement, with one initial position needed to locate the entire trajectory. $f$ is a scalar field, $\vect A$ a vector field, and $\grad$ the spatial derivative operator. Divergence measures local outflow, curl measures local circulation, and $\lap=\grad\cdot\grad$ measures curvature or spreading. A field assigns a value to every point in the region being studied.
 
 The derivative measures local change, while integration accumulates it:
 \begin{equation}
@@ -375,8 +401,13 @@ The inertia tensor, stress tensor, and electromagnetic field tensor are differen
 
 For a symmetric matrix, orthogonal eigenvectors provide principal directions. In a non-orthonormal coordinate basis, the metric $g_{ij}=\vect e_i\cdot\vect e_j$ replaces the identity matrix, lengths become $\norm{\vect v}^2=g_{ij}v^iv^j$, and raising or lowering an index means contracting with $g_{ij}$ or its inverse. These ideas will reappear as spacetime geometry rather than being introduced for the first time in relativity.
 
+\learningcheck{If $f(x,y)=x^2+y^2$, find $\partial f/\partial x$ and describe the direction in which $f$ increases fastest at $(1,0)$. Explain why a spherical volume element needs an $r^2$ factor. The tensor section can wait until you reach stress or relativity.}
+
+\chapter{Patterns, modes, and differential equations}
+\chaptervisual{patterns and equations}{a changing quantity or coupled system}{decompose into modes and solve a local rule}{a trajectory, spectrum, or field}
+The previous chapter described change in space. This one asks how a local rule determines a whole motion or field. Normal modes and complex numbers are useful shortcuts once the physical picture is clear. On a first pass, concentrate on the worked models; return to Green functions when later chapters need them.
 \section{Linear algebra and normal modes}
-When two objects are coupled, moving one generally changes the force on the other. Solving directly for every coordinate can hide a simpler description: some collective patterns keep their shape while their amplitudes oscillate. Finding those patterns is an eigenvector problem.
+When two objects are coupled, moving one generally changes the force on the other. Solving directly for every coordinate can hide a simpler description: some collective patterns keep their shape while their amplitudes oscillate. Finding those patterns is an eigenvector problem. An eigenvector gives a pattern that keeps its shape under a linear operation, and its eigenvalue gives the corresponding scale factor.
 
 An eigenvector obeys $A\vect v=\lambda\vect v$. For real symmetric matrices, eigenvalues are real and an orthonormal eigenbasis exists. Hermitian complex matrices have the analogous property. Diagonalization separates coupled degrees of freedom.
 
@@ -396,7 +427,7 @@ For constant matrices $M$ and $K$, the mechanical equations are $M\ddot{\vect q}
 A nonzero amplitude vector exists only when $\det(K-\omega^2M)=0$. Solve this equation for the allowed squared frequencies, then find the associated amplitude ratios. Finally, superpose the modes to meet the initial conditions. This sequence separates the properties of the system from the particular way you set it moving.
 
 \section{Complex numbers and Fourier analysis}
-A sine changes into a cosine when differentiated; a cosine changes back into a sine with a minus sign. Complex exponentials package that cycle into one operation. We use them because they simplify the work, and take the real part when reconstructing a real displacement or field. Fourier analysis extends the same idea: build a complicated shape from simple oscillating pieces.
+A sine changes into a cosine when differentiated; a cosine changes back into a sine with a minus sign. Complex exponentials package that cycle into one operation. We use them because they simplify the work, and take the real part when reconstructing a real displacement or field. Fourier analysis extends the same idea: build a complicated shape from simple oscillating pieces. A complex exponential records oscillation compactly; the measured displacement or field is real.
 
 Euler's identity $\ee^{\ii\theta}=\cos\theta+\ii\sin\theta$ converts sinusoidal differentiation into multiplication by $\ii\omega$. Physical fields are real parts of complex representations. With the convention
 \begin{equation}
@@ -419,7 +450,7 @@ The Fourier differentiation rule follows from integration by parts. For a suffic
 The boundary term vanishes under the stated assumption. A second derivative consequently becomes $-k^2\widetilde f$. That minus sign will turn a diffusion equation into exponential decay and a wave equation into oscillation. Keeping track of the transform convention makes these signs predictable.
 
 \section{Ordinary and partial differential equations}
-An equation of motion is a rule for generating a solution, not yet a complete solution. The equation $\ddot x=0$, for example, permits every straight line $x=A+Bt$. Position and velocity at one time select the particular line. For a field, we must also specify what happens at the edges of the region. This is why initial data and boundary conditions belong beside the differential equation from the beginning.
+An equation of motion is a rule for generating a solution, not yet a complete solution. The equation $\ddot x=0$, for example, permits every straight line $x=A+Bt$. Position and velocity at one time select the particular line. For a field, we must also specify what happens at the edges of the region. This is why initial data and boundary conditions belong beside the differential equation from the beginning. Initial data select a particular history, while boundary data constrain a field in space.
 
 An $n$th-order ordinary differential equation generally requires $n$ independent initial data. Boundary-value problems can instead select discrete eigenvalues. Three central PDEs are
 \begin{align}
@@ -468,8 +499,13 @@ y(x)=\int_0^L G(x,x')s(x')\dd x'.
 \end{equation}
 The kink in $G$ is not a defect: it is exactly what produces the delta-function source. This pattern generalizes to electrostatics, diffusion, forced oscillators, and quantum propagators.
 
+\learningcheck{A string is fixed at both ends. Sketch its lowest standing-wave pattern and explain why a pattern with a nonzero end displacement is not allowed. For an equation that describes changing motion, state what additional information selects one particular history.}
+
+\chapter{Probability as a model of uncertainty}
+\chaptervisual{probability and uncertainty}{many possible outcomes}{count, average, and track correlations}{predicted frequencies and uncertainty}
+Even a perfect equation for one idealized event cannot remove uncertainty from measurements or from a system with many possible microscopic arrangements. This chapter introduces probability as a tool for making testable predictions from those possibilities. It will return in thermal and quantum physics.
 \section{Probability and distributions}
-A density is probability per unit of its variable, rather than the probability of one exact value. For a continuous position, the probability of an interval of width $\dd x$ is $p(x)\dd x$. This distinction is the reason normalization requires an integral and the reason a probability density can carry units.
+A density is probability per unit of its variable, rather than the probability of one exact value. For a continuous position, the probability of an interval of width $\dd x$ is $p(x)\dd x$. This distinction is the reason normalization requires an integral and the reason a probability density can carry units. $p_i$ is the probability of outcome $i$, with $p_i\geq0$ and $\sum_i p_i=1$. An average is a probability-weighted sum.
 
 A probability density satisfies $p(x)\geq0$ and $\int p(x)\dd x=1$. Expectations and variances are
 \begin{equation}
@@ -489,7 +525,7 @@ For random variables $X_i$, the covariance matrix is
 \begin{equation}
 C_{ij}=\avg{(X_i-\avg{X_i})(X_j-\avg{X_j})}.
 \end{equation}
-It is positive semidefinite, and its diagonal entries are variances. Under a linear transformation $\vect Y=A\vect X$, the covariance transforms as $C_Y=AC_XA^{\mathsf T}$. This is the probabilistic version of a tensor transformation and explains why correlated measurement errors cannot be combined by adding variances independently.
+It is positive semidefinite, and its diagonal entries are variances. Under a linear transformation $\vect Y=A\vect X$, the covariance transforms as $C_Y=AC_XA^{\mathsf T}$. This is the probabilistic version of a tensor transformation and explains why correlated measurement errors cannot be combined by adding variances independently. Variance measures spread; covariance measures how two quantities vary together. Entropy summarizes how probabilities are distributed among outcomes.
 
 The least-biased distribution subject to known constraints can be found by maximizing Shannon entropy. For discrete probabilities, maximize
 \begin{equation}
@@ -502,11 +538,12 @@ p_i=\frac{\ee^{-\beta E_i}}{Z},\qquad Z=\sum_i\ee^{-\beta E_i}.
 \end{equation}
 Thus the canonical distribution is not an arbitrary rule: it is the maximum-entropy distribution at fixed mean energy. The same calculation with additional constraints produces chemical potentials and other generalized ensembles.
 
+\learningcheck{For two outcomes with probabilities $1/4$ and $3/4$, check that the probabilities add to one and find the mean of values $0$ and $4$. Explain in words why repeated independent random steps spread out even when the average step is zero.}
+
 \part{Classical Mechanics}
 \chapter{Newtonian motion and conservation laws}
 \chaptervisual{Newtonian motion}{forces, positions, and velocities}{Newton's law and a time integral}{trajectory, momentum, and energy}
-\chapterbridge{The spring in the first pass gave us a force law simple enough to solve by inspection. We now widen the question: how do momentum, work, and energy organize motion when the force is not so simple? The answers will prepare us for the more flexible languages of Lagrange and Hamilton.}
-\chapternotation{$\vect p=m\vect v$ is momentum, $\vect J=\int\vect F\,\dd t$ is impulse, $K=mv^2/2$ is kinetic energy, and $V$ is potential energy. The signs of work and impulse follow the chosen direction. For a collision, $m_1,m_2$ are the two masses, $v_1,v_2$ their initial velocities, and $\mu=m_1m_2/(m_1+m_2)$ the reduced mass.}
+The spring in the first pass gave us a force law simple enough to solve by inspection. We now widen the question: how do momentum, work, and energy organize motion when the force is not so simple? The answers will prepare us for the more flexible languages of Lagrange and Hamilton.
 We now put the mathematical language to work. The central problem of mechanics is to predict a trajectory from forces and initial conditions. Sometimes the most direct route is to integrate Newton's law. Sometimes energy or momentum lets us bypass most of that integration. Learning mechanics means learning to recognize which question each method answers most efficiently.
 
 \section{Kinematics and Newton's laws}
@@ -555,7 +592,7 @@ Multiplying Newton's law by $\vect v$ therefore produces $\dot K=\vect F\cdot\ve
 For a vertical fall through height $h$, this becomes $\tfrac12m(v_f^2-v_i^2)=mgh$. The mass cancels, giving $v_f^2=v_i^2+2gh$. Notice what this method does and does not determine: it gives speed directly, but a direction of motion or travel time may require additional information.
 
 \section{Momentum, impulses, and collisions}
-During a collision, forces can be large, brief, and difficult to measure. Their detailed time dependence is often unnecessary. Choose a system containing both colliding bodies and compare its total momentum just before and just after impact. Internal forces then cancel in pairs; only the external impulse can change the total.
+During a collision, forces can be large, brief, and difficult to measure. Their detailed time dependence is often unnecessary. Choose a system containing both colliding bodies and compare its total momentum just before and just after impact. Internal forces then cancel in pairs; only the external impulse can change the total. $\vect p=m\vect v$ is momentum, $\vect J=\int\vect F\,\dd t$ is impulse, $K=mv^2/2$ is kinetic energy, and $V$ is potential energy. The signs of work and impulse follow the chosen direction. For a collision, $m_1,m_2$ are the two masses, $v_1,v_2$ their initial velocities, and $\mu=m_1m_2/(m_1+m_2)$ the reduced mass.
 
 For particles of total mass $M$, the center of mass is $\vect R=M^{-1}\sum_i m_i\vect r_i$. Internal pair forces cancel, giving $M\ddot{\vect R}=\vect F_{\rm ext}$. Impulse is $\vect J=\int\vect F\dd t=\Delta\vect p$.
 
@@ -622,14 +659,15 @@ v_f-v_i&=-u\int_{m_i}^{m_f}\frac{\dd m}{m}
 \end{align}
 The exhaust term is essential because the rocket alone is an open system. The logarithm follows from the changing mass that must be accelerated at each stage.
 
+\learningcheck{A moving object receives a short impulse opposite its velocity. Explain what happens to its momentum. State one condition under which its mechanical energy is conserved.}
+
 \chapter{Lagrangian and Hamiltonian mechanics}
 \chaptervisual{analytical mechanics}{nearby trial paths}{stationary action and a Legendre transform}{equations of motion and phase-space flow}
-\chapterbridge{Newton's laws taught us to follow forces component by component. That method remains valuable, but constraints and changing coordinates can make it cumbersome. The action reformulates the same mechanics as a statement about paths; Hamiltonian mechanics will then reorganize those paths into a phase-space flow.}
-\chapternotation{$q_i$ are generalized coordinates, $\dot q_i$ their time rates, and $L=T-V$ the Lagrangian. The action $S=\int L\,\dd t$ is a number assigned to an entire path. In constrained problems, $\lambda$ is a multiplier whose value becomes the generalized constraint force. Later, $p_i=\partial L/\partial\dot q_i$ is canonical momentum and $H$ is the Hamiltonian, not automatically identical to kinetic plus potential energy in every theory.}
+Newton's laws taught us to follow forces component by component. That method remains valuable, but constraints and changing coordinates can make it cumbersome. The action reformulates the same mechanics as a statement about paths; Hamiltonian mechanics will then reorganize those paths into a phase-space flow.
 Newton's laws remain valid, but constrained systems can make their component form cumbersome. A pendulum moves along a circle; an angle describes that motion more naturally than two coordinates and an unknown tension. Analytical mechanics lets us choose such coordinates first and obtain their equations systematically. It also reveals why symmetries and conservation laws appear together.
 
 \section{Generalized coordinates and stationary action}
-Imagine comparing the actual motion with nearby trial paths that begin and end at the same configurations. The action assigns a number to each path. The physical path makes the first-order change in this number vanish. This is a variational principle: its input is an entire path, and its output is a differential equation along that path.
+Imagine comparing the actual motion with nearby trial paths that begin and end at the same configurations. The action assigns a number to each path. The physical path makes the first-order change in this number vanish. This is a variational principle: its input is an entire path, and its output is a differential equation along that path. $q_i$ are generalized coordinates, $\dot q_i$ their time rates, and $L=T-V$ the Lagrangian. The action $S=\int L\,\dd t$ is a number assigned to an entire path.
 
 Coordinates $q_i$ describe independent degrees of freedom after holonomic constraints have been imposed. For standard conservative systems, $L=T-V$. The action is
 \begin{equation}
@@ -674,7 +712,7 @@ Variation with respect to $\lambda$ returns the constraint. Variation with respe
 \begin{equation}
 \od{}{t}\pd{L}{\dot q_i}-\pd{L}{q_i}=\lambda\pd{f}{q_i}.
 \end{equation}
-The multiplier is the generalized constraint force required to keep the path on the allowed surface. It should be solved from the constraint and the equations of motion, rather than discarded as an algebraic nuisance.
+The multiplier is the generalized constraint force required to keep the path on the allowed surface. It should be solved from the constraint and the equations of motion, rather than discarded as an algebraic nuisance. In constrained problems, $\lambda$ is a multiplier whose value becomes the generalized constraint force.
 
 The same idea handles constrained equilibrium. To maximize entropy subject to normalization and fixed mean energy, add multipliers to the objective; to minimize a potential subject to a geometric condition, add a multiplier to the potential. In each case the multiplier measures the response of the optimum to a small change in the imposed constraint. This common structure links mechanics, thermodynamics, and optimization.
 
@@ -694,7 +732,7 @@ The energy statement can be checked directly. Write $p_i=\partial L/\partial\dot
 The Euler--Lagrange equations remove the bracketed terms. Thus absence of explicit time dependence makes $E_L$ constant, even though $L$ usually changes along the motion through $q(t)$ and $\dot q(t)$. Distinguishing explicit dependence from dependence through the trajectory is the key to using this result correctly.
 
 \section{Hamiltonian dynamics and phase space}
-The Lagrangian describes a state using coordinates and velocities. Hamiltonian mechanics replaces velocities by momenta. This is useful because position and momentum form natural pairs, each with its own first-order evolution equation. Instead of following a curve through configuration space, we follow a flow through phase space.
+The Lagrangian describes a state using coordinates and velocities. Hamiltonian mechanics replaces velocities by momenta. This is useful because position and momentum form natural pairs, each with its own first-order evolution equation. Instead of following a curve through configuration space, we follow a flow through phase space. Later, $p_i=\partial L/\partial\dot q_i$ is canonical momentum and $H$ is the Hamiltonian, not automatically identical to kinetic plus potential energy in every theory.
 
 When velocities can be expressed in terms of momenta, define
 \begin{equation}
@@ -737,14 +775,15 @@ The first term is kinetic energy per length; the second is the increase of elast
 \end{equation}
 This is our first example of a wave equation arising from an action. Each point supplies inertia, while spatial bending supplies a restoring force.
 
+\learningcheck{For a simple pendulum, identify the coordinate that describes its motion and the two energies in its Lagrangian. Why must the endpoints of the trial paths be fixed when deriving its equation?}
+
 \chapter{Gravitation, orbits, and rigid bodies}
 \chaptervisual{gravity and rigid bodies}{mass distributions and initial velocities}{inverse-square force and inertia tensor}{orbits, rotation, and conserved angular momentum}
-\chapterbridge{The conserved quantities from Newtonian and analytical mechanics now meet geometry. Orbits use energy and angular momentum to reduce a two-body problem, while rigid bodies show why a single rotational coordinate is sometimes not enough. These are the first places where the shape of a system becomes part of its dynamics.}
-\chapternotation{$G$ is Newton's gravitational constant, $M$ and $m$ are source and test masses, and $r$ is separation. In the two-body reduction, $\mu$ is reduced mass, $\ell$ angular-momentum magnitude, $E$ total mechanical energy, and $e$ orbital eccentricity. In rotation, $I_{ij}$ is the inertia tensor, $\vect\omega$ angular velocity, and $\vect L$ angular momentum; tensor components depend on axes, while the physical rotation does not.}
+The conserved quantities from Newtonian and analytical mechanics now meet geometry. Orbits use energy and angular momentum to reduce a two-body problem, while rigid bodies show why a single rotational coordinate is sometimes not enough. These are the first places where the shape of a system becomes part of its dynamics.
 Gravity and rotation bring the conservation laws together. An orbit is a continuously falling trajectory, shaped by both attraction and angular momentum. A rotating body is a collection of moving pieces whose geometry matters as much as its total mass. We will simplify both problems by identifying what is conserved and choosing coordinates that expose it.
 
 \section{Newtonian gravity and potentials}
-Begin with the direction of the force: gravity pulls a test mass toward the source. The potential packages the work needed to move against that attraction. Choosing zero potential at infinity is convenient for an isolated mass, because it makes the energy needed to escape especially easy to interpret.
+Begin with the direction of the force: gravity pulls a test mass toward the source. The potential packages the work needed to move against that attraction. Choosing zero potential at infinity is convenient for an isolated mass, because it makes the energy needed to escape especially easy to interpret. $G$ is Newton's gravitational constant, $M$ and $m$ are source and test masses, and $r$ is separation.
 
 Two point masses attract with $\vect F=-GMm\hat{\vect r}/r^2$, and $V=-GMm/r$ with zero at infinity. For a continuous density,
 \begin{equation}
@@ -760,7 +799,7 @@ V(r)-V(\infty)=\int_\infty^r\frac{GMm}{s^2}\dd s=-\frac{GMm}{r}.
 Define $\Phi=V/m$ to describe the source independently of the test mass. A small source element $\dd M=\rho(\vect r')\dd^3r'$ contributes $-G\dd M/|\vect r-\vect r'|$; adding these contributions produces the potential integral. Potential is a scalar, so this sum is often easier than summing force vectors directly.
 
 \section{The two-body problem and effective potential}
-The two masses both move, but their separation is what determines their mutual force. Separate out the center of mass and describe the relative motion in its orbital plane using $r$ and $\phi$. Conservation of angular momentum then lets us remove $\dot\phi$ from the energy, reducing the radial problem to motion in an effective one-dimensional potential.
+The two masses both move, but their separation is what determines their mutual force. Separate out the center of mass and describe the relative motion in its orbital plane using $r$ and $\phi$. Conservation of angular momentum then lets us remove $\dot\phi$ from the energy, reducing the radial problem to motion in an effective one-dimensional potential. In the two-body reduction, $\mu$ is reduced mass, $\ell$ angular-momentum magnitude, $E$ total mechanical energy, and $e$ orbital eccentricity.
 
 Separate center-of-mass motion from relative motion. The relative particle has reduced mass $\mu$ and potential $-Gm_1m_2/r$. With angular momentum magnitude $\ell$,
 \begin{equation}
@@ -800,7 +839,7 @@ E=\frac{\ell^2}{2\mu}(u'^2+u^2)-\kappa u
 explains the relation between energy and eccentricity. Negative energy means $e<1$, a bound ellipse. For a circular satellite orbit, equating $mv^2/r$ to $GMm/r^2$ gives $v_c$; setting total energy to zero gives $v_{\rm esc}$. These two speeds answer different physical questions.
 
 \section{Rigid-body rotation}
-Two objects with equal mass can resist angular acceleration differently because their mass is distributed differently around the axis. Begin with each piece's speed, add its kinetic energy, and let the coefficient of $\omega^2/2$ define the moment of inertia. In three dimensions the axis itself can change, which is why a tensor replaces a single number.
+Two objects with equal mass can resist angular acceleration differently because their mass is distributed differently around the axis. Begin with each piece's speed, add its kinetic energy, and let the coefficient of $\omega^2/2$ define the moment of inertia. In three dimensions the axis itself can change, which is why a tensor replaces a single number. In rotation, $I_{ij}$ is the inertia tensor, $\vect\omega$ angular velocity, and $\vect L$ angular momentum; tensor components depend on axes, while the physical rotation does not.
 
 The inertia tensor about an origin is
 \begin{equation}
@@ -851,14 +890,15 @@ Apply this rule first to position and then to velocity. The result is
 \end{equation}
 Insert this into $m\vect a=\vect F$ and move every frame term to the force side. That produces the fictitious forces above, including their signs. The factor two in the Coriolis term comes from two differentiations involving the rotating basis.
 
+\learningcheck{If an orbiting body moves farther from the central mass, how do the gravitational force magnitude and potential energy change? Explain which conserved quantity helps reduce the two-body problem.}
+
 \chapter{Oscillations, coupled systems, and chaos}
 \chaptervisual{oscillations and chaos}{displacement from equilibrium}{linearization, eigenmodes, and nonlinear iteration}{frequency spectra, beats, and trajectory separation}
-\chapterbridge{The spring has appeared as a first model, an energy system, and a rotating body's local approximation. We now ask how the pattern changes when several oscillators interact or when the restoring law is nonlinear. The normal-mode idea introduced here will later reappear in waves, molecules, circuits, fields, and quantum theory.}
-\chapternotation{$\omega_0$ is the undamped natural angular frequency, $\beta$ the damping rate, $F_0$ the drive amplitude, and $\omega$ the drive frequency. In coupled systems, $x_1,x_2$ are displacements and $q_+,q_-$ are collective coordinates. An eigenvector gives a mode shape; its eigenvalue gives the associated squared frequency.}
+The spring has appeared as a first model, an energy system, and a rotating body's local approximation. We now ask how the pattern changes when several oscillators interact or when the restoring law is nonlinear. The normal-mode idea introduced here will later reappear in waves, molecules, circuits, fields, and quantum theory.
 Oscillations recur throughout physics because a smooth potential looks approximately quadratic near a stable minimum. This makes the spring much more than one mechanical example: it is a model for small departures from equilibrium. We will first solve that model, then ask what changes when energy leaks away, a driver supplies energy, or nonlinearity becomes too large to ignore.
 
 \section{Simple and damped oscillators}
-Locate the equilibrium before solving the motion. At $x_0$, the force vanishes, so $V'(x_0)=0$. Taylor expansion leaves $V''(x_0)(x-x_0)^2/2$ as the leading changing part of the potential. A positive curvature makes the force point back toward equilibrium, which is the physical origin of harmonic motion. In the equations below, $x$ denotes displacement from that equilibrium.
+Locate the equilibrium before solving the motion. At $x_0$, the force vanishes, so $V'(x_0)=0$. Taylor expansion leaves $V''(x_0)(x-x_0)^2/2$ as the leading changing part of the potential. A positive curvature makes the force point back toward equilibrium, which is the physical origin of harmonic motion. In the equations below, $x$ denotes displacement from that equilibrium. $\omega_0$ is the undamped natural angular frequency, $\beta$ the damping rate, $F_0$ the drive amplitude, and $\omega$ the drive frequency.
 
 Near a smooth stable equilibrium, $V(x)\simeq V(x_0)+\tfrac12k(x-x_0)^2$. Thus
 \begin{equation}
@@ -893,7 +933,7 @@ For a steady sinusoidal drive, try $x=\operatorname{Re}(X\ee^{\ii\omega t})$. Su
 The magnitude of $X$ is the displacement amplitude, while its argument is the phase relative to the drive. Taking the magnitude and angle of this one complex fraction gives both formulas above. The full solution also contains a transient determined by initial conditions; damping removes that transient at late times.
 
 \section{Coupled modes and beats}
-Watch what the coupling spring does in two special motions. If the masses move together by the same amount, its length does not change. If they move in opposite directions, it stretches twice as much as either displacement. These observations suggest adding and subtracting the equations before attempting a general solution.
+Watch what the coupling spring does in two special motions. If the masses move together by the same amount, its length does not change. If they move in opposite directions, it stretches twice as much as either displacement. These observations suggest adding and subtracting the equations before attempting a general solution. In coupled systems, $x_1,x_2$ are displacements and $q_+,q_-$ are collective coordinates. An eigenvector gives a mode shape; its eigenvalue gives the associated squared frequency.
 
 Two equal masses attached to fixed walls by springs $k$ and coupled by a spring $\kappa$ obey
 \begin{equation}
@@ -927,15 +967,16 @@ A useful starting point for stability is to write a nearby trajectory as $\theta
 \end{equation}
 The coefficient now changes along the reference trajectory. This equation explains how two solutions obeying the same deterministic law can separate. Chaos is not implied merely by nonlinearity; it requires analyzing the actual dynamics, parameters, and long-time perturbation growth.
 
+\learningcheck{Two identical oscillators are coupled by a spring. Sketch an in-phase and an out-of-phase motion. Explain why their frequencies can differ.}
+
 \part{Continuum Physics, Waves, and Optics}
 \chapter{Elasticity, fluids, and transport}
 \chaptervisual{continuum physics}{a small cell with density and flux}{local balance, constitutive law, and divergence}{flow, deformation, and transport across boundaries}
-\chapterbridge{Until now, the objects were a few particles or coordinates. We now let the number of degrees of freedom become enormous and replace the list with fields. The same conservation logic survives: what changes inside a region must be explained by what crosses its boundary or is created within it.}
-\chapternotation{$\rho$ is mass density, $\vect v$ fluid velocity, $p$ pressure, and $\eta$ dynamic viscosity. In elasticity, $\epsilon_{ij}$ is strain and $\sigma_{ij}$ stress; repeated indices are summed. The symbol $\lambda$ in the elastic law is a Lam\'e constant and should not be confused with wavelength elsewhere.}
+Until now, the objects were a few particles or coordinates. We now let the number of degrees of freedom become enormous and replace the list with fields. The same conservation logic survives: what changes inside a region must be explained by what crosses its boundary or is created within it.
 When tracking every atom is unnecessary, we describe matter using fields such as density, velocity, and temperature. The guiding method is to balance what enters and leaves a small region, then relate the fluxes and forces to local fields. Conservation laws supply the bookkeeping; material properties supply the response.
 
 \section{Stress and strain}
-Move every point in a solid by the same amount and you have translated it without deforming it. Deformation must therefore depend on spatial differences in displacement. Even those differences can describe a rigid rotation, so we separate the symmetric part, which changes shape, from the antisymmetric part, which describes local rotation.
+Move every point in a solid by the same amount and you have translated it without deforming it. Deformation must therefore depend on spatial differences in displacement. Even those differences can describe a rigid rotation, so we separate the symmetric part, which changes shape, from the antisymmetric part, which describes local rotation. In elasticity, $\epsilon_{ij}$ is strain and $\sigma_{ij}$ stress; repeated indices are summed. The symbol $\lambda$ in the elastic law is a Lam\'e constant and should not be confused with wavelength elsewhere.
 
 For a small displacement field $\vect u$, the infinitesimal strain tensor is
 \begin{equation}
@@ -977,7 +1018,7 @@ Integrate only after deciding whether $\rho$ can be treated as constant. To unde
 For a spherical droplet, a small increase $\dd R$ requires pressure work $\Delta p\,\dd V$ and increases surface energy by $\gamma\dd A$. Since $\dd V=4\pi R^2\dd R$ and $\dd A=8\pi R\dd R$, equality gives $\Delta p=2\gamma/R$. Geometry explains the inverse-radius dependence.
 
 \section{Mass and momentum conservation}
-There are two ways to watch a fluid: remain at one location and observe what passes, or ride with a fluid element. The first gives partial time derivatives; the second gives the material derivative. We need both viewpoints because conservation is easy to state for a fixed volume, while Newton's law follows moving material.
+There are two ways to watch a fluid: remain at one location and observe what passes, or ride with a fluid element. The first gives partial time derivatives; the second gives the material derivative. We need both viewpoints because conservation is easy to state for a fixed volume, while Newton's law follows moving material. $\rho$ is mass density, $\vect v$ fluid velocity, $p$ pressure, and $\eta$ dynamic viscosity.
 
 A material derivative follows a fluid element:
 $D/Dt=\partial_t+\vect v\cdot\grad$. Mass conservation is
@@ -1051,14 +1092,15 @@ Combine $\partial_tn+\grad\cdot\vect j=0$ with $\vect j=-D\grad n$:
 \end{equation}
 for spatially constant $D$. The minus sign in the flux law makes peaks flatten rather than sharpen. In one dimension, an independent random walk of step length $a$ every $\Delta t$ has $\avg{x^2}=Na^2=(a^2/\Delta t)t$. Comparing with $2Dt$ identifies $D=a^2/(2\Delta t)$. The continuum coefficient thus measures the cumulative effect of microscopic steps, while the diffusion equation describes their smooth large-scale distribution.
 
+\learningcheck{Draw a small box within a flowing fluid. Label the mass entering and leaving it. What extra information is needed beyond mass conservation to predict the flow?}
+
 \chapter{Waves, sound, and interference}
 \chaptervisual{waves and interference}{a disturbed string or pressure field}{wave equation and Fourier decomposition}{propagation, reflection, and interference fringes}
-\chapterbridge{The continuum description gave us fields that change from place to place. A wave is what happens when a local change communicates with neighboring regions. The oscillator language returns, spread across space; later, the same mathematics will describe light, quantum amplitudes, and numerical grids.}
-\chapternotation{$y(x,t)$ is displacement, $\mu$ is linear mass density, $\mathcal T$ tension, $k$ wave number, $\omega$ angular frequency, and $v=\omega/k$ phase speed. In sound, $\rho_0$ is background density and $v_s$ sound speed. A positive $k$ and $\omega$ define the direction of the phase $kx-\omega t$; reversing that sign reverses propagation.}
+The continuum description gave us fields that change from place to place. A wave is what happens when a local change communicates with neighboring regions. The oscillator language returns, spread across space; later, the same mathematics will describe light, quantum amplitudes, and numerical grids.
 A wave lets a disturbance travel without requiring the material to travel with it. Each part of the medium responds locally and influences its neighbors. We will derive the wave equation from that interaction, then use boundary conditions and superposition to explain standing waves, packets, and interference.
 
 \section{From a string to a wave equation}
-Take a short string segment of length $\Delta x$. Its mass is $\mu\Delta x$. At small slope, the vertical component of tension is approximately $\mathcal T\partial_xy$. The two endpoints generally have different slopes, so their vertical forces do not cancel. That slope difference is the source of transverse acceleration.
+Take a short string segment of length $\Delta x$. Its mass is $\mu\Delta x$. At small slope, the vertical component of tension is approximately $\mathcal T\partial_xy$. The two endpoints generally have different slopes, so their vertical forces do not cancel. That slope difference is the source of transverse acceleration. $y(x,t)$ is displacement, $\mu$ is linear mass density, $\mathcal T$ tension, $k$ wave number, $\omega$ angular frequency, and $v=\omega/k$ phase speed.
 
 For small transverse displacement $y(x,t)$ of a string with constant tension $\mathcal T$ and linear mass density $\mu$, transverse force balance on a short segment yields
 \begin{equation}
@@ -1090,7 +1132,7 @@ The instantaneous power passing to the right is $P=-\mathcal T(\partial_xy)(\par
 For fixed endpoints, a separated spatial mode is $X=C\sin kx+D\cos kx$. The condition $X(0)=0$ sets $D=0$; $X(L)=0$ then requires $\sin kL=0$. Nontrivial modes therefore have $kL=n\pi$. Discrete frequencies come from the boundaries, even though a freely traveling wave could have any wavelength.
 
 \section{Dispersion and wave packets}
-A single infinite sinusoid has no identifiable beginning or localized center. To describe a pulse, combine nearby wave numbers. Their phases remain close in some regions and cancel in others, creating an envelope. The speed of that envelope need not equal the speed of the individual crests inside it.
+A single infinite sinusoid has no identifiable beginning or localized center. To describe a pulse, combine nearby wave numbers. Their phases remain close in some regions and cancel in others, creating an envelope. The speed of that envelope need not equal the speed of the individual crests inside it. A positive $k$ and $\omega$ define the direction of the phase $kx-\omega t$; reversing that sign reverses propagation.
 
 A dispersion relation specifies $\omega(k)$. Phase and group speeds are
 \begin{equation}
@@ -1106,7 +1148,7 @@ Add two equal-amplitude waves with nearby frequencies and wave numbers. The trig
 The slowly varying first factor moves at $\Delta\omega/\Delta k$. Taking a narrow-band limit gives $v_g=\dd\omega/\dd k$, while the rapid carrier moves at $\bar\omega/\bar k$. If all wave numbers have $\omega=vk$, both speeds equal $v$ and an arbitrary packet can retain its shape in the ideal model.
 
 \section{Sound and the Doppler effect}
-Sound is a sequence of small compressions and rarefactions. A compression raises the pressure, pressure gradients accelerate the fluid, and the resulting motion changes the density. The relevant stiffness is how much the pressure changes when a fluid element is compressed under the conditions of the wave.
+Sound is a sequence of small compressions and rarefactions. A compression raises the pressure, pressure gradients accelerate the fluid, and the resulting motion changes the density. The relevant stiffness is how much the pressure changes when a fluid element is compressed under the conditions of the wave. In sound, $\rho_0$ is background density and $v_s$ sound speed.
 
 Linear pressure disturbances in a fluid travel at
 \begin{equation}
@@ -1140,14 +1182,15 @@ With real nonnegative $A_1,A_2$ and a common intensity normalization,
 \end{equation}
 For equal individual intensities $I_0$, constructive interference gives $4I_0$ and destructive interference gives zero. Energy is redistributed across the interference pattern rather than created at the bright fringes. If the phase wanders, the measured cross term contains $\avg{\cos\delta}$; a uniformly wandering phase makes that average vanish.
 
+\learningcheck{A string is made twice as long while its wave speed stays fixed. What happens to its lowest standing-wave frequency? Sketch the nodes of that mode.}
+
 \chapter{Geometrical and physical optics}
 \chaptervisual{optics}{rays, apertures, and phase fronts}{refraction, path difference, and Fourier transform}{images, diffraction, and polarization}
-\chapterbridge{Waves have shown us why phase matters. Optics gives us a useful change of scale: when wavelength is small, the wave description becomes a ray picture; when apertures become comparable to wavelength, the full interference structure returns. This will be our first sustained example of one theory yielding different approximations.}
-\chapternotation{$n$ is refractive index, $\theta$ an angle measured from the normal, $f$ focal length, and $s,s'$ object and image distances. In diffraction, $\lambda$ is wavelength, $a$ slit width, and $d$ slit separation. The sign of an image distance records whether the image is real or virtual; it is not an arbitrary algebraic sign.}
+Waves have shown us why phase matters. Optics gives us a useful change of scale: when wavelength is small, the wave description becomes a ray picture; when apertures become comparable to wavelength, the full interference structure returns. This will be our first sustained example of one theory yielding different approximations.
 Optics offers two complementary descriptions. Rays are useful when wavelength is small compared with the features that shape the light. Wave amplitudes are necessary when phase differences, apertures, or polarization matter. We will connect these descriptions by asking which information each approximation retains.
 
 \section{Rays, refraction, and imaging}
-A ray between two points does not generally choose the shortest geometric distance when it crosses different media. Its travel time depends on the refractive index along the route. Let the crossing point move slightly along the interface and require the first-order change in travel time to vanish.
+A ray between two points does not generally choose the shortest geometric distance when it crosses different media. Its travel time depends on the refractive index along the route. Let the crossing point move slightly along the interface and require the first-order change in travel time to vanish. $n$ is refractive index, $\theta$ an angle measured from the normal, $f$ focal length, and $s,s'$ object and image distances. The sign of an image distance records whether the image is real or virtual; it is not an arbitrary algebraic sign.
 
 In the short-wavelength limit, Fermat's principle makes optical travel time stationary. Reflection has equal incidence and reflection angles; refraction obeys
 \begin{equation}n_1\sin\theta_1=n_2\sin\theta_2.\end{equation}
@@ -1171,7 +1214,7 @@ n_1\frac{x}{\sqrt{x^2+h_1^2}}
 The ratios are the sines of the angles to the normal, giving Snell's law. For imaging, the paraxial thin-lens construction uses a central undeviated ray and a ray initially parallel to the axis. Similar triangles give $y'/y=-s'/s$ and $y'=y(1-s'/f)$. Equating these expressions yields $1/f=1/s+1/s'$. The minus sign in magnification records an inverted image.
 
 \section{Diffraction as Fourier analysis}
-To understand a slit, add the amplitudes from every illuminated point across its width. At a distant observation angle, contributions from different points travel slightly different distances. Those path differences become phase differences. The diffraction pattern is the result of that continuous interference.
+To understand a slit, add the amplitudes from every illuminated point across its width. At a distant observation angle, contributions from different points travel slightly different distances. Those path differences become phase differences. The diffraction pattern is the result of that continuous interference. In diffraction, $\lambda$ is wavelength, $a$ slit width, and $d$ slit separation.
 
 In Fraunhofer diffraction, the far-field complex amplitude is proportional to the Fourier transform of the aperture field. For a uniformly illuminated slit of width $a$,
 \begin{equation}
@@ -1219,15 +1262,16 @@ R_1R_2\ee^{2(g-\alpha)L}.
 \end{equation}
 Threshold sets this factor to one, giving $g_{\rm th}=\alpha+(2L)^{-1}\ln[1/(R_1R_2)]$. This elementary model shows how material gain, cavity length, and mirror losses enter the same balance.
 
+\learningcheck{Draw a ray crossing from air into a slower medium and show how it bends. Explain when a wave description is needed to predict an optical effect.}
+
 \part{Thermal and Statistical Physics}
 \chapter{Thermodynamics}
 \chaptervisual{thermodynamics}{a gas state and controlled boundary}{first law, equations of state, and Legendre transform}{work, heat, entropy, and equilibrium}
-\chapterbridge{The conservation laws of mechanics and fluids tracked energy locally. Thermodynamics asks what can be said when the microscopic details are deliberately hidden. We will keep the same discipline of defining a system and its boundary, but now add temperature, entropy, and the direction of spontaneous change.}
-\chapternotation{$U$ is internal energy, $Q$ heat transferred into the system, $W_{\rm by}$ work done by the system, $S$ entropy, $T$ absolute temperature, $p$ pressure, $V$ volume, and $N$ particle number. A differential such as $\dd U$ belongs to a state function; $\delta Q$ and $\delta W$ depend on the path. Positive $Q$ enters the system, while positive $W_{\rm by}$ leaves it as mechanical work.}
+The conservation laws of mechanics and fluids tracked energy locally. Thermodynamics asks what can be said when the microscopic details are deliberately hidden. We will keep the same discipline of defining a system and its boundary, but now add temperature, entropy, and the direction of spontaneous change.
 Thermodynamics asks what we can predict without following every molecule. Its strength comes from carefully defining a system, the energy transfers across its boundary, and the constraints on its states. Much of the mathematics is ordinary calculus; the subtlety is knowing which variables are held fixed and which processes can actually occur.
 
 \section{Equilibrium, temperature, and the first law}
-Begin by drawing a boundary around the system. Energy can cross it as heat, through a temperature difference, or as work, through an organized interaction such as a piston moving against a force. Internal energy belongs to the system's state. Heat and work describe how it changes, so they cannot generally be inferred from the endpoints separately.
+Begin by drawing a boundary around the system. Energy can cross it as heat, through a temperature difference, or as work, through an organized interaction such as a piston moving against a force. Internal energy belongs to the system's state. Heat and work describe how it changes, so they cannot generally be inferred from the endpoints separately. $U$ is internal energy, $Q$ heat transferred into the system, $W_{\rm by}$ work done by the system, $S$ entropy, $T$ absolute temperature, $p$ pressure, $V$ volume, and $N$ particle number. A differential such as $\dd U$ belongs to a state function; $\delta Q$ and $\delta W$ depend on the path. Positive $Q$ enters the system, while positive $W_{\rm by}$ leaves it as mechanical work.
 
 Thermodynamics describes macroscopic states through variables such as $U,S,V,N,T,p$. Equilibrium means no net macroscopic flow under the allowed constraints. The zeroth law makes temperature a consistent indicator of mutual thermal equilibrium.
 
@@ -1336,14 +1380,15 @@ For a pure phase, the chemical potential obeys $\dd\mu=-s\dd T+v\dd p$, with $s$
 \end{equation}
 A reversible phase conversion at temperature $T$ transfers latent heat per particle $\ell=T(s_2-s_1)$. Combining the two statements produces the Clapeyron equation. The sign of the volume change matters: it determines whether increasing pressure raises or lowers the transition temperature for a positive latent heat.
 
+\learningcheck{A gas expands while being heated. State how you would account for heat, work, and internal-energy change, including your sign convention.}
+
 \chapter{Statistical mechanics}
 \chaptervisual{statistical mechanics}{microstates and a reservoir}{probability weights, counting, and partition functions}{macroscopic averages and fluctuations}
-\chapterbridge{Thermodynamics gave us macroscopic rules without asking what each molecule was doing. Statistical mechanics now opens that box carefully. Probability, counting, and the Gaussian ideas from the foundations explain why smooth thermodynamic quantities emerge from fluctuating microscopic states.}
-\chapternotation{$i$ labels a microstate, $E_i$ its energy, $p_i$ its probability, and $Z$ the partition function that normalizes the weights. The parameter $\beta=1/(k_{\rm B}T)$ increases as temperature falls. Averages use the probabilities $p_i$; they are not automatically the value of a single microstate.}
+Thermodynamics gave us macroscopic rules without asking what each molecule was doing. Statistical mechanics now opens that box carefully. Probability, counting, and the Gaussian ideas from the foundations explain why smooth thermodynamic quantities emerge from fluctuating microscopic states.
 Thermodynamics told us which macroscopic changes are possible. Statistical mechanics asks why those rules emerge from microscopic states. The strategy is to assign probabilities consistently with the system's surroundings, count the states, and average the quantities we can measure. The partition function will become a compact way to perform many of those calculations at once.
 
 \section{Microstates, macrostates, and ensembles}
-A gas can have the same pressure and temperature while its molecules occupy enormously many different positions and momenta. A macrostate records the coarse information; a microstate specifies the microscopic configuration. An ensemble is a probability model for such microstates, chosen to reflect what the system can exchange with its surroundings.
+A gas can have the same pressure and temperature while its molecules occupy enormously many different positions and momenta. A macrostate records the coarse information; a microstate specifies the microscopic configuration. An ensemble is a probability model for such microstates, chosen to reflect what the system can exchange with its surroundings. $i$ labels a microstate, $E_i$ its energy, $p_i$ its probability, and $Z$ the partition function that normalizes the weights.
 
 A macrostate groups many microscopic configurations. Boltzmann's entropy is $S=\kb\ln\Omega$ for equally likely accessible microstates. For general probabilities,
 \begin{equation}S=-\kb\sum_i p_i\ln p_i.\end{equation}
@@ -1357,7 +1402,7 @@ S=-\kb\sum_{i=1}^{\Omega}\frac1\Omega\ln\frac1\Omega
 The logarithm also makes entropy additive for independent systems: their numbers of states multiply, $\Omega_{AB}=\Omega_A\Omega_B$, so $S_{AB}=S_A+S_B$. This is a useful bridge between microscopic counting and macroscopic thermodynamics.
 
 \section{The canonical partition function}
-Consider a small system exchanging energy with a much larger reservoir. If the system occupies a state of energy $E_i$, the reservoir has that much less energy available. The probability of the state is proportional to the number of reservoir microstates compatible with the remaining energy. This is the physical source of the Boltzmann factor.
+Consider a small system exchanging energy with a much larger reservoir. If the system occupies a state of energy $E_i$, the reservoir has that much less energy available. The probability of the state is proportional to the number of reservoir microstates compatible with the remaining energy. This is the physical source of the Boltzmann factor. The parameter $\beta=1/(k_{\rm B}T)$ increases as temperature falls. Averages use the probabilities $p_i$; they are not automatically the value of a single microstate.
 
 A reservoir's multiplicity gives probability proportional to $\ee^{-\beta E_i}$, where $\beta=1/(\kb T)$. Define
 \begin{equation}
@@ -1475,15 +1520,16 @@ For the stated Landau model,
 \end{equation}
 Above $T_c$, only $m=0$ is a minimum. Below $T_c$, the curvature there becomes negative and two minima appear at $m=\pm\sqrt{a(T_c-T)/(2b)}$. The model respects $m\to-m$, but either ordered equilibrium chooses one sign. This is the elementary picture of spontaneous symmetry breaking; the quantitative role of fluctuations requires more than minimizing a uniform polynomial.
 
+\learningcheck{A two-level system has a low-energy state and a high-energy state. Describe the likely occupations at low and high temperature and relate them to the mean energy.}
+
 \part{Electricity and Magnetism}
 \chapter{Electrostatics, potentials, and matter}
 \chaptervisual{electrostatics}{charges and a test charge}{Coulomb superposition, gradient, and boundary conditions}{field lines, equipotentials, and force}
-\chapterbridge{The continuum chapters taught us to think in fields and fluxes; thermodynamics taught us to respect boundaries and state variables. Electromagnetism combines both habits. We begin with the simplest field, electrostatics, before allowing charge to move and electric and magnetic fields to evolve together.}
-\chapternotation{$\vect E$ is electric field, $\phi$ electric potential, $\rho$ charge density, $Q$ charge, and $\eps=\varepsilon_0$ vacuum permittivity. The relation $\vect E=-\grad\phi$ means the field points toward decreasing potential. In Gauss's law, $Q_{\rm enc}$ is the charge enclosed by the chosen surface; the surface orientation determines the flux sign.}
+The continuum chapters taught us to think in fields and fluxes; thermodynamics taught us to respect boundaries and state variables. Electromagnetism combines both habits. We begin with the simplest field, electrostatics, before allowing charge to move and electric and magnetic fields to evolve together.
 The electric field describes what a test charge would experience at each location. Potential describes the same electrostatic situation through energy per charge. We will move between these descriptions according to the geometry: symmetry often makes fields simple, while superposition and boundary-value problems often favor potential.
 
 \section{Electric fields and Gauss's law}
-Start with one charge and a sphere centered on it. The field is radial and equally strong everywhere on that sphere, so its flux is the field magnitude times the area. This is the simplest example of using symmetry before integration. For less symmetric sources, Gauss's law still constrains the field, but it may not determine it by itself.
+Start with one charge and a sphere centered on it. The field is radial and equally strong everywhere on that sphere, so its flux is the field magnitude times the area. This is the simplest example of using symmetry before integration. For less symmetric sources, Gauss's law still constrains the field, but it may not determine it by itself. $\vect E$ is electric field, $\phi$ electric potential, $\rho$ charge density, $Q$ charge, and $\eps=\varepsilon_0$ vacuum permittivity. The relation $\vect E=-\grad\phi$ means the field points toward decreasing potential. In Gauss's law, $Q_{\rm enc}$ is the charge enclosed by the chosen surface; the surface orientation determines the flux sign.
 
 For a point charge,
 \begin{equation}
@@ -1561,14 +1607,15 @@ Insert $\rho_{\rm total}=\rho_{\rm free}+\rho_b$ and $\rho_b=-\grad\cdot\vect P$
 \end{equation}
 This motivates $\vect D$. For a homogeneous linear dielectric filling a parallel-plate capacitor, it gives $D=Q_{\rm free}/A$ and $E=D/\varepsilon$, hence $C=\varepsilon A/d$. The constitutive relation is the extra material information needed to convert a free-charge constraint into an electric field.
 
+\learningcheck{Sketch the electric field of a positive point charge. Explain how the field and potential differ in the information they provide.}
+
 \chapter{Currents, magnetism, and circuits}
 \chaptervisual{currents and magnetism}{moving charge and circuit elements}{continuity, Lorentz force, and circuit equations}{current, voltage, magnetic force, and stored energy}
-\chapterbridge{Electrostatics gave us fields created by charge at rest. The next step is motion: charge conservation becomes a continuity equation, magnetic force appears, and the field description can be reduced to circuits when the geometry permits.}
-\chapternotation{$\vect J$ is current density, $I$ total current, $\vect B$ magnetic field, $q$ particle charge, and $\vect v$ particle velocity. In $q\vect v\times\vect B$, the cross product fixes the force direction by the right-hand rule. In circuits, $V$ is voltage, $R$ resistance, $C$ capacitance, and $L$ inductance; their units and signs follow the selected voltage and current directions.}
+Electrostatics gave us fields created by charge at rest. The next step is motion: charge conservation becomes a continuity equation, magnetic force appears, and the field description can be reduced to circuits when the geometry permits.
 Allow charges to move and the description acquires currents and magnetic fields. Circuit models compress the field behavior into a few variables, but their laws still express charge conservation, induction, and energy transfer. We will use those connections to explain both steady response and the time-dependent approach to it.
 
 \section{Charge transport and resistance}
-Current counts charge crossing a surface per unit time. For carriers of number density $n$, charge $q$, and mean drift velocity $\vect v_d$, the current density is $\vect J=nq\vect v_d$. Negative carriers can drift opposite to the conventional current direction. In a uniform wire, relating this flow to the electric field yields the familiar resistance law.
+Current counts charge crossing a surface per unit time. For carriers of number density $n$, charge $q$, and mean drift velocity $\vect v_d$, the current density is $\vect J=nq\vect v_d$. Negative carriers can drift opposite to the conventional current direction. In a uniform wire, relating this flow to the electric field yields the familiar resistance law. $\vect J$ is current density, $I$ total current, $\vect B$ magnetic field, $q$ particle charge, and $\vect v$ particle velocity.
 
 Current is $I=\dd Q/\dd t=\int\vect J\cdot\dd\vect S$. Local charge conservation is
 \begin{equation}\partial_t\rho+\grad\cdot\vect J=0.\end{equation}
@@ -1581,7 +1628,7 @@ I=\sigma A\frac VL\quad\Longrightarrow\quad R=\frac VI=\frac{L}{\sigma A}.
 A charge $\dd Q$ loses potential energy $V\dd Q$ crossing the resistor, so the rate is $P=V\dd Q/\dd t=VI$. Locally this energy transfer is $\vect J\cdot\vect E$ per volume. Integrating that local expression over the wire gives the same circuit power.
 
 \section{Magnetic forces and steady fields}
-The cross product in the magnetic force immediately tells us its direction and its limitation: the force is perpendicular to velocity. A uniform magnetic field can therefore bend a trajectory without changing the particle's kinetic energy. Resolve velocity into parallel and perpendicular components to understand the resulting helix.
+The cross product in the magnetic force immediately tells us its direction and its limitation: the force is perpendicular to velocity. A uniform magnetic field can therefore bend a trajectory without changing the particle's kinetic energy. Resolve velocity into parallel and perpendicular components to understand the resulting helix. In $q\vect v\times\vect B$, the cross product fixes the force direction by the right-hand rule.
 
 The Lorentz force is
 \begin{equation}\vect F=q(\vect E+\vect v\times\vect B).\end{equation}
@@ -1628,7 +1675,7 @@ U(I)-U(0)=\int_0^I LI'\dd I'=\tfrac12LI^2.
 The mathematical structure resembles capacitor charging, but the stored variable is now current. When current falls, the magnetic field returns energy to the circuit. An inductor therefore resists rapid changes of current rather than opposing current merely because it is nonzero.
 
 \section{Lumped circuits and transients}
-For each circuit, choose a charge or current variable and write a voltage balance with consistent signs. A resistor dissipates energy, a capacitor stores it electrically, and an inductor stores it magnetically. Those roles predict whether a response relaxes monotonically or oscillates before you solve the equation.
+For each circuit, choose a charge or current variable and write a voltage balance with consistent signs. A resistor dissipates energy, a capacitor stores it electrically, and an inductor stores it magnetically. Those roles predict whether a response relaxes monotonically or oscillates before you solve the equation. In circuits, $V$ is voltage, $R$ resistance, $C$ capacitance, and $L$ inductance; their units and signs follow the selected voltage and current directions.
 
 Kirchhoff's current law expresses charge conservation at nodes when charge accumulation is negligible. The usual voltage law assumes a consistent lumped description, with changing magnetic flux represented by inductive elements.
 
@@ -1649,14 +1696,15 @@ For a sinusoidal current or voltage, a derivative becomes multiplication by $\ii
 \end{equation}
 All the oscillator methods now apply, with charge taking the role of displacement and inductance taking the role of inertia.
 
+\learningcheck{In a simple resistor-capacitor discharge, describe how the voltage and current change with time. Identify the quantity that sets the time scale.}
+
 \chapter{Maxwell's equations and electromagnetic waves}
 \chaptervisual{Maxwell's equations}{electric and magnetic fields}{curl, divergence, and coupled time evolution}{transverse waves and Poynting energy flow}
-\chapterbridge{The previous two chapters treated electric and magnetic phenomena in separate settings. Maxwell's synthesis shows that the separation was a matter of approximation: changing fields sustain one another and carry energy through space. The wave equation from the continuum unit returns here in a new physical form.}
-\chapternotation{$\vect E$ and $\vect B$ are fields, $\rho$ charge density, and $\vect J$ current density. The constants $\eps$ and $\mun$ describe vacuum response, with $c=1/\sqrt{\mun\eps}$. The Poynting vector $\vect S=\vect E\times\vect B/\mun$ points in the direction of electromagnetic energy transport; its sign is set by the field orientation.}
+The previous two chapters treated electric and magnetic phenomena in separate settings. Maxwell's synthesis shows that the separation was a matter of approximation: changing fields sustain one another and carry energy through space. The wave equation from the continuum unit returns here in a new physical form.
 The separate electrical and magnetic laws fit into one dynamical system. Electric and magnetic fields can sustain one another through time-dependent coupling, even far from their sources. The wave speed will emerge from the field equations themselves, and an energy balance will tell us how those waves carry power.
 
 \section{The unified field equations}
-Read the divergence equations as statements about sources and the curl equations as statements about circulation and time evolution. Before solving them, check whether they agree with charge conservation. This is a powerful example of using one established physical requirement to constrain the form of another law.
+Read the divergence equations as statements about sources and the curl equations as statements about circulation and time evolution. Before solving them, check whether they agree with charge conservation. This is a powerful example of using one established physical requirement to constrain the form of another law. $\vect E$ and $\vect B$ are fields, $\rho$ charge density, and $\vect J$ current density.
 
 In vacuum with total charge and current densities,
 \begin{align}
@@ -1694,7 +1742,7 @@ Check a gauge transformation directly:
 The cancellation uses commuting space and time derivatives for smooth $\chi$. A gauge condition selects a convenient representative, not a new physical field. In the retarded solution, source distance $R$ means a travel time $R/c$, so the field here and now depends on the source at $t-R/c$. This is how causality enters the integral explicitly.
 
 \section{Wave derivation and polarization}
-Set charge and current to zero in the region of interest. The fields may still be nonzero because disturbances can arrive from elsewhere. To obtain an equation for the electric field alone, take one more curl of Faraday's law and eliminate the magnetic field using the other curl equation.
+Set charge and current to zero in the region of interest. The fields may still be nonzero because disturbances can arrive from elsewhere. To obtain an equation for the electric field alone, take one more curl of Faraday's law and eliminate the magnetic field using the other curl equation. The constants $\eps$ and $\mun$ describe vacuum response, with $c=1/\sqrt{\mun\eps}$.
 
 In a source-free vacuum, take the curl of Faraday's law and use the curl-curl identity:
 \begin{equation}\lap\vect E-\frac1{c^2}\partial_t^2\vect E=0,\qquad c=\frac1{\sqrt{\mun\eps}}.\end{equation}
@@ -1712,7 +1760,7 @@ Carry out that elimination without skipping the signs:
 Since $\grad\cdot\vect E=0$ here, both minus signs cancel. Comparing with $\partial_t^2u=v^2\lap u$ identifies $c^2=1/(\mun\eps)$. For a plane wave $\vect E=\vect E_0\ee^{\ii(\vect k\cdot\vect r-\omega t)}$, Gauss's law gives $\vect k\cdot\vect E_0=0$ and Faraday's law gives $\vect B_0=(\vect k\times\vect E_0)/\omega$. Together with $\omega=ck$, these establish transversality and the field-amplitude ratio.
 
 \section{Energy, momentum, and radiation}
-A wave that heats an absorber or pushes a mirror must carry energy and momentum. To derive the energy balance, form the rate of change of squared field strengths. Dot the electric field into the Ampere--Maxwell equation and the magnetic field into Faraday's equation; their combination turns curls into a divergence.
+A wave that heats an absorber or pushes a mirror must carry energy and momentum. To derive the energy balance, form the rate of change of squared field strengths. Dot the electric field into the Ampere--Maxwell equation and the magnetic field into Faraday's equation; their combination turns curls into a divergence. The Poynting vector $\vect S=\vect E\times\vect B/\mun$ points in the direction of electromagnetic energy transport; its sign is set by the field orientation.
 
 Poynting's theorem is
 \begin{equation}
@@ -1757,15 +1805,16 @@ m_e\ddot x=-\frac{n_ee^2}{\eps}x
 \end{equation}
 The ions are treated as fixed and thermal pressure is neglected. The density dependence $\omega_p\propto\sqrt{n_e}$ reflects a stronger restoring field when more charge separates for the same displacement. In the stated transverse-wave dispersion relation, $k^2=(\omega^2-\omega_p^2)/c^2$ becomes negative below cutoff, producing exponential spatial decay rather than propagation in this ideal model.
 
+\learningcheck{Name the pair of changing fields in an electromagnetic wave. Explain why the wave can travel through a vacuum and state one measurable property of it.}
+
 \part{Relativity and Gravitation}
 \chapter{Special relativity}
 \chaptervisual{special relativity}{events and moving observers}{Lorentz transformation and invariant interval}{light cones, time dilation, and simultaneity}
-\chapterbridge{Classical mechanics and electromagnetism used different ideas about space and time. The electromagnetic wave speed gives us a reason to revisit that foundation. We will preserve the successful conservation laws while replacing absolute time with an invariant spacetime interval.}
-\chapternotation{$x,t$ are coordinates assigned by one observer, primes denote another observer's coordinates, $v$ relative frame speed, and $c$ invariant light speed. The Lorentz factor $\gamma$ is always at least one for $|v|<c$. The interval $\dd s^2$ is invariant even though $\dd x$ and $\dd t$ separately change.}
+Classical mechanics and electromagnetism used different ideas about space and time. The electromagnetic wave speed gives us a reason to revisit that foundation. We will preserve the successful conservation laws while replacing absolute time with an invariant spacetime interval.
 Newtonian mechanics assumes that different inertial observers share a common time. Electromagnetic waves force us to reconsider that assumption: all inertial observers measure the same vacuum light speed. The solution is to transform space and time together. We will derive consequences by comparing events and invariants rather than relying on pictures of moving objects alone.
 
 \section{Events, intervals, and Lorentz transformations}
-An event is a location and a time, such as a flash at a detector. Two observers can assign different coordinates to that event without disagreeing about what happened. Begin with transformations that are linear for uniform relative motion, and demand that light trajectories and the spacetime interval retain their form.
+An event is a location and a time, such as a flash at a detector. Two observers can assign different coordinates to that event without disagreeing about what happened. Begin with transformations that are linear for uniform relative motion, and demand that light trajectories and the spacetime interval retain their form. $x,t$ are coordinates assigned by one observer, primes denote another observer's coordinates, $v$ relative frame speed, and $c$ invariant light speed. The Lorentz factor $\gamma$ is always at least one for $|v|<c$. The interval $\dd s^2$ is invariant even though $\dd x$ and $\dd t$ separately change.
 
 The laws of physics have the same form in inertial frames, and vacuum light speed is invariant. For a boost along $x$,
 \begin{equation}
@@ -1861,10 +1910,11 @@ E'^2-c^2B'^2=\gamma^2E^2(1-v^2/c^2)=E^2.
 \end{equation}
 A magnetic component has appeared, but the invariant is unchanged. For a vacuum plane wave, both $E^2-c^2B^2$ and $\vect E\cdot\vect B$ vanish. No inertial boost can turn a nonzero such wave into a purely electric static field.
 
+\learningcheck{Two observers disagree about elapsed time between events. Identify what each must know about the events and their relative motion before comparing measurements.}
+
 \chapter{Differential geometry and introductory topology}
 \chaptervisual{differential geometry and topology}{a surface, tangent vector, and loop}{metric, parallel transport, and curvature}{geodesics, holonomy, and holes}
-\chapterbridge{Special relativity taught us that coordinates are not measurements by themselves; the interval is what all inertial observers agree on. To let that lesson survive when gravity and coordinates vary from place to place, we need a language for curved spaces, tangent directions, transport, and curvature.}
-\chapternotation{$M$ is a manifold, $T_pM$ the tangent space at point $p$, $g_{\mu\nu}$ the metric components, and $\Gamma^\rho{}_{\mu\nu}$ connection coefficients. Greek indices label coordinates and are summed when repeated. A coordinate component may change under relabeling even when the geometric vector does not; curvature is the coordinate-independent content measured by transport around loops.}
+Special relativity taught us that coordinates are not measurements by themselves; the interval is what all inertial observers agree on. To let that lesson survive when gravity and coordinates vary from place to place, we need a language for curved spaces, tangent directions, transport, and curvature.
 Classical vectors are usually introduced in a fixed Euclidean basis, but relativity compares measurements made in curved spacetime and in many coordinate systems. Geometry supplies the language for doing this without confusing coordinates with physical objects. Topology then records which global features cannot be removed by smooth stretching.
 
 \section{Manifolds, tangent spaces, and coordinate changes}
@@ -1872,7 +1922,7 @@ A smooth manifold is a space that looks like $\mathbb R^n$ in a sufficiently sma
 \begin{equation}
 v[f]=\left.\frac{\dd}{\dd t}f(\gamma(t))\right|_{t=0}
 \end{equation}
-for any curve $\gamma$ with $\gamma(0)=p$ and tangent $v$. In coordinates, $v=v^\mu\partial_\mu$, but the components change when coordinates change.
+for any curve $\gamma$ with $\gamma(0)=p$ and tangent $v$. In coordinates, $v=v^\mu\partial_\mu$, but the components change when coordinates change. $M$ is a manifold, $T_pM$ the tangent space at point $p$, $g_{\mu\nu}$ the metric components, and $\Gamma^\rho{}_{\mu\nu}$ connection coefficients. Greek indices label coordinates and are summed when repeated.
 
 The dual space $T_p^*M$ contains covectors, which act linearly on tangent vectors. The differential $\dd f$ is the covector satisfying $\dd f(v)=v[f]$. A metric is a smoothly varying inner product $g_p$ on each tangent space:
 \begin{equation}
@@ -1898,7 +1948,7 @@ Vectors at different points belong to different tangent spaces, so there is no a
 \begin{equation}
 \frac{\dd V^\mu}{\dd\lambda}+\Gamma^\mu{}_{\nu\rho}u^\nu V^\rho=0.
 \end{equation}
-The connection coefficients depend on coordinates, but the statement that a vector is parallel transported is geometric. For the unique torsion-free connection compatible with a metric, the coefficients are the Levi--Civita symbols used in the GR chapter.
+The connection coefficients depend on coordinates, but the statement that a vector is parallel transported is geometric. For the unique torsion-free connection compatible with a metric, the coefficients are the Levi--Civita symbols used in the GR chapter. A coordinate component may change under relabeling even when the geometric vector does not; curvature is the coordinate-independent content measured by transport around loops.
 
 Transport around a small closed loop need not return a vector to its original direction. The curvature tensor measures this failure:
 \begin{equation}
@@ -1914,14 +1964,15 @@ Topology ignores distances and angles and keeps only properties preserved by con
 
 These ideas are deliberately introductory. General relativity primarily needs smooth manifolds, metrics, connections, and curvature; topology becomes especially important when discussing horizons, defects, gauge fields, and topological phases. The purpose here is to give those later claims a precise conceptual home before the formulas become dense.
 
+\learningcheck{Give an example of a surface that can be curved even though a small patch looks nearly flat. Explain what a metric lets us calculate on that surface.}
+
 \chapter{General relativity}
 \chaptervisual{general relativity}{a metric and neighboring free-fall paths}{connection, geodesic equation, and curvature}{tidal separation, lensing, and gravitational time}
-\chapterbridge{The geometry chapter gave names to the structures that special relativity only needed in flat form. We can now return to gravity with a precise question: how does matter determine the geometry, and how does that geometry guide free motion? The Newtonian limit will be our bridge back to familiar mechanics.}
-\chapternotation{$g_{\mu\nu}$ is the spacetime metric, $\Gamma^\rho{}_{\mu\nu}$ the Levi--Civita connection, $R^\rho{}_{\sigma\mu\nu}$ curvature, and $T_{\mu\nu}$ stress-energy. The indices are spacetime labels, not powers. In the geodesic equation, $\tau$ is proper time for massive particles; in Einstein's equation, curvature responds to energy, momentum, pressure, and stress.}
+The geometry chapter gave names to the structures that special relativity only needed in flat form. We can now return to gravity with a precise question: how does matter determine the geometry, and how does that geometry guide free motion? The Newtonian limit will be our bridge back to familiar mechanics.
 Special relativity describes measurements in flat spacetime. General relativity makes spacetime geometry dynamical and uses it to describe gravity. This chapter introduces the sequence of ideas needed to read the equations: the metric defines intervals, the connection defines parallel transport, curvature measures the failure of transport to be path independent, and stress-energy helps determine curvature. Some full solutions require techniques beyond this introduction; we will develop the accessible steps and identify where a deeper calculation enters.
 
 \section{Equivalence principle and geometry}
-Inside a small freely falling laboratory, nearby loose objects appear almost weightless. Over a larger region their accelerations differ, revealing tidal effects. This suggests distinguishing the acceleration removable by choosing a freely falling frame from the relative acceleration that remains. The metric is the mathematical object that lets us make that distinction without privileging one coordinate system.
+Inside a small freely falling laboratory, nearby loose objects appear almost weightless. Over a larger region their accelerations differ, revealing tidal effects. This suggests distinguishing the acceleration removable by choosing a freely falling frame from the relative acceleration that remains. The metric is the mathematical object that lets us make that distinction without privileging one coordinate system. $g_{\mu\nu}$ is the spacetime metric, $\Gamma^\rho{}_{\mu\nu}$ the Levi--Civita connection, $R^\rho{}_{\sigma\mu\nu}$ curvature, and $T_{\mu\nu}$ stress-energy. The indices are spacetime labels, not powers.
 
 Locally, a freely falling laboratory removes the leading effect of a uniform gravitational field. Tidal effects remain and measure curvature. General relativity describes gravity with a spacetime metric,
 \begin{equation}\dd s^2=g_{\mu\nu}\dd x^\mu\dd x^\nu.\end{equation}
@@ -1930,7 +1981,7 @@ The equivalence principle is local: curvature cannot generally be removed throug
 Even flat space can have position-dependent metric components. In polar coordinates, a short displacement has squared length $\dd\ell^2=\dd r^2+r^2\dd\phi^2$. The factor $r^2$ reflects the arc length associated with an angular change; it does not imply curvature. Likewise, nonzero connection coefficients alone do not establish a gravitational tidal field. Curvature, built from derivatives and products of those coefficients, is the stronger test.
 
 \section{Covariant derivatives and geodesics}
-A vector's components may change because the vector changes or because the coordinate basis changes. The ordinary derivative mixes those effects. A covariant derivative includes the basis change so that the result transforms as a tensor. A geodesic is a trajectory whose tangent is parallel transported along itself.
+A vector's components may change because the vector changes or because the coordinate basis changes. The ordinary derivative mixes those effects. A covariant derivative includes the basis change so that the result transforms as a tensor. A geodesic is a trajectory whose tangent is parallel transported along itself. In the geodesic equation, $\tau$ is proper time for massive particles; in Einstein's equation, curvature responds to energy, momentum, pressure, and stress.
 
 The Levi-Civita connection is
 \begin{equation}
@@ -2011,11 +2062,12 @@ The leading binary power law can be turned into an inspiral law using Newtonian 
 \end{equation}
 The negative sign shows shrinking separation. Since orbital frequency scales as $a^{-3/2}$, the signal grows faster as the system loses energy. This argument assumes a slowly evolving circular weak-field orbit. The Hawking temperature and entropy, by contrast, are semiclassical results quoted here; they cannot be obtained by Newtonian energy balance alone.
 
+\learningcheck{Describe in words how a freely falling object moves in curved spacetime. Give one observation that distinguishes the theory from Newtonian gravity.}
+
 \part{Quantum Physics}
 \chapter{Quantum principles and mathematical structure}
 \chaptervisual{quantum principles}{a normalized state and a measurement basis}{projection, operators, and the Born rule}{probabilities, expectation values, and uncertainty}
-\chapterbridge{Classical waves taught us to track amplitudes and phase, while statistical physics taught us to distinguish microscopic possibilities from measured averages. Quantum mechanics combines those lessons in a new state space: amplitudes evolve linearly, but measurements return probabilities.}
-\chapternotation{$\ket\psi$ is a state vector, $\alpha$ and $\beta$ amplitudes, $|\alpha|^2$ and $|\beta|^2$ probabilities in a chosen basis, and $\hat H$ the Hamiltonian operator. A hat or operator symbol means the object acts on a state rather than being an ordinary number. The phase of an amplitude can be unobservable alone but becomes observable through interference with another amplitude.}
+Classical waves taught us to track amplitudes and phase, while statistical physics taught us to distinguish microscopic possibilities from measured averages. Quantum mechanics combines those lessons in a new state space: amplitudes evolve linearly, but measurements return probabilities.
 Quantum mechanics changes the object we predict. Instead of assigning a definite trajectory to every particle, we evolve a state and calculate probabilities for specified measurements. The algebra of vectors, operators, and complex amplitudes is the machinery for doing that. We will distinguish the theory's postulates from consequences derived from them, so the starting assumptions stay visible.
 
 \section{Why classical physics is incomplete}
@@ -2030,7 +2082,7 @@ Quantum theory replaces definite classical trajectories with states and probabil
 In the ideal photoelectric model, one photon supplies $h\nu$. Removing an electron costs at least the work function $W$, leaving maximum kinetic energy $h\nu-W$. The threshold is therefore $\nu_0=W/h$. Below it, increasing intensity cannot supply the missing energy to a single electron within the single-photon model. Above it, increasing frequency increases the maximum kinetic energy, while intensity mainly changes how many photons arrive. This separates energy per event from event rate.
 
 \section{States, observables, and the Born rule}
-Choose the measurement you want to predict and expand the state in that observable's eigenbasis. The expansion coefficients are amplitudes; their squared magnitudes are probabilities. This is the Born rule, one of the physical postulates. Linear algebra then lets us calculate the resulting averages and changes of basis.
+Choose the measurement you want to predict and expand the state in that observable's eigenbasis. The expansion coefficients are amplitudes; their squared magnitudes are probabilities. This is the Born rule, one of the physical postulates. Linear algebra then lets us calculate the resulting averages and changes of basis. $\ket\psi$ is a state vector, $\alpha$ and $\beta$ amplitudes, $|\alpha|^2$ and $|\beta|^2$ probabilities in a chosen basis, and $\hat H$ the Hamiltonian operator. A hat or operator symbol means the object acts on a state rather than being an ordinary number. The phase of an amplitude can be unobservable alone but becomes observable through interference with another amplitude.
 
 A pure state is a normalized vector $\ket\psi$ in a complex Hilbert space, with physically irrelevant overall phase. Observables are represented by self-adjoint operators. For a discrete nondegenerate orthonormal eigenbasis $A\ket{a_n}=a_n\ket{a_n}$,
 \begin{equation}
@@ -2108,10 +2160,11 @@ For $H=p^2/(2m)+V(x)$, the commutators are $[H,x]=-\ii\hbar p/m$ and $[H,p]=\ii\
 \end{equation}
 The linear fluctuation term averages to zero. A narrow packet in a smoothly varying force can follow approximately classical mean motion; a quadratic potential makes the displayed correction vanish exactly.
 
+\learningcheck{A state is a sum of two alternatives. Explain why amplitudes are added before probabilities are calculated. What does normalization guarantee?}
+
 \chapter{Exactly solvable quantum systems}
 \chaptervisual{solvable quantum systems}{a potential and boundary conditions}{eigenvalue equation and normalizable solutions}{nodes, energy levels, and probability density}
-\chapterbridge{The previous chapter introduced states and measurements. We now let the Hamiltonian evolve those states in concrete systems. Boundary conditions, just as in waves, select allowed patterns; the difference is that the patterns now describe probability amplitudes.}
-\chapternotation{$V(x)$ is potential energy as a function of position, $\phi_n$ a stationary spatial amplitude, $E_n$ its energy, and $n$ an integer level label. The wavefunction must be normalized, so $|\phi|^2$ can be interpreted as a probability density. Nodes are points where the amplitude is zero, not places where the particle is classically stuck.}
+The previous chapter introduced states and measurements. We now let the Hamiltonian evolve those states in concrete systems. Boundary conditions, just as in waves, select allowed patterns; the difference is that the patterns now describe probability amplitudes.
 Simple quantum models are valuable because each exposes a different mechanism: boundary conditions quantize a box, forbidden regions produce exponential tails, and operator algebra organizes an oscillator. In every case, begin with the potential, solve the appropriate differential or algebraic equation, and impose the conditions that make a state physically admissible.
 
 \section{Free particles and wave packets}
@@ -2129,7 +2182,7 @@ In the Heisenberg description, $x(t)=x(0)+p(0)t/m$. The variance consequently sa
 where the covariance uses the symmetrized product. For the initially uncorrelated minimum-uncertainty Gaussian, covariance is zero and $\sigma_p=\hbar/(2\sigma_0)$. Substitution produces the spreading law above. A smaller initial width gives a larger momentum spread and hence faster eventual broadening.
 
 \section{Infinite and finite wells}
-For the infinite well, begin inside the region where the potential is zero. Solve there first, then demand that the wavefunction vanish at both walls. Those two boundary conditions eliminate most mathematical solutions and leave only a discrete set of energies.
+For the infinite well, begin inside the region where the potential is zero. Solve there first, then demand that the wavefunction vanish at both walls. Those two boundary conditions eliminate most mathematical solutions and leave only a discrete set of energies. $V(x)$ is potential energy as a function of position, $\phi_n$ a stationary spatial amplitude, $E_n$ its energy, and $n$ an integer level label. The wavefunction must be normalized, so $|\phi|^2$ can be interpreted as a probability density. Nodes are points where the amplitude is zero, not places where the particle is classically stuck.
 
 For $V=0$ on $0<x<L$ and infinite walls,
 \begin{equation}\phi_n(x)=\sqrt{\frac2L}\sin\frac{n\pi x}{L},\qquad E_n=\frac{n^2\pi^2\hbar^2}{2mL^2},\quad n=1,2,\ldots\end{equation}
@@ -2243,14 +2296,15 @@ For the ground state, try $R(r)=A\ee^{-r/a}$ with $\ell=0$. Its radial Laplacian
 \end{equation}
 The $1/r$ coefficient must vanish: $a=\hbar^2/(\mu\kappa)=a_\mu/Z$. The remaining constant gives $E_1=-\mu\kappa^2/(2\hbar^2)$. Higher levels require solving the radial polynomial problem with the same boundary conditions; that further step yields the $1/n^2$ spectrum.
 
+\learningcheck{For a particle in an infinite well, sketch the lowest stationary wavefunction. Identify where it must vanish and why its energy is not zero.}
+
 \chapter{Quantum approximation methods and scattering}
 \chaptervisual{quantum approximations}{an exact system plus a small interaction}{perturbation, variation, WKB, or scattering expansion}{energy shifts and cross sections}
-\chapterbridge{Exact models are our training ground, not the usual destination. The same approximation habits learned from Taylor series, small oscillations, and geometric optics now return in quantum form: identify a small parameter, keep the leading correction, and test where the approximation breaks.}
-\chapternotation{$H_0$ is the solvable reference Hamiltonian, $V$ the added perturbation, and $\lambda$ a bookkeeping parameter that is set to one only after the expansion is organized. In scattering, $f(\theta,\phi)$ is an amplitude while $\dd\sigma/\dd\Omega$ is a measurable cross section; amplitude is squared only after all alternatives have been added.}
+Exact models are our training ground, not the usual destination. The same approximation habits learned from Taylor series, small oscillations, and geometric optics now return in quantum form: identify a small parameter, keep the leading correction, and test where the approximation breaks.
 Exact solutions are landmarks, not the typical case. When a problem differs slightly from a solvable one, we can organize corrections. When no nearby exact solution is available, we may seek a bound or a semiclassical approximation. The important question is not just how to apply a method, but which small parameter, gap, or length scale makes it trustworthy.
 
 \section{Time-independent perturbation theory}
-Start with a Hamiltonian whose eigenstates you know, and describe the remaining interaction as a perturbation. Expand both the energy and the state in the same bookkeeping parameter. Matching equal powers then turns one hard eigenproblem into a sequence of simpler equations involving the known states.
+Start with a Hamiltonian whose eigenstates you know, and describe the remaining interaction as a perturbation. Expand both the energy and the state in the same bookkeeping parameter. Matching equal powers then turns one hard eigenproblem into a sequence of simpler equations involving the known states. $H_0$ is the solvable reference Hamiltonian, $V$ the added perturbation, and $\lambda$ a bookkeeping parameter that is set to one only after the expansion is organized.
 
 Let $H=H_0+\lambda V$. For a nondegenerate unperturbed level,
 \begin{align}
@@ -2331,7 +2385,7 @@ For parameters changing in time, try $\ket\psi=\ee^{-\frac\ii\hbar\int E_n\dd t}
 Integrating along a closed parameter path produces the Berry phase. The eigenvector's phase convention can change the local integrand, but the closed-loop phase modulo $2\pi$, with consistent endpoint identification, has observable interference consequences. This is another reason to distinguish relative phase from an arbitrary overall phase at one instant.
 
 \section{Scattering and cross sections}
-A scattering experiment prepares incoming flux and counts particles emerging into different directions. Solve for the outgoing amplitude far from the target, where its radial spreading is simple. The cross section translates that amplitude into a count rate normalized by the incident beam.
+A scattering experiment prepares incoming flux and counts particles emerging into different directions. Solve for the outgoing amplitude far from the target, where its radial spreading is simple. The cross section translates that amplitude into a count rate normalized by the incident beam. In scattering, $f(\theta,\phi)$ is an amplitude while $\dd\sigma/\dd\Omega$ is a measurable cross section; amplitude is squared only after all alternatives have been added.
 
 For an incoming plane wave and outgoing spherical wave in three dimensions,
 \begin{equation}\psi\sim\ee^{\ii kz}+f(\theta,\phi)\frac{\ee^{\ii kr}}r,\qquad \od{\sigma}{\Omega}=|f|^2\end{equation}
@@ -2349,10 +2403,11 @@ For incident amplitude one, $j_{\rm in}=\hbar k/m$. Far away, the outgoing spher
 \end{equation}
 The distance cancels, explaining $\dd\sigma/\dd\Omega=|f|^2$. For a central potential, partial waves separate the angular-momentum channels; phase shifts measure how much each radial wave differs from free motion. The complicated interaction region is encoded in those shifts before the outgoing channels are recombined.
 
+\learningcheck{Before using perturbation theory, what should you compare to judge whether the added interaction is small? Name one result that the approximation can predict.}
+
 \chapter{Identical particles, entanglement, and quantum information}
 \chaptervisual{entanglement and quantum information}{a joint state of several subsystems}{tensor products, partial trace, and correlations}{reduced states, entropy, and interference}
-\chapterbridge{A single quantum state was already a vector, but several quantum systems require a larger space built from tensor products. This is where the linear algebra introduced earlier becomes physically consequential: correlations can belong to the joint state even when no subsystem has a pure state of its own.}
-\chapternotation{$\rho$ is a density operator, $\rho_{AB}$ the joint state, and $\rho_A=\operatorname{Tr}_B\rho_{AB}$ the state available when subsystem $B$ is ignored. Purity $\operatorname{Tr}\rho^2$ distinguishes pure from mixed states. Entanglement is a property of factorization, not merely of a probability distribution.}
+A single quantum state was already a vector, but several quantum systems require a larger space built from tensor products. This is where the linear algebra introduced earlier becomes physically consequential: correlations can belong to the joint state even when no subsystem has a pure state of its own.
 With several quantum systems, the state space grows by tensor products. This introduces two ideas with no direct classical-particle counterpart: exchanging identical particles constrains the allowed states, and a joint state need not assign a pure state to each part. Density operators let us describe both incomplete preparation knowledge and subsystems of entangled states.
 
 \chaptermark{Entanglement and quantum information}
@@ -2370,7 +2425,7 @@ For orthonormal orbitals $a,b$, form
 Exchange preserves the plus state and reverses the sign of the minus state. If $a=b$, the antisymmetric numerator vanishes identically, so no normalized state exists: this is Pauli exclusion. For electrons, apply antisymmetry to the complete spatial-and-spin state. A symmetric spatial factor is allowed when the spin factor is antisymmetric.
 
 \section{Density operators and subsystems}
-Suppose a preparation produces state $\ket{\psi_i}$ with probability $p_i$, and you do not know which occurred. Average the measurement predictions, not the amplitudes. The density operator collects that average into one object and also handles the state available to an observer who can access only part of a larger system.
+Suppose a preparation produces state $\ket{\psi_i}$ with probability $p_i$, and you do not know which occurred. Average the measurement predictions, not the amplitudes. The density operator collects that average into one object and also handles the state available to an observer who can access only part of a larger system. $\rho$ is a density operator, $\rho_{AB}$ the joint state, and $\rho_A=\operatorname{Tr}_B\rho_{AB}$ the state available when subsystem $B$ is ignored. Purity $\operatorname{Tr}\rho^2$ distinguishes pure from mixed states.
 
 A statistical mixture is represented by
 \begin{equation}\rho=\sum_i p_i\ket{\psi_i}\bra{\psi_i},\qquad \operatorname{Tr}\rho=1,\quad \rho\geq0.\end{equation}
@@ -2388,7 +2443,7 @@ This motivates $\rho$. A partial trace is defined by requiring all local predict
 where the contraction is only over subsystem $B$. We are discarding access to its outcomes, not asserting that the global state ceased to exist.
 
 \section{Entanglement and correlations}
-A joint pure state is entangled when it cannot be written as one state for each subsystem multiplied together. The Bell state provides a small example whose entire algebra can be inspected. Its local uncertainty coexists with perfect correlations between selected joint outcomes.
+A joint pure state is entangled when it cannot be written as one state for each subsystem multiplied together. The Bell state provides a small example whose entire algebra can be inspected. Its local uncertainty coexists with perfect correlations between selected joint outcomes. Entanglement is a property of factorization, not merely of a probability distribution.
 
 The Bell state
 \begin{equation}\ket{\Phi^+}=\frac{\ket{00}+\ket{11}}{\sqrt2}\end{equation}
@@ -2421,11 +2476,12 @@ If an environment becomes correlated with the qubit, the joint state may be $\al
 \end{equation}
 Nearly orthogonal environmental records suppress this coherence. This calculation shows how interference can become inaccessible locally while the full system still undergoes quantum evolution.
 
+\learningcheck{A pair of qubits is in an entangled pure state. Explain how one qubit can have a mixed reduced state even though the pair has a pure state.}
+
 \part{Quantum Computing}
 \chapter{Quantum computing from bits to algorithms}
 \chaptervisual{quantum computing}{bits, qubits, and circuit inputs}{unitary gates, amplitude interference, and measurement}{algorithmic probability and computational speedup}
-\chapterbridge{The preceding quantum chapters developed states, operators, tensor products, measurement, and entanglement. Quantum computing uses those ideas deliberately as an information-processing language. We will move slowly from the familiar classical bit to interference that can be arranged into an algorithm.}
-\chapternotation{$\alpha,\beta$ are qubit amplitudes, $H$ is the Hadamard gate, and $N$ is the number of search items in amplitude amplification. Gates are unitary matrices, so they preserve $|\alpha|^2+|\beta|^2=1$. In Grover's formula, $\theta$ is the angle toward the marked state and $k$ counts iterations, not time steps.}
+The preceding quantum chapters developed states, operators, tensor products, measurement, and entanglement. Quantum computing uses those ideas deliberately as an information-processing language. We will move slowly from the familiar classical bit to interference that can be arranged into an algorithm.
 Quantum computing is not simply faster computation with smaller hardware. It is a theory of information in which amplitudes evolve linearly, measurement produces probabilities, and carefully arranged interference changes which answers are likely to be observed. We will begin with ordinary bits, then add one new idea at a time: a qubit, a gate, a circuit, an algorithm, and finally the noise that makes real devices difficult.
 
 \section{Bits, states, and reversible operations}
@@ -2438,7 +2494,7 @@ A qubit is a normalized complex vector
 \begin{equation}
 \ket\psi=\alpha\ket0+\beta\ket1,\qquad |\alpha|^2+|\beta|^2=1.
 \end{equation}
-The coefficients are amplitudes, not probabilities. Measuring in the computational basis returns $0$ with probability $|\alpha|^2$ and $1$ with probability $|\beta|^2$. The relative phase between $\alpha$ and $\beta$ can later change an interference pattern.
+The coefficients are amplitudes, not probabilities. Measuring in the computational basis returns $0$ with probability $|\alpha|^2$ and $1$ with probability $|\beta|^2$. The relative phase between $\alpha$ and $\beta$ can later change an interference pattern. $\alpha,\beta$ are qubit amplitudes, $H$ is the Hadamard gate, and $N$ is the number of search items in amplitude amplification.
 
 Ignoring an overall phase, every pure qubit can be written
 \begin{equation}
@@ -2453,7 +2509,7 @@ H=\frac1{\sqrt2}\begin{pmatrix}1&1\\1&-1\end{pmatrix},\qquad
 H\ket0=\frac{\ket0+\ket1}{\sqrt2},\quad
 H\ket1=\frac{\ket0-\ket1}{\sqrt2}.
 \end{equation}
-Applying $H$ twice returns the input. The second application adds amplitudes with signs, so cancellation and reinforcement occur before measurement. This is the central visual idea of quantum algorithms.
+Applying $H$ twice returns the input. The second application adds amplitudes with signs, so cancellation and reinforcement occur before measurement. This is the central visual idea of quantum algorithms. Gates are unitary matrices, so they preserve $|\alpha|^2+|\beta|^2=1$.
 
 For a general state, a phase gate changes $\beta$ without changing computational-basis probabilities immediately. A later Hadamard converts that hidden phase into a measurable probability difference. Therefore an experiment must display both amplitudes and the final measurement histogram; either one alone hides part of the calculation.
 
@@ -2474,7 +2530,7 @@ Starting from $\ket{00}$, apply $H$ to the first qubit and then CNOT:
 The final state is entangled. Measuring one qubit predicts the corresponding result of the other, but neither result is individually determined before measurement.
 
 \section{A first algorithm: amplitude amplification}
-Suppose one item among $N$ possibilities is marked by an oracle. Classical search needs order $N$ queries in the worst case. Grover's algorithm prepares a uniform superposition, flips the marked amplitude, and reflects amplitudes about their average. Each round rotates the state toward the marked direction.
+Suppose one item among $N$ possibilities is marked by an oracle. Classical search needs order $N$ queries in the worst case. Grover's algorithm prepares a uniform superposition, flips the marked amplitude, and reflects amplitudes about their average. Each round rotates the state toward the marked direction. In Grover's formula, $\theta$ is the angle toward the marked state and $k$ counts iterations, not time steps.
 
 In the two-dimensional space spanned by the marked state $\ket w$ and the normalized unmarked state $\ket r$, write
 \begin{equation}
@@ -2496,15 +2552,16 @@ For a simple phase-damping model, the off-diagonal density-matrix element evolve
 \end{equation}
 while the diagonal probabilities remain fixed. A useful visual therefore shows the Bloch vector shrinking toward the measurement axis, alongside the circuit and the changing probability histogram. The picture must distinguish a changing amplitude from a changing classical probability and must report the noise model used.
 
+\learningcheck{Apply a Hadamard gate twice to the state $\ket0$. What state results, and what does this show about interference?}
+
 \part{Atoms, Materials, Nuclei, and Particles}
 \chapter{Atomic and molecular physics}
 \chaptervisual{atomic and molecular physics}{charges, orbitals, and energy levels}{Coulomb Hamiltonian, symmetry, and matrix elements}{spectra, transitions, and bonding}
-\chapterbridge{Quantum mechanics first gave us ideal particles and ideal potentials. Atoms ask what happens when those states interact with fields, nuclei, and other electrons; molecules then ask how the same quantum structure produces collective bonds and vibrations.}
-\chapternotation{$Z$ is nuclear charge number, $n$ principal quantum number, $\ell$ orbital angular-momentum label, and $m$ its projection label. The symbols $\bra f\vect d\ket i$ describe a transition matrix element between final and initial states. A selection rule says a matrix element vanishes by symmetry; it is not merely an energy mismatch.}
+Quantum mechanics first gave us ideal particles and ideal potentials. Atoms ask what happens when those states interact with fields, nuclei, and other electrons; molecules then ask how the same quantum structure produces collective bonds and vibrations.
 The hydrogen atom gave us a starting model. Real atoms add electron-electron interactions, spin couplings, and corrections at smaller energy scales. Molecules add moving nuclei and bonding. We will build a hierarchy of approximations, using each simpler model to identify which additional terms are likely to matter next.
 
 \section{Atomic structure beyond hydrogen}
-Write the interactions before choosing orbitals. For a fixed nucleus, each electron is attracted to the nucleus and repelled by every other electron. The repulsion depends on pairs of coordinates, so it prevents the Hamiltonian from separating into independent one-electron hydrogen problems.
+Write the interactions before choosing orbitals. For a fixed nucleus, each electron is attracted to the nucleus and repelled by every other electron. The repulsion depends on pairs of coordinates, so it prevents the Hamiltonian from separating into independent one-electron hydrogen problems. $Z$ is nuclear charge number, $n$ principal quantum number, $\ell$ orbital angular-momentum label, and $m$ its projection label.
 
 In many-electron atoms, electron-electron repulsion prevents exact separation into independent hydrogenic problems. Useful approximations include a central mean field, Hartree--Fock orbitals with exchange, and correlation corrections. Shell structure, spin, and Pauli exclusion organize the periodic table.
 
@@ -2518,7 +2575,7 @@ H=\sum_i\left[-\frac{\hbar^2}{2m_e}\lap_i-\frac{Ze^2}{4\pi\eps r_i}\right]
 The pair sum counts each electron pair once. A mean-field approximation replaces the detailed influence of other electrons by an effective one-electron potential. Because that potential depends on the occupied orbitals, solve for orbitals, rebuild the field, and repeat toward self-consistency. Antisymmetrization adds exchange; correlation describes physics beyond a single independent-particle determinant. This hierarchy explains why shell models are useful without making them exact.
 
 \section{Light-matter interaction and selection rules}
-A transition matrix element can vanish because of symmetry even when the photon has the right energy. Before integrating a complicated wavefunction, inspect how the initial state, final state, and interaction transform. Selection rules identify these zeros and save work while explaining which spectral lines are strong or absent in a given approximation.
+A transition matrix element can vanish because of symmetry even when the photon has the right energy. Before integrating a complicated wavefunction, inspect how the initial state, final state, and interaction transform. Selection rules identify these zeros and save work while explaining which spectral lines are strong or absent in a given approximation. The symbols $\bra f\vect d\ket i$ describe a transition matrix element between final and initial states. A selection rule says a matrix element vanishes by symmetry; it is not merely an energy mismatch.
 
 When the optical wavelength is large compared with an atom, the electric dipole interaction is approximately $H'=-\vect d\cdot\vect E(t)$. Transition strength depends on $|\bra f\vect d\ket i|^2$. For single-electron orbital states, electric dipole selection rules include
 \begin{equation}\Delta\ell=\pm1,\qquad \Delta m=0,\pm1,\end{equation}
@@ -2557,14 +2614,15 @@ U(R)\simeq U(R_e)+\tfrac12U''(R_e)(R-R_e)^2,
 \end{equation}
 This is the oscillator again, now for relative nuclear motion. Rotation at nearly fixed separation has classical energy $L^2/(2I)$; replacing $L^2$ by its eigenvalue $\hbar^2J(J+1)$ yields the rotor spectrum. The approximations neglect bond stretching during rotation and anharmonicity at large vibration amplitude, giving clear directions for later corrections.
 
+\learningcheck{Explain how a photon can cause a transition between two atomic energy levels. Why does matching the energy gap alone not guarantee that the transition occurs?}
+
 \chapter{Condensed matter and collective phenomena}
 \chaptervisual{condensed matter}{a periodic lattice and occupied states}{normal modes, reciprocal space, and band structure}{phonons, gaps, and transport}
-\chapterbridge{Molecular vibrations showed how many-body motion can still be organized around modes. A crystal repeats that idea across an enormous lattice: translation symmetry creates phonons and bands, while interactions and collective order determine which simple pictures survive.}
-\chapternotation{$a$ is lattice spacing, $\vect R$ a lattice translation, $\vect k$ crystal wave vector, $\vect G$ a reciprocal-lattice vector, and $\omega$ mode frequency. The band label $n$ distinguishes solutions with the same $\vect k$; it is not particle number. A gap is an energy interval with no allowed band state in the ideal model.}
+Molecular vibrations showed how many-body motion can still be organized around modes. A crystal repeats that idea across an enormous lattice: translation symmetry creates phonons and bands, while interactions and collective order determine which simple pictures survive.
 A solid contains too many interacting particles to solve by listing all their coordinates. Its regularities suggest better variables: lattice waves, electron bands, collective order, and quasiparticles. The purpose of these descriptions is to retain the information needed for a particular scale and measurement. Their success comes from symmetry and controlled approximations, not from pretending the microscopic interactions disappear.
 
 \section{Crystals, reciprocal space, and phonons}
-A periodic arrangement makes waves emitted or scattered from different cells acquire related phases. Reciprocal space records the phase conditions for constructive addition. For vibrations, the same periodicity allows traveling patterns that diagonalize the coupling between lattice sites.
+A periodic arrangement makes waves emitted or scattered from different cells acquire related phases. Reciprocal space records the phase conditions for constructive addition. For vibrations, the same periodicity allows traveling patterns that diagonalize the coupling between lattice sites. $a$ is lattice spacing, $\vect R$ a lattice translation, $\vect k$ crystal wave vector, $\vect G$ a reciprocal-lattice vector, and $\omega$ mode frequency.
 
 A crystal is periodic under lattice translations. Reciprocal vectors satisfy $\vect G\cdot\vect R=2\pi n$, organizing diffraction and wave states. Bragg's law is $2d\sin\theta=n\lambda$ when $\theta$ is measured from the lattice planes.
 
@@ -2582,7 +2640,7 @@ Try $u_j=u_0\ee^{\ii(kja-\omega t)}$. Cancel the common phase and use $\ee^{\ii 
 For $|ka|\ll1$, $\omega\simeq a\sqrt{K/m}|k|$, an acoustic branch. Quantizing each normal mode supplies phonons. In three dimensions, acoustic mode counting gives a low-frequency density proportional to $\omega^2$; thermally populating modes up to scale $\kb T/\hbar$ leads to energy proportional to $T^4$ and heat capacity proportional to $T^3$.
 
 \section{Bloch's theorem and electronic bands}
-A periodic Hamiltonian commutes with lattice translations. We can therefore choose states that acquire only a phase under each lattice translation. Extracting that phase as a plane-wave factor leaves a function with the periodicity of the lattice: this is the content of Bloch's theorem.
+A periodic Hamiltonian commutes with lattice translations. We can therefore choose states that acquire only a phase under each lattice translation. Extracting that phase as a plane-wave factor leaves a function with the periodicity of the lattice: this is the content of Bloch's theorem. The band label $n$ distinguishes solutions with the same $\vect k$; it is not particle number. A gap is an energy interval with no allowed band state in the ideal model.
 
 For a periodic single-particle potential,
 \begin{equation}\psi_{n\vect k}(\vect r)=\ee^{\ii\vect k\cdot\vect r}u_{n\vect k}(\vect r),\qquad u_{n\vect k}(\vect r+\vect R)=u_{n\vect k}(\vect r).\end{equation}
@@ -2654,14 +2712,15 @@ Quasiparticles, order parameters, and effective theories illustrate emergence: t
 
 Read the Hall formula as two separate statements. The combination $e^2/h$ supplies the conductance scale; the integer $\nu$ contains the topological information. Dimensional analysis can identify a possible scale but cannot prove integer quantization or determine which integer a sample realizes. Those conclusions require the quantum states and their response. This is a useful place to remember the boundary between an instructive scaling argument and a full microscopic derivation.
 
+\learningcheck{Describe how a repeating crystal structure changes the allowed electron states. What physical difference would you expect between a filled band and a partly filled band?}
+
 \chapter{Nuclear physics}
 \chaptervisual{nuclear physics}{nucleons, masses, and reaction channels}{binding energy, tunneling, and conservation laws}{stability, decay, and released energy}
-\chapterbridge{Atomic physics taught us to separate energy scales and to distinguish an allowed transition from a likely one. Nuclear physics applies the same discipline at a smaller length scale, where binding, tunneling, statistics, and relativistic reaction kinematics meet.}
-\chapternotation{$A=Z+N$ is mass number, $Z$ proton number, and $N$ neutron number. $B$ is binding energy and $Q$ reaction energy release; positive $Q$ does not guarantee a rapid reaction. In decay, $\lambda$ is a probability rate and $t_{1/2}=\ln2/\lambda$ the half-life.}
+Atomic physics taught us to separate energy scales and to distinguish an allowed transition from a likely one. Nuclear physics applies the same discipline at a smaller length scale, where binding, tunneling, statistics, and relativistic reaction kinematics meet.
 Nuclear physics brings together binding energy, quantum statistics, tunneling, and reaction kinematics at much shorter distances. Start by accounting for mass and charge consistently, then distinguish whether a process is energetically allowed from whether it happens rapidly. Favorable energy release alone does not determine a decay or reaction rate.
 
 \section{Nuclear scales and binding}
-A bound nucleus has less mass than its separated constituents because energy was released when the bound state formed. The binding energy measures the energy required to separate it again. Before inserting tabulated masses, decide whether they refer to bare nuclei or neutral atoms so that electron contributions are handled consistently.
+A bound nucleus has less mass than its separated constituents because energy was released when the bound state formed. The binding energy measures the energy required to separate it again. Before inserting tabulated masses, decide whether they refer to bare nuclei or neutral atoms so that electron contributions are handled consistently. $A=Z+N$ is mass number, $Z$ proton number, and $N$ neutron number. $B$ is binding energy and $Q$ reaction energy release; positive $Q$ does not guarantee a rapid reaction.
 
 A nucleus contains $Z$ protons and $N$ neutrons, with mass number $A=Z+N$. A useful empirical radius scale is $R\simeq r_0A^{1/3}$ with $r_0\simeq1.2\,\mathrm{fm}$. Nuclear binding energy is
 \begin{equation}B=[Zm_p+Nm_n-M_{\rm nucleus}]c^2.\end{equation}
@@ -2674,7 +2733,7 @@ Its terms represent volume attraction, surface correction, Coulomb energy, neutr
 The empirical relation $R\propto A^{1/3}$ implies volume proportional to nucleon number, suggesting roughly constant interior density. If each nucleon interacts attractively with a limited number of nearby neighbors, the bulk binding scales as $A$. Surface nucleons have fewer neighbors, producing a correction proportional to area, $A^{2/3}$. Electrostatic repulsion scales roughly as $Z^2/R$, hence $Z^2/A^{1/3}$. These arguments motivate the first three mass-formula terms; their coefficients and the remaining refinements require nuclear data and more detailed theory.
 
 \section{Radioactive decay}
-A constant decay rate means that each surviving nucleus has the same small probability $\lambda\dd t$ of decaying in the next interval $\dd t$. The expected number lost is proportional to the number still present. Exponential decay follows from this local probability statement, without requiring every nucleus to carry a predetermined decay time.
+A constant decay rate means that each surviving nucleus has the same small probability $\lambda\dd t$ of decaying in the next interval $\dd t$. The expected number lost is proportional to the number still present. Exponential decay follows from this local probability statement, without requiring every nucleus to carry a predetermined decay time. In decay, $\lambda$ is a probability rate and $t_{1/2}=\ln2/\lambda$ the half-life.
 
 For independent nuclei with constant decay rate $\lambda$,
 \begin{equation}\dot N=-\lambda N,\quad N=N_0\ee^{-\lambda t},\quad t_{1/2}=\frac{\ln2}{\lambda},\quad \mathcal A=\lambda N.\end{equation}
@@ -2709,14 +2768,15 @@ At extreme density, neutron-rich matter is governed by degeneracy, nuclear inter
 
 For dense matter, the key output needed by a stellar model is an equation of state. Microscopic calculations determine how pressure changes with energy density and composition; gravitational balance then determines the density profile. This is a chain of models with distinct jobs. Agreement with one nuclear binding trend does not by itself establish the high-density equation of state needed inside a neutron star.
 
+\learningcheck{Two nuclei have different binding energies. Explain what additional information you need to decide whether a proposed reaction releases energy.}
+
 \chapter{Relativistic quantum theory and particle physics}
 \chaptervisual{particle physics}{fields and incoming particles}{relativistic Lagrangian, symmetry, and interaction vertex}{allowed processes and measurable rates}
-\chapterbridge{The quantum chapters allowed a fixed number of particles, while relativity allows energy to become new particles. Quantum field theory is the next synthesis: fields are fundamental, particles are excitations, and symmetries organize the interactions.}
-\chapternotation{$\phi$ is a scalar field, $\psi$ a spinor field, $m$ mass, and $\partial_\mu$ a spacetime derivative. The metric convention fixes signs in $\Box$ and the gamma-matrix algebra; changing signature requires changing those definitions consistently. A Feynman diagram organizes an amplitude, not a literal classical trajectory.}
+The quantum chapters allowed a fixed number of particles, while relativity allows energy to become new particles. Quantum field theory is the next synthesis: fields are fundamental, particles are excitations, and symmetries organize the interactions.
 Quantum mechanics and special relativity meet most naturally in quantum field theory, where particle number can change and fields supply the underlying degrees of freedom. A full development requires a substantial course of its own. Here we build the entry points carefully: relativistic dispersion, field equations, quantized modes, and the role of interactions and symmetries. Treat the more advanced results as a map for further study, with their assumptions visible.
 
 \section{Why quantum fields are needed}
-At low enough energies, a fixed number of particles can be an excellent approximation. Once enough energy is available to produce additional particles, that approximation cannot describe all possible outcomes. A field description accommodates sectors with different occupation numbers while preserving a common dynamical framework.
+At low enough energies, a fixed number of particles can be an excellent approximation. Once enough energy is available to produce additional particles, that approximation cannot describe all possible outcomes. A field description accommodates sectors with different occupation numbers while preserving a common dynamical framework. $\phi$ is a scalar field, $\psi$ a spinor field, $m$ mass, and $\partial_\mu$ a spacetime derivative.
 
 Relativity permits energy to create particle-antiparticle pairs. A fixed-particle-number wavefunction is therefore insufficient for general high-energy processes. Quantum field theory assigns operators to fields; particles are excitations of those fields, and interactions can change particle number.
 
@@ -2734,7 +2794,7 @@ Check the scalar equation by inserting a plane wave $\phi\propto\ee^{-\ii Et+\ii
 The equation can also be obtained from the displayed Lagrangian density: $\partial\mathcal L/\partial(\partial_\mu\phi)=-\partial^\mu\phi$ and $\partial\mathcal L/\partial\phi=-m^2\phi$. The field Euler--Lagrange equation then gives $-\Box\phi+m^2\phi=0$. This checks the signs against a physical dispersion relation before more complicated calculations are attempted.
 
 \section{Spinors, antiparticles, and quantization}
-A relativistic equation first order in time and space requires coefficients that cannot all be ordinary numbers. Matrices can cancel the unwanted cross terms when the operator is squared. The Dirac algebra is precisely the condition that makes this construction recover the relativistic energy relation while introducing spinor components.
+A relativistic equation first order in time and space requires coefficients that cannot all be ordinary numbers. Matrices can cancel the unwanted cross terms when the operator is squared. The Dirac algebra is precisely the condition that makes this construction recover the relativistic energy relation while introducing spinor components. The metric convention fixes signs in $\Box$ and the gamma-matrix algebra; changing signature requires changing those definitions consistently.
 
 A Dirac equation can be written
 \begin{equation}(\ii\gamma^\mu\partial_\mu-m)\psi=0,\qquad \{\gamma^\mu,\gamma^\nu\}=-2g^{\mu\nu}I,\end{equation}
@@ -2751,7 +2811,7 @@ Multiply the Dirac operator by its opposite-mass partner:
 Only the symmetric matrix combination survives because the derivatives commute. With the explicitly chosen anticommutator, each component satisfies the scalar mass-shell equation. Quantization then promotes the field's mode amplitudes to operators; the oscillator algebra familiar from quantum mechanics becomes the starting point for particle creation and annihilation. The interpretation of antiparticles requires that field framework, rather than treating negative-energy solutions as ordinary classical trajectories.
 
 \section{Interactions, diagrams, and effective theories}
-Begin with a free theory you can solve and add interaction terms allowed by the symmetries. Perturbation theory organizes their repeated action in powers of coupling. Diagrams are a way to label those algebraic contributions and their integrals, so their meaning should be traced back to amplitudes rather than imagined particle paths.
+Begin with a free theory you can solve and add interaction terms allowed by the symmetries. Perturbation theory organizes their repeated action in powers of coupling. Diagrams are a way to label those algebraic contributions and their integrals, so their meaning should be traced back to amplitudes rather than imagined particle paths. A Feynman diagram organizes an amplitude, not a literal classical trajectory.
 
 An interaction term couples fields. Perturbation theory expands amplitudes in coupling constants; Feynman diagrams organize integrals in that expansion. Internal lines are propagators, not directly observed little particles following classical paths. Observable rates come from amplitudes, interference, phase space, and the appropriate normalization.
 
@@ -2815,15 +2875,16 @@ Established quantum field theories do not by themselves provide a complete quant
 
 Conservation is necessary but not sufficient for an appreciable rate. A channel can conserve energy, momentum, and charge yet be suppressed by a small coupling, a symmetry of the matrix element, or limited final-state phase space. This repeats a lesson from atomic selection rules and nuclear barriers: first ask whether the process is allowed, then ask what amplitude and accessible states determine how often it occurs.
 
+\learningcheck{Why can a relativistic collision require a description in which particle number changes? State what a Feynman diagram represents in a calculation.}
+
 \part{Astrophysics, Cosmology, and Synthesis}
 \chapter{Stars, compact objects, and the expanding universe}
 \chaptervisual{astrophysics and cosmology}{matter, radiation, and gravity across scales}{equations of state, hydrostatic balance, and expansion}{stellar structure, redshift, and cosmic history}
-\chapterbridge{The final physics unit brings earlier scales together. Gravity supplies structure, quantum and nuclear physics supply matter, thermodynamics supplies pressure and entropy, and relativity supplies the geometry of compact objects and the expanding universe. Astrophysics is therefore a synthesis, not a separate beginning.}
-\chapternotation{$\rho$ is mass-equivalent energy density, $p$ pressure, $a(t)$ the cosmological scale factor, and $H=\dot a/a$ the expansion rate. In stellar equations, $M_r$ is mass enclosed inside radius $r$ and $L_r$ luminosity crossing that shell. A subscript $r$ means “at radius $r$,” not a new physical kind of mass or luminosity.}
+The final physics unit brings earlier scales together. Gravity supplies structure, quantum and nuclear physics supply matter, thermodynamics supplies pressure and entropy, and relativity supplies the geometry of compact objects and the expanding universe. Astrophysics is therefore a synthesis, not a separate beginning.
 Astrophysics combines the previous modules on a grand scale. Stellar pressure is supplied by matter and radiation; gravity sets the required support; nuclear reactions and transport determine energy flow. Cosmology replaces the internal profile of one object with the evolution of a nearly homogeneous universe. In both settings, state the symmetry assumptions before reducing field equations to a manageable model.
 
 \section{Stellar structure and energy transport}
-Build a star out of thin spherical shells. Each shell adds mass, contributes or transports energy, and must be supported against the gravitational pull of the enclosed mass. This construction explains why several coupled differential equations are needed: no single pressure balance determines the temperature, luminosity, and density by itself.
+Build a star out of thin spherical shells. Each shell adds mass, contributes or transports energy, and must be supported against the gravitational pull of the enclosed mass. This construction explains why several coupled differential equations are needed: no single pressure balance determines the temperature, luminosity, and density by itself. In stellar equations, $M_r$ is mass enclosed inside radius $r$ and $L_r$ luminosity crossing that shell. A subscript $r$ means ``at radius $r$,'' not a new physical kind of mass or luminosity.
 
 A spherical nonrotating star in Newtonian hydrostatic equilibrium satisfies
 \begin{equation}\od{M_r}{r}=4\pi r^2\rho,\qquad \od{p}{r}=-\frac{GM_r\rho}{r^2},\qquad \od{L_r}{r}=4\pi r^2\rho\epsilon,\end{equation}
@@ -2852,7 +2913,7 @@ Pressure contributes to gravitation, and the equation of state controls the poss
 State counting gives $p_F\propto n^{1/3}$. For nonrelativistic particles, a characteristic energy is $p_F^2/(2m)$, so energy density and degeneracy pressure scale as $n^{5/3}$. For ultrarelativistic particles, energy is proportional to $p_Fc$, giving $n^{4/3}$. To see why the latter produces a mass scale, estimate required gravitational pressure as $GM^2/R^4$ and relativistic electron pressure as proportional to $(M/R^3)^{4/3}$ at fixed composition. Both scale as $R^{-4}$, so reducing radius no longer changes their relative strength for a fixed mass. Detailed stellar integration supplies the coefficient and composition dependence of the limiting mass.
 
 \section{Homogeneity, isotropy, and expansion}
-Homogeneity means no preferred position in the idealized spatial geometry; isotropy means no preferred direction. These assumptions leave a scale factor to describe how separations between comoving locations change in time. A comoving coordinate stays fixed while its physical separation from another comoving location can grow.
+Homogeneity means no preferred position in the idealized spatial geometry; isotropy means no preferred direction. These assumptions leave a scale factor to describe how separations between comoving locations change in time. A comoving coordinate stays fixed while its physical separation from another comoving location can grow. $\rho$ is mass-equivalent energy density, $p$ pressure, $a(t)$ the cosmological scale factor, and $H=\dot a/a$ the expansion rate.
 
 On sufficiently large scales, the cosmological principle models space as statistically homogeneous and isotropic. The FLRW metric is
 \begin{equation}\dd s^2=-c^2\dd t^2+a^2(t)\left[\frac{\dd r^2}{1-kr^2}+r^2\dd\Omega^2\right].\end{equation}
@@ -2926,14 +2987,15 @@ In the scalar-field units specified above,
 \end{equation}
 The acceleration equation with no separate cosmological constant therefore permits $\ddot a>0$ when $V>\dot\phi^2$. Potential domination gives $p\simeq-\rho$, analogous to a nearly constant vacuum component. Establishing a complete inflationary model additionally requires the field's dynamics, an end to the accelerated era, and predictions for perturbations. The inequality identifies the mechanism, not all of those ingredients.
 
+\learningcheck{What balances gravity inside an ordinary star? Explain how a measurement of redshift can give evidence about cosmic expansion.}
+
 \chapter{Computational physics and model validation}
 \chaptervisual{computational physics}{a continuum model and discrete samples}{discretization, timestep, and convergence test}{stable numerical trajectories and error estimates}
-\chapterbridge{A calculation is not finished when an equation has been written, and it is not validated merely because an animation looks plausible. This chapter gathers the book's recurring habits—units, limits, conservation, approximation, and comparison—and turns them into a computational workflow.}
-\chapternotation{$h$ is a spatial or temporal step, $\Delta x$ and $\Delta t$ grid spacings, $Q(h)$ a computed quantity at resolution $h$, and $Q_*$ its limiting value. A numerical index such as $j$ labels a grid cell and $n$ a time level. Stability is a property of an update rule; accuracy is how closely its result approaches the continuum solution.}
+A calculation is not finished when an equation has been written, and it is not validated merely because an animation looks plausible. This chapter gathers the book's recurring habits---units, limits, conservation, approximation, and comparison---and turns them into a computational workflow.
 A numerical solution is another approximation, layered on top of the physical model. It can make an unsolvable analytic problem accessible, but smooth output alone does not establish accuracy. The aim of this chapter is to make computational choices explainable: derive the discrete rule, estimate its error, and test it against something whose answer you understand.
 
 \section{Discretization and numerical error}
-A computer represents a function at finitely many points. To approximate a derivative from those values, expand nearby samples about the point of interest and combine them so unwanted Taylor terms cancel. The first surviving neglected term tells you how error should change when the grid is refined.
+A computer represents a function at finitely many points. To approximate a derivative from those values, expand nearby samples about the point of interest and combine them so unwanted Taylor terms cancel. The first surviving neglected term tells you how error should change when the grid is refined. $h$ is a spatial or temporal step, $\Delta x$ and $\Delta t$ grid spacings, $Q(h)$ a computed quantity at resolution $h$, and $Q_*$ its limiting value. A numerical index such as $j$ labels a grid cell and $n$ a time level.
 
 Numerical physics approximates a well-posed mathematical model, whose own physical approximations remain separate from numerical error. A forward difference has error $O(h)$, while
 \begin{equation}f'(x)\simeq\frac{f(x+h)-f(x-h)}{2h}\end{equation}
@@ -2977,7 +3039,7 @@ Energy grows on every nonzero step even though the exact system conserves it. Ve
 Combining these expressions recovers the displayed Verlet formulas. Its structure improves conservative long-time behavior for suitable steps, while convergence and stability still need checking.
 
 \section{PDE stability and eigenvalue problems}
-A grid error can be analyzed as a sum of Fourier modes, just like a physical disturbance. Insert one mode into the update rule and calculate how much its amplitude changes in one step. Stability requires that numerical evolution not amplify modes that the underlying diffusive physics should damp.
+A grid error can be analyzed as a sum of Fourier modes, just like a physical disturbance. Insert one mode into the update rule and calculate how much its amplitude changes in one step. Stability requires that numerical evolution not amplify modes that the underlying diffusive physics should damp. Stability is a property of an update rule; accuracy is how closely its result approaches the continuum solution.
 
 For explicit centered-space diffusion in one dimension,
 \begin{equation}u_j^{n+1}=u_j^n+r(u_{j+1}^n-2u_j^n+u_{j-1}^n),\qquad r=D\Delta t/(\Delta x)^2,\end{equation}
@@ -3019,14 +3081,15 @@ Treat verification as part of solving the problem, not a final cosmetic step. Fo
 
 When a check fails, change one thing at a time. If halving the time step changes the result but enlarging the spatial domain does not, the evidence points toward time discretization rather than the outer boundary. If the numerical result converges but still disagrees with experiment, revisit model assumptions and parameter uncertainty. Separating these questions prevents you from spending computation to refine the wrong physical model.
 
+\learningcheck{Run a calculation with two time steps. What change in the results would suggest numerical error? Name one conserved quantity or limiting case you could check.}
+
 \chapter{Connections across the subject}
 \chaptervisual{connections across physics}{the same pattern in different systems}{conservation, oscillation, symmetry, and scale}{a reusable physical argument}
-\chapterbridge{We can now look backward without flattening the differences between subjects. The same mathematical form can describe a spring, a circuit, a field mode, or a quantum oscillator, but the symbols acquire different physical meanings. These connections are the book's invitation to continue learning beyond its last page.}
-\chapternotation{When the same symbol appears in different chapters, its meaning must be re-established from context. The recurring forms are the important objects: a local balance, an oscillator, a symmetry, or a small parameter. Always translate the symbols back into the physical quantities before claiming that two equations describe the same physics.}
+We can now look backward without flattening the differences between subjects. The same mathematical form can describe a spring, a circuit, a field mode, or a quantum oscillator, but the symbols acquire different physical meanings. These connections are the book's invitation to continue learning beyond its last page.
 By now the same mathematical patterns have appeared in very different settings. Recognizing them lets you reuse an argument without confusing the physical meanings of its symbols. We close the main text by tracing four recurring ideas: local balance, oscillation, symmetry, and scale. Each is a guide to choosing where a new calculation should begin.
 
 \section{Conservation from local balance}
-Imagine drawing a boundary around whatever quantity you want to track: mass, charge, energy, or probability. Its amount inside can change because it crosses the boundary or because a local source creates or removes it. Write that statement before selecting a coordinate system or a constitutive law.
+Imagine drawing a boundary around whatever quantity you want to track: mass, charge, energy, or probability. Its amount inside can change because it crosses the boundary or because a local source creates or removes it. Write that statement before selecting a coordinate system or a constitutive law. When the same symbol appears in different chapters, its meaning must be re-established from context. The recurring forms are the important objects: a local balance, an oscillator, a symmetry, or a small parameter. Always translate the symbols back into the physical quantities before claiming that two equations describe the same physics.
 
 Many laws share the structure
 \begin{equation}\partial_t\rho+\grad\cdot\vect j=s.\end{equation}
@@ -3076,6 +3139,8 @@ No one approximation wins everywhere. A good solution identifies the relevant re
 For example, a gas can be dilute enough for classical particle statistics while still requiring a fluid description over distances much larger than its mean free path. A slowly moving object can need quantum mechanics, while a rapidly moving dilute beam can be treated with relativistic particle kinematics. These comparisons answer different questions, so no single small parameter decides every approximation. State what you want to predict, identify the controlling ratios, and let those estimates guide the calculation.
 
 \appendix
+\learningcheck{Choose two systems from different parts of the book that obey an oscillator equation. Identify the changing quantity and restoring effect in each.}
+
 \chapter{Constants, units, and useful identities}
 \section{Common constants}
 Use this appendix after deciding the symbolic structure of a calculation. Carrying symbols until the final substitution makes cancellations and dimensional checks visible. Numerical constants then set the scale rather than hide the reasoning. Distinguish definitions that fix a constant exactly from measured quantities whose quoted digits are only approximate.
@@ -3135,7 +3200,9 @@ For each experiment, identify the state variables and adjustable parameters, mak
 \toprule Chapter & Visual model & Experiment and observation\\ \midrule
 \endhead
 Scales, dimensions, and measurement & Scaling laboratory & Change length, time, and mass scales while preserving dimensionless ratios; check which predictions survive a change of units.\\
-Calculus, vectors, and differential equations & Tangent-to-trajectory lab & Show a moving point, its tangent, velocity, acceleration, and accumulated displacement together; compare local slopes with global motion.\\
+Calculus, vectors, and spatial geometry & Tangent-to-trajectory lab & Show a moving point, its tangent, velocity, acceleration, and accumulated displacement together; compare local slopes with global motion.\\
+Patterns, modes, and differential equations & Standing-mode lab & Vary the boundary conditions of a string or diffusion interval; observe which modes remain allowed and how each changes in time.\\
+Probability as a model of uncertainty & Random-walk lab & Compare many individual random walks with their average and spread; check that the typical displacement grows with the square root of the step count.\\
 \bottomrule
 \end{longtable}
 
