@@ -41,6 +41,7 @@
 \newcommand{\kb}{k_{\mathrm B}}
 \newcommand{\eps}{\varepsilon_0}
 \newcommand{\mun}{\mu_0}
+\newcommand{\chapterbridge}[1]{\medskip\noindent\textit{#1}\par\medskip}
 \newcommand{\chaptervisual}[4]{
 \begin{figure}[tb]
 \centering
@@ -104,6 +105,7 @@ Symbols are defined locally because different subjects traditionally reuse the s
 \part{First Steps: Physics and Mathematics}
 \chapter{What a physical model is}
 \chaptervisual{the first physical model}{an object, a measurement, and a question}{choose variables, units, and an approximation}{a prediction that can be checked}
+\chapterbridge{This opening chapter establishes the habit that will guide the entire book: begin with a physical question, choose a model, and return to the measurement after the mathematics has done its work. Every later chapter will repeat this loop with more powerful tools.}
 Physics begins with a concrete question: how far did something move, how long did it take, or how much energy changed hands? We do not begin by naming every advanced mathematical tool. We begin by deciding what is being measured, what can be ignored for now, and what observation would tell us whether the model worked.
 
 \section{Quantities, units, and estimates}
@@ -125,6 +127,7 @@ At the end of every first calculation, ask four questions: Are the units correct
 
 \chapter{Change and accumulation}
 \chaptervisual{change and accumulation}{a position graph and small intervals}{slope for local change and area for accumulation}{velocity, displacement, and average rate}
+\chapterbridge{The previous chapter asked how to turn an observation into a model. Here we add the first mathematical language needed to describe a changing observation. The slope and area introduced here will return as force, flux, probability, and action.}
 The first mathematics of motion is the language of change. A derivative describes what is happening now; an integral adds many small contributions into a total. We will use only the one-variable ideas needed to describe ordinary motion before expanding to fields and several coordinates later.
 
 \section{Average and instantaneous change}
@@ -156,6 +159,7 @@ This is the basic pattern of an initial-value problem: a local rule plus enough 
 
 \chapter{Vectors and first motion models}
 \chaptervisual{vectors and motion}{a position arrow and coordinate axes}{components, addition, and time derivatives}{a trajectory with direction and speed}
+\chapterbridge{A single number was enough for motion along a line. The moment direction matters, the same ideas must be carried by arrows. We will use these vectors first for motion, then recognize them again in forces, fields, fluids, and spacetime.}
 Motion is not always one-dimensional. A vector records both size and direction. We will first use vectors geometrically, then differentiate their components to describe motion in a plane or in space.
 
 \section{Components and directions}
@@ -184,6 +188,7 @@ Launch a projectile with a chosen initial speed and angle. Display its position,
 
 \chapter{First forces and oscillations}
 \chaptervisual{first forces and oscillations}{a force diagram and a displaced spring}{Newton's law and a linear restoring approximation}{motion, energy exchange, and a period}
+\chapterbridge{We now turn the earlier language of change into a physical law. Newton's equation will become our first example of a local rule that predicts a complete history, and the spring will become a recurring pattern throughout the rest of the book.}
 Now connect the first mathematical tools to a physical cause. A force changes momentum. Near a stable equilibrium, many systems behave like a spring, which gives the first important differential equation beyond constant-acceleration motion.
 
 \section{Newton's second law}
@@ -215,6 +220,7 @@ At this point a reader should be able to interpret a graph's slope, calculate an
 \part{Mathematical and Physical Foundations: Second Pass}
 \chapter{Scales, dimensions, and measurement}
 \chaptervisual{scales and measurement}{measured quantities and uncertainties}{units, dimensions, and dimensionless ratios}{a testable estimate with error bars}
+\chapterbridge{The first pass showed how a model grows from an observation. We now slow down and make the checks behind that process systematic: dimensions, scale, approximation, and uncertainty. These habits will let us recognize when the more advanced mathematics later in the book is being used responsibly.}
 Before we describe how anything moves, let us ask what a physical prediction actually contains. A number alone is rarely enough: we need a unit, an estimate of uncertainty, and a statement of the conditions under which the number means something. These habits will guide every calculation in this book. We begin with dimensions because they let you question an equation even before you know how to solve it.
 
 \section{Physical quantities and dimensional analysis}
@@ -287,6 +293,7 @@ The minus sign in $\partial v/\partial t=-d/t^2$ disappears upon squaring. This 
 
 \chapter{Calculus, vectors, and differential equations}
 \chaptervisual{calculus and differential equations}{a changing position or field}{differentiate, integrate, or solve a local equation}{a rate, accumulated quantity, or trajectory}
+\chapterbridge{The derivative and integral from the first pass now acquire companions. Vectors let change happen in space, and differential equations let local laws describe fields as well as particles. We will meet these ideas repeatedly before asking the reader to use their full power.}
 Calculus becomes much easier to remember when each operation answers a physical question. A derivative asks how something changes locally. An integral asks how many small contributions accumulate. A differential equation states a local rule and asks us to reconstruct the whole motion or field. In this chapter we build that language, including the geometry needed when a system occupies space rather than a single line.
 
 \section{Derivatives, integrals, and conservation}
@@ -489,6 +496,7 @@ Thus the canonical distribution is not an arbitrary rule: it is the maximum-entr
 \part{Classical Mechanics}
 \chapter{Newtonian motion and conservation laws}
 \chaptervisual{Newtonian motion}{forces, positions, and velocities}{Newton's law and a time integral}{trajectory, momentum, and energy}
+\chapterbridge{The spring in the first pass gave us a force law simple enough to solve by inspection. We now widen the question: how do momentum, work, and energy organize motion when the force is not so simple? The answers will prepare us for the more flexible languages of Lagrange and Hamilton.}
 We now put the mathematical language to work. The central problem of mechanics is to predict a trajectory from forces and initial conditions. Sometimes the most direct route is to integrate Newton's law. Sometimes energy or momentum lets us bypass most of that integration. Learning mechanics means learning to recognize which question each method answers most efficiently.
 
 \section{Kinematics and Newton's laws}
@@ -606,6 +614,7 @@ The exhaust term is essential because the rocket alone is an open system. The lo
 
 \chapter{Lagrangian and Hamiltonian mechanics}
 \chaptervisual{analytical mechanics}{nearby trial paths}{stationary action and a Legendre transform}{equations of motion and phase-space flow}
+\chapterbridge{Newton's laws taught us to follow forces component by component. That method remains valuable, but constraints and changing coordinates can make it cumbersome. The action reformulates the same mechanics as a statement about paths; Hamiltonian mechanics will then reorganize those paths into a phase-space flow.}
 Newton's laws remain valid, but constrained systems can make their component form cumbersome. A pendulum moves along a circle; an angle describes that motion more naturally than two coordinates and an unknown tension. Analytical mechanics lets us choose such coordinates first and obtain their equations systematically. It also reveals why symmetries and conservation laws appear together.
 
 \section{Generalized coordinates and stationary action}
@@ -719,6 +728,7 @@ This is our first example of a wave equation arising from an action. Each point 
 
 \chapter{Gravitation, orbits, and rigid bodies}
 \chaptervisual{gravity and rigid bodies}{mass distributions and initial velocities}{inverse-square force and inertia tensor}{orbits, rotation, and conserved angular momentum}
+\chapterbridge{The conserved quantities from Newtonian and analytical mechanics now meet geometry. Orbits use energy and angular momentum to reduce a two-body problem, while rigid bodies show why a single rotational coordinate is sometimes not enough. These are the first places where the shape of a system becomes part of its dynamics.}
 Gravity and rotation bring the conservation laws together. An orbit is a continuously falling trajectory, shaped by both attraction and angular momentum. A rotating body is a collection of moving pieces whose geometry matters as much as its total mass. We will simplify both problems by identifying what is conserved and choosing coordinates that expose it.
 
 \section{Newtonian gravity and potentials}
@@ -831,6 +841,7 @@ Insert this into $m\vect a=\vect F$ and move every frame term to the force side.
 
 \chapter{Oscillations, coupled systems, and chaos}
 \chaptervisual{oscillations and chaos}{displacement from equilibrium}{linearization, eigenmodes, and nonlinear iteration}{frequency spectra, beats, and trajectory separation}
+\chapterbridge{The spring has appeared as a first model, an energy system, and a rotating body's local approximation. We now ask how the pattern changes when several oscillators interact or when the restoring law is nonlinear. The normal-mode idea introduced here will later reappear in waves, molecules, circuits, fields, and quantum theory.}
 Oscillations recur throughout physics because a smooth potential looks approximately quadratic near a stable minimum. This makes the spring much more than one mechanical example: it is a model for small departures from equilibrium. We will first solve that model, then ask what changes when energy leaks away, a driver supplies energy, or nonlinearity becomes too large to ignore.
 
 \section{Simple and damped oscillators}
@@ -906,6 +917,7 @@ The coefficient now changes along the reference trajectory. This equation explai
 \part{Continuum Physics, Waves, and Optics}
 \chapter{Elasticity, fluids, and transport}
 \chaptervisual{continuum physics}{a small cell with density and flux}{local balance, constitutive law, and divergence}{flow, deformation, and transport across boundaries}
+\chapterbridge{Until now, the objects were a few particles or coordinates. We now let the number of degrees of freedom become enormous and replace the list with fields. The same conservation logic survives: what changes inside a region must be explained by what crosses its boundary or is created within it.}
 When tracking every atom is unnecessary, we describe matter using fields such as density, velocity, and temperature. The guiding method is to balance what enters and leaves a small region, then relate the fluxes and forces to local fields. Conservation laws supply the bookkeeping; material properties supply the response.
 
 \section{Stress and strain}
@@ -1027,6 +1039,7 @@ for spatially constant $D$. The minus sign in the flux law makes peaks flatten r
 
 \chapter{Waves, sound, and interference}
 \chaptervisual{waves and interference}{a disturbed string or pressure field}{wave equation and Fourier decomposition}{propagation, reflection, and interference fringes}
+\chapterbridge{The continuum description gave us fields that change from place to place. A wave is what happens when a local change communicates with neighboring regions. The oscillator language returns, spread across space; later, the same mathematics will describe light, quantum amplitudes, and numerical grids.}
 A wave lets a disturbance travel without requiring the material to travel with it. Each part of the medium responds locally and influences its neighbors. We will derive the wave equation from that interaction, then use boundary conditions and superposition to explain standing waves, packets, and interference.
 
 \section{From a string to a wave equation}
@@ -1114,6 +1127,7 @@ For equal individual intensities $I_0$, constructive interference gives $4I_0$ a
 
 \chapter{Geometrical and physical optics}
 \chaptervisual{optics}{rays, apertures, and phase fronts}{refraction, path difference, and Fourier transform}{images, diffraction, and polarization}
+\chapterbridge{Waves have shown us why phase matters. Optics gives us a useful change of scale: when wavelength is small, the wave description becomes a ray picture; when apertures become comparable to wavelength, the full interference structure returns. This will be our first sustained example of one theory yielding different approximations.}
 Optics offers two complementary descriptions. Rays are useful when wavelength is small compared with the features that shape the light. Wave amplitudes are necessary when phase differences, apertures, or polarization matter. We will connect these descriptions by asking which information each approximation retains.
 
 \section{Rays, refraction, and imaging}
@@ -1192,6 +1206,7 @@ Threshold sets this factor to one, giving $g_{\rm th}=\alpha+(2L)^{-1}\ln[1/(R_1
 \part{Thermal and Statistical Physics}
 \chapter{Thermodynamics}
 \chaptervisual{thermodynamics}{a gas state and controlled boundary}{first law, equations of state, and Legendre transform}{work, heat, entropy, and equilibrium}
+\chapterbridge{The conservation laws of mechanics and fluids tracked energy locally. Thermodynamics asks what can be said when the microscopic details are deliberately hidden. We will keep the same discipline of defining a system and its boundary, but now add temperature, entropy, and the direction of spontaneous change.}
 Thermodynamics asks what we can predict without following every molecule. Its strength comes from carefully defining a system, the energy transfers across its boundary, and the constraints on its states. Much of the mathematics is ordinary calculus; the subtlety is knowing which variables are held fixed and which processes can actually occur.
 
 \section{Equilibrium, temperature, and the first law}
@@ -1306,6 +1321,7 @@ A reversible phase conversion at temperature $T$ transfers latent heat per parti
 
 \chapter{Statistical mechanics}
 \chaptervisual{statistical mechanics}{microstates and a reservoir}{probability weights, counting, and partition functions}{macroscopic averages and fluctuations}
+\chapterbridge{Thermodynamics gave us macroscopic rules without asking what each molecule was doing. Statistical mechanics now opens that box carefully. Probability, counting, and the Gaussian ideas from the foundations explain why smooth thermodynamic quantities emerge from fluctuating microscopic states.}
 Thermodynamics told us which macroscopic changes are possible. Statistical mechanics asks why those rules emerge from microscopic states. The strategy is to assign probabilities consistently with the system's surroundings, count the states, and average the quantities we can measure. The partition function will become a compact way to perform many of those calculations at once.
 
 \section{Microstates, macrostates, and ensembles}
@@ -1444,6 +1460,7 @@ Above $T_c$, only $m=0$ is a minimum. Below $T_c$, the curvature there becomes n
 \part{Electricity and Magnetism}
 \chapter{Electrostatics, potentials, and matter}
 \chaptervisual{electrostatics}{charges and a test charge}{Coulomb superposition, gradient, and boundary conditions}{field lines, equipotentials, and force}
+\chapterbridge{The continuum chapters taught us to think in fields and fluxes; thermodynamics taught us to respect boundaries and state variables. Electromagnetism combines both habits. We begin with the simplest field, electrostatics, before allowing charge to move and electric and magnetic fields to evolve together.}
 The electric field describes what a test charge would experience at each location. Potential describes the same electrostatic situation through energy per charge. We will move between these descriptions according to the geometry: symmetry often makes fields simple, while superposition and boundary-value problems often favor potential.
 
 \section{Electric fields and Gauss's law}
@@ -1527,6 +1544,7 @@ This motivates $\vect D$. For a homogeneous linear dielectric filling a parallel
 
 \chapter{Currents, magnetism, and circuits}
 \chaptervisual{currents and magnetism}{moving charge and circuit elements}{continuity, Lorentz force, and circuit equations}{current, voltage, magnetic force, and stored energy}
+\chapterbridge{Electrostatics gave us fields created by charge at rest. The next step is motion: charge conservation becomes a continuity equation, magnetic force appears, and the field description can be reduced to circuits when the geometry permits.}
 Allow charges to move and the description acquires currents and magnetic fields. Circuit models compress the field behavior into a few variables, but their laws still express charge conservation, induction, and energy transfer. We will use those connections to explain both steady response and the time-dependent approach to it.
 
 \section{Charge transport and resistance}
@@ -1613,6 +1631,7 @@ All the oscillator methods now apply, with charge taking the role of displacemen
 
 \chapter{Maxwell's equations and electromagnetic waves}
 \chaptervisual{Maxwell's equations}{electric and magnetic fields}{curl, divergence, and coupled time evolution}{transverse waves and Poynting energy flow}
+\chapterbridge{The previous two chapters treated electric and magnetic phenomena in separate settings. Maxwell's synthesis shows that the separation was a matter of approximation: changing fields sustain one another and carry energy through space. The wave equation from the continuum unit returns here in a new physical form.}
 The separate electrical and magnetic laws fit into one dynamical system. Electric and magnetic fields can sustain one another through time-dependent coupling, even far from their sources. The wave speed will emerge from the field equations themselves, and an energy balance will tell us how those waves carry power.
 
 \section{The unified field equations}
@@ -1720,6 +1739,7 @@ The ions are treated as fixed and thermal pressure is neglected. The density dep
 \part{Relativity and Gravitation}
 \chapter{Special relativity}
 \chaptervisual{special relativity}{events and moving observers}{Lorentz transformation and invariant interval}{light cones, time dilation, and simultaneity}
+\chapterbridge{Classical mechanics and electromagnetism used different ideas about space and time. The electromagnetic wave speed gives us a reason to revisit that foundation. We will preserve the successful conservation laws while replacing absolute time with an invariant spacetime interval.}
 Newtonian mechanics assumes that different inertial observers share a common time. Electromagnetic waves force us to reconsider that assumption: all inertial observers measure the same vacuum light speed. The solution is to transform space and time together. We will derive consequences by comparing events and invariants rather than relying on pictures of moving objects alone.
 
 \section{Events, intervals, and Lorentz transformations}
@@ -1821,6 +1841,7 @@ A magnetic component has appeared, but the invariant is unchanged. For a vacuum 
 
 \chapter{Differential geometry and introductory topology}
 \chaptervisual{differential geometry and topology}{a surface, tangent vector, and loop}{metric, parallel transport, and curvature}{geodesics, holonomy, and holes}
+\chapterbridge{Special relativity taught us that coordinates are not measurements by themselves; the interval is what all inertial observers agree on. To let that lesson survive when gravity and coordinates vary from place to place, we need a language for curved spaces, tangent directions, transport, and curvature.}
 Classical vectors are usually introduced in a fixed Euclidean basis, but relativity compares measurements made in curved spacetime and in many coordinate systems. Geometry supplies the language for doing this without confusing coordinates with physical objects. Topology then records which global features cannot be removed by smooth stretching.
 
 \section{Manifolds, tangent spaces, and coordinate changes}
@@ -1872,6 +1893,7 @@ These ideas are deliberately introductory. General relativity primarily needs sm
 
 \chapter{General relativity}
 \chaptervisual{general relativity}{a metric and neighboring free-fall paths}{connection, geodesic equation, and curvature}{tidal separation, lensing, and gravitational time}
+\chapterbridge{The geometry chapter gave names to the structures that special relativity only needed in flat form. We can now return to gravity with a precise question: how does matter determine the geometry, and how does that geometry guide free motion? The Newtonian limit will be our bridge back to familiar mechanics.}
 Special relativity describes measurements in flat spacetime. General relativity makes spacetime geometry dynamical and uses it to describe gravity. This chapter introduces the sequence of ideas needed to read the equations: the metric defines intervals, the connection defines parallel transport, curvature measures the failure of transport to be path independent, and stress-energy helps determine curvature. Some full solutions require techniques beyond this introduction; we will develop the accessible steps and identify where a deeper calculation enters.
 
 \section{Equivalence principle and geometry}
@@ -1968,6 +1990,7 @@ The negative sign shows shrinking separation. Since orbital frequency scales as 
 \part{Quantum Physics}
 \chapter{Quantum principles and mathematical structure}
 \chaptervisual{quantum principles}{a normalized state and a measurement basis}{projection, operators, and the Born rule}{probabilities, expectation values, and uncertainty}
+\chapterbridge{Classical waves taught us to track amplitudes and phase, while statistical physics taught us to distinguish microscopic possibilities from measured averages. Quantum mechanics combines those lessons in a new state space: amplitudes evolve linearly, but measurements return probabilities.}
 Quantum mechanics changes the object we predict. Instead of assigning a definite trajectory to every particle, we evolve a state and calculate probabilities for specified measurements. The algebra of vectors, operators, and complex amplitudes is the machinery for doing that. We will distinguish the theory's postulates from consequences derived from them, so the starting assumptions stay visible.
 
 \section{Why classical physics is incomplete}
@@ -2062,6 +2085,7 @@ The linear fluctuation term averages to zero. A narrow packet in a smoothly vary
 
 \chapter{Exactly solvable quantum systems}
 \chaptervisual{solvable quantum systems}{a potential and boundary conditions}{eigenvalue equation and normalizable solutions}{nodes, energy levels, and probability density}
+\chapterbridge{The previous chapter introduced states and measurements. We now let the Hamiltonian evolve those states in concrete systems. Boundary conditions, just as in waves, select allowed patterns; the difference is that the patterns now describe probability amplitudes.}
 Simple quantum models are valuable because each exposes a different mechanism: boundary conditions quantize a box, forbidden regions produce exponential tails, and operator algebra organizes an oscillator. In every case, begin with the potential, solve the appropriate differential or algebraic equation, and impose the conditions that make a state physically admissible.
 
 \section{Free particles and wave packets}
@@ -2195,6 +2219,7 @@ The $1/r$ coefficient must vanish: $a=\hbar^2/(\mu\kappa)=a_\mu/Z$. The remainin
 
 \chapter{Quantum approximation methods and scattering}
 \chaptervisual{quantum approximations}{an exact system plus a small interaction}{perturbation, variation, WKB, or scattering expansion}{energy shifts and cross sections}
+\chapterbridge{Exact models are our training ground, not the usual destination. The same approximation habits learned from Taylor series, small oscillations, and geometric optics now return in quantum form: identify a small parameter, keep the leading correction, and test where the approximation breaks.}
 Exact solutions are landmarks, not the typical case. When a problem differs slightly from a solvable one, we can organize corrections. When no nearby exact solution is available, we may seek a bound or a semiclassical approximation. The important question is not just how to apply a method, but which small parameter, gap, or length scale makes it trustworthy.
 
 \section{Time-independent perturbation theory}
@@ -2299,6 +2324,7 @@ The distance cancels, explaining $\dd\sigma/\dd\Omega=|f|^2$. For a central pote
 
 \chapter{Identical particles, entanglement, and quantum information}
 \chaptervisual{entanglement and quantum information}{a joint state of several subsystems}{tensor products, partial trace, and correlations}{reduced states, entropy, and interference}
+\chapterbridge{A single quantum state was already a vector, but several quantum systems require a larger space built from tensor products. This is where the linear algebra introduced earlier becomes physically consequential: correlations can belong to the joint state even when no subsystem has a pure state of its own.}
 With several quantum systems, the state space grows by tensor products. This introduces two ideas with no direct classical-particle counterpart: exchanging identical particles constrains the allowed states, and a joint state need not assign a pure state to each part. Density operators let us describe both incomplete preparation knowledge and subsystems of entangled states.
 
 \chaptermark{Entanglement and quantum information}
@@ -2370,6 +2396,7 @@ Nearly orthogonal environmental records suppress this coherence. This calculatio
 \part{Quantum Computing}
 \chapter{Quantum computing from bits to algorithms}
 \chaptervisual{quantum computing}{bits, qubits, and circuit inputs}{unitary gates, amplitude interference, and measurement}{algorithmic probability and computational speedup}
+\chapterbridge{The preceding quantum chapters developed states, operators, tensor products, measurement, and entanglement. Quantum computing uses those ideas deliberately as an information-processing language. We will move slowly from the familiar classical bit to interference that can be arranged into an algorithm.}
 Quantum computing is not simply faster computation with smaller hardware. It is a theory of information in which amplitudes evolve linearly, measurement produces probabilities, and carefully arranged interference changes which answers are likely to be observed. We will begin with ordinary bits, then add one new idea at a time: a qubit, a gate, a circuit, an algorithm, and finally the noise that makes real devices difficult.
 
 \section{Bits, states, and reversible operations}
@@ -2443,6 +2470,7 @@ while the diagonal probabilities remain fixed. A useful visual therefore shows t
 \part{Atoms, Materials, Nuclei, and Particles}
 \chapter{Atomic and molecular physics}
 \chaptervisual{atomic and molecular physics}{charges, orbitals, and energy levels}{Coulomb Hamiltonian, symmetry, and matrix elements}{spectra, transitions, and bonding}
+\chapterbridge{Quantum mechanics first gave us ideal particles and ideal potentials. Atoms ask what happens when those states interact with fields, nuclei, and other electrons; molecules then ask how the same quantum structure produces collective bonds and vibrations.}
 The hydrogen atom gave us a starting model. Real atoms add electron-electron interactions, spin couplings, and corrections at smaller energy scales. Molecules add moving nuclei and bonding. We will build a hierarchy of approximations, using each simpler model to identify which additional terms are likely to matter next.
 
 \section{Atomic structure beyond hydrogen}
@@ -2501,6 +2529,7 @@ This is the oscillator again, now for relative nuclear motion. Rotation at nearl
 
 \chapter{Condensed matter and collective phenomena}
 \chaptervisual{condensed matter}{a periodic lattice and occupied states}{normal modes, reciprocal space, and band structure}{phonons, gaps, and transport}
+\chapterbridge{Molecular vibrations showed how many-body motion can still be organized around modes. A crystal repeats that idea across an enormous lattice: translation symmetry creates phonons and bands, while interactions and collective order determine which simple pictures survive.}
 A solid contains too many interacting particles to solve by listing all their coordinates. Its regularities suggest better variables: lattice waves, electron bands, collective order, and quasiparticles. The purpose of these descriptions is to retain the information needed for a particular scale and measurement. Their success comes from symmetry and controlled approximations, not from pretending the microscopic interactions disappear.
 
 \section{Crystals, reciprocal space, and phonons}
@@ -2596,6 +2625,7 @@ Read the Hall formula as two separate statements. The combination $e^2/h$ suppli
 
 \chapter{Nuclear physics}
 \chaptervisual{nuclear physics}{nucleons, masses, and reaction channels}{binding energy, tunneling, and conservation laws}{stability, decay, and released energy}
+\chapterbridge{Atomic physics taught us to separate energy scales and to distinguish an allowed transition from a likely one. Nuclear physics applies the same discipline at a smaller length scale, where binding, tunneling, statistics, and relativistic reaction kinematics meet.}
 Nuclear physics brings together binding energy, quantum statistics, tunneling, and reaction kinematics at much shorter distances. Start by accounting for mass and charge consistently, then distinguish whether a process is energetically allowed from whether it happens rapidly. Favorable energy release alone does not determine a decay or reaction rate.
 
 \section{Nuclear scales and binding}
@@ -2649,6 +2679,7 @@ For dense matter, the key output needed by a stellar model is an equation of sta
 
 \chapter{Relativistic quantum theory and particle physics}
 \chaptervisual{particle physics}{fields and incoming particles}{relativistic Lagrangian, symmetry, and interaction vertex}{allowed processes and measurable rates}
+\chapterbridge{The quantum chapters allowed a fixed number of particles, while relativity allows energy to become new particles. Quantum field theory is the next synthesis: fields are fundamental, particles are excitations, and symmetries organize the interactions.}
 Quantum mechanics and special relativity meet most naturally in quantum field theory, where particle number can change and fields supply the underlying degrees of freedom. A full development requires a substantial course of its own. Here we build the entry points carefully: relativistic dispersion, field equations, quantized modes, and the role of interactions and symmetries. Treat the more advanced results as a map for further study, with their assumptions visible.
 
 \section{Why quantum fields are needed}
@@ -2754,6 +2785,7 @@ Conservation is necessary but not sufficient for an appreciable rate. A channel 
 \part{Astrophysics, Cosmology, and Synthesis}
 \chapter{Stars, compact objects, and the expanding universe}
 \chaptervisual{astrophysics and cosmology}{matter, radiation, and gravity across scales}{equations of state, hydrostatic balance, and expansion}{stellar structure, redshift, and cosmic history}
+\chapterbridge{The final physics unit brings earlier scales together. Gravity supplies structure, quantum and nuclear physics supply matter, thermodynamics supplies pressure and entropy, and relativity supplies the geometry of compact objects and the expanding universe. Astrophysics is therefore a synthesis, not a separate beginning.}
 Astrophysics combines the previous modules on a grand scale. Stellar pressure is supplied by matter and radiation; gravity sets the required support; nuclear reactions and transport determine energy flow. Cosmology replaces the internal profile of one object with the evolution of a nearly homogeneous universe. In both settings, state the symmetry assumptions before reducing field equations to a manageable model.
 
 \section{Stellar structure and energy transport}
@@ -2862,6 +2894,7 @@ The acceleration equation with no separate cosmological constant therefore permi
 
 \chapter{Computational physics and model validation}
 \chaptervisual{computational physics}{a continuum model and discrete samples}{discretization, timestep, and convergence test}{stable numerical trajectories and error estimates}
+\chapterbridge{A calculation is not finished when an equation has been written, and it is not validated merely because an animation looks plausible. This chapter gathers the book's recurring habits—units, limits, conservation, approximation, and comparison—and turns them into a computational workflow.}
 A numerical solution is another approximation, layered on top of the physical model. It can make an unsolvable analytic problem accessible, but smooth output alone does not establish accuracy. The aim of this chapter is to make computational choices explainable: derive the discrete rule, estimate its error, and test it against something whose answer you understand.
 
 \section{Discretization and numerical error}
@@ -2953,6 +2986,7 @@ When a check fails, change one thing at a time. If halving the time step changes
 
 \chapter{Connections across the subject}
 \chaptervisual{connections across physics}{the same pattern in different systems}{conservation, oscillation, symmetry, and scale}{a reusable physical argument}
+\chapterbridge{We can now look backward without flattening the differences between subjects. The same mathematical form can describe a spring, a circuit, a field mode, or a quantum oscillator, but the symbols acquire different physical meanings. These connections are the book's invitation to continue learning beyond its last page.}
 By now the same mathematical patterns have appeared in very different settings. Recognizing them lets you reuse an argument without confusing the physical meanings of its symbols. We close the main text by tracing four recurring ideas: local balance, oscillation, symmetry, and scale. Each is a guide to choosing where a new calculation should begin.
 
 \section{Conservation from local balance}
