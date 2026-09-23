@@ -1,0 +1,1298 @@
+\documentclass[11pt,oneside]{book}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black]{hyperref}
+\usepackage{microtype}
+\allowdisplaybreaks
+\setcounter{tocdepth}{2}
+\setcounter{secnumdepth}{2}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\ii}{\mathrm{i}}
+\newcommand{\ee}{\mathrm{e}}
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\grad}{\boldsymbol{\nabla}}
+\newcommand{\lap}{\nabla^2}
+\newcommand{\avg}[1]{\left\langle #1\right\rangle}
+\newcommand{\ket}[1]{\lvert #1\rangle}
+\newcommand{\bra}[1]{\langle #1\rvert}
+\newcommand{\abs}[1]{\left\lvert #1\right\rvert}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\od}[2]{\frac{\dd #1}{\dd #2}}
+\newcommand{\kb}{k_{\mathrm B}}
+\newcommand{\eps}{\varepsilon_0}
+\newcommand{\mun}{\mu_0}
+\newtheoremstyle{reviewstyle}{8pt}{8pt}{\normalfont}{} {\bfseries}{.}{.5em}{}
+\theoremstyle{reviewstyle}
+\newtheorem{example}{Worked example}[chapter]
+\newtheorem*{pitfall}{Common pitfall}
+\newtheorem*{connection}{Connection}
+\title{Physics: A Comprehensive Review\\\large Mathematical Foundations, Classical Theory, and Modern Physics}
+\author{Physics and Programming}
+\date{September 2026}
+\begin{document}
+\frontmatter
+\hypersetup{pageanchor=false}
+\maketitle
+\hypersetup{pageanchor=true}
+\tableofcontents
+\mainmatter
+\part{Mathematical and Physical Foundations}
+\chapter{Scales, dimensions, and measurement}
+\section{Physical quantities and dimensional analysis}
+A physical quantity is a number times a unit. Its dimension is independent of the chosen unit system. The mechanical base dimensions are mass $M$, length $L$, and time $T$; SI also includes electric current, temperature, amount of substance, and luminous intensity. For example,
+\begin{equation}
+[v]=LT^{-1},\quad [a]=LT^{-2},\quad [F]=MLT^{-2},\quad [E]=ML^2T^{-2}.
+\end{equation}
+Only quantities with equal dimensions may be added. Arguments of exponentials, logarithms, and trigonometric functions are dimensionless. Dimensional consistency is necessary but does not determine dimensionless coefficients.
+
+If a problem contains $n$ dimensional variables constructed from $r$ independent base dimensions, Buckingham's $\Pi$ theorem generally permits $n-r$ independent dimensionless combinations. These organize similarity experiments and identify competing effects.
+\begin{example}[Pendulum scaling]
+Assume a small-angle pendulum period depends only on length $\ell$ and gravitational acceleration $g$. Writing $\tau=C\ell^ag^b$ gives $a+b=0$ and $-2b=1$, so $\tau=C\sqrt{\ell/g}$. Dynamics supplies $C=2\pi$. At finite amplitude, the release angle is another dimensionless variable, and $C$ depends on it.
+\end{example}
+\section{Orders of magnitude and approximation}
+An approximation is usually controlled by a dimensionless parameter. Examples are $v/c\ll1$ for Newtonian kinematics, $\theta\ll1$ for $\sin\theta\simeq\theta$, and a wavelength much shorter than an apparatus for ray optics. Taylor expansion makes the neglected terms explicit:
+\begin{equation}
+f(x+\delta)=f(x)+\delta f'(x)+\frac{\delta^2}{2}f''(x)+O(\delta^3).
+\end{equation}
+Keeping one correction can reveal when a leading model fails. For example,
+$\gamma=(1-v^2/c^2)^{-1/2}=1+v^2/(2c^2)+3v^4/(8c^4)+\cdots$.
+\section{Uncertainty and data}
+For $N$ independent observations with finite variance, the sample mean is $\bar x=N^{-1}\sum_i x_i$ and its estimated standard error is $s/\sqrt N$, where
+\begin{equation}
+s^2=\frac{1}{N-1}\sum_i(x_i-\bar x)^2.
+\end{equation}
+This does not remove calibration errors or other systematic biases. For a differentiable function $f(\vect x)$ with small errors and covariance matrix $C$,
+\begin{equation}
+\sigma_f^2\simeq\sum_{ij}\pd{f}{x_i}C_{ij}\pd{f}{x_j}.
+\end{equation}
+For independent inputs, the off-diagonal terms vanish. A least-squares fit with independent Gaussian errors minimizes
+$\chi^2=\sum_i[y_i-f(x_i;\vect a)]^2/\sigma_i^2$.
+Good agreement is judged relative to uncertainties and degrees of freedom, not simply by how smooth a curve looks.
+\begin{pitfall}
+Measurement uncertainty describes limited knowledge of a result; quantum uncertainty can remain even for an ideally prepared state and perfect apparatus. Neither means that physical predictions are arbitrary.
+\end{pitfall}
+
+\chapter{Calculus, vectors, and differential equations}
+\section{Derivatives, integrals, and conservation}
+The derivative measures local change, while integration accumulates it:
+\begin{equation}
+v=\od{x}{t},\qquad a=\od{v}{t},\qquad x(t)=x(t_0)+\int_{t_0}^t v(s)\,\dd s.
+\end{equation}
+For several variables, the total differential is $\dd f=\sum_i(\partial f/\partial x_i)\dd x_i$. A derivative with some variables held fixed is physically different from one with other constraints; this matters especially in thermodynamics.
+
+The gradient points toward fastest scalar increase; divergence measures local vector outflow; curl measures local circulation. In Cartesian coordinates,
+\begin{equation}
+\grad f=(\partial_xf,\partial_yf,\partial_zf),\quad
+\grad\cdot\vect A=\partial_iA_i,\quad
+(\grad\times\vect A)_i=\epsilon_{ijk}\partial_jA_k.
+\end{equation}
+The Laplacian is $\lap f=\grad\cdot\grad f$. Useful identities are
+\begin{equation}
+\grad\times\grad f=0,\quad \grad\cdot(\grad\times\vect A)=0,\quad
+\grad\times(\grad\times\vect A)=\grad(\grad\cdot\vect A)-\lap\vect A.
+\end{equation}
+The divergence and Stokes theorems turn local laws into global statements:
+\begin{equation}
+\int_V\grad\cdot\vect A\,\dd V=\oint_{\partial V}\vect A\cdot\dd\vect S,
+\qquad
+\int_S(\grad\times\vect A)\cdot\dd\vect S=\oint_{\partial S}\vect A\cdot\dd\vect\ell.
+\end{equation}
+Orient the surface normal and boundary traversal consistently with the right-hand rule.
+\section{Coordinates and integration measures}
+Coordinate systems encode geometry, not new physics. Cylindrical volume is $\dd V=r\,\dd r\,\dd\phi\,\dd z$; spherical volume is $\dd V=r^2\sin\theta\,\dd r\,\dd\theta\,\dd\phi$. The Jacobian cannot be omitted. For a spherically symmetric scalar,
+\begin{equation}
+\lap f(r)=\frac{1}{r^2}\od{}{r}\left(r^2\od{f}{r}\right).
+\end{equation}
+A radial inverse-square field has zero divergence away from the origin, yet nonzero flux through an enclosing sphere. Its source at the origin is represented by a delta distribution.
+\section{Linear algebra and normal modes}
+An eigenvector obeys $A\vect v=\lambda\vect v$. For real symmetric matrices, eigenvalues are real and an orthonormal eigenbasis exists. Hermitian complex matrices have the analogous property. Diagonalization separates coupled degrees of freedom.
+
+For a quadratic mechanical system,
+\begin{equation}
+T=\tfrac12\dot{\vect q}^{\mathsf T}M\dot{\vect q},\qquad
+V=\tfrac12\vect q^{\mathsf T}K\vect q,
+\end{equation}
+the mode equation is $K\vect a=\omega^2M\vect a$. Positive $M$ and positive-definite $K$ imply real nonzero frequencies and stable small oscillations. Zero eigenvalues often correspond to a symmetry; negative stiffness eigenvalues indicate instability.
+\section{Complex numbers and Fourier analysis}
+Euler's identity $\ee^{\ii\theta}=\cos\theta+\ii\sin\theta$ converts sinusoidal differentiation into multiplication by $\ii\omega$. Physical fields are real parts of complex representations. With the convention
+\begin{equation}
+\widetilde f(k)=\int_{-\infty}^{\infty}f(x)\ee^{-\ii kx}\dd x,
+\qquad
+f(x)=\frac{1}{2\pi}\int_{-\infty}^{\infty}\widetilde f(k)\ee^{\ii kx}\dd k,
+\end{equation}
+spatial differentiation becomes multiplication by $\ii k$. Fourier methods separate linear, translation-invariant differential equations into algebraic equations. Sharp localization requires a broad spectrum.
+
+The delta distribution satisfies $\int f(x)\delta(x-a)\dd x=f(a)$ and $\delta(ax)=\delta(x)/|a|$ for nonzero real $a$. It represents an ideal point source or impulse, not an ordinary function with a finite height.
+\section{Ordinary and partial differential equations}
+An $n$th-order ordinary differential equation generally requires $n$ independent initial data. Boundary-value problems can instead select discrete eigenvalues. Three central PDEs are
+\begin{align}
+\partial_t^2u&=v^2\lap u &&\text{wave propagation},\\
+\partial_tu&=D\lap u &&\text{diffusion},\\
+\lap\phi&=s(\vect r) &&\text{Poisson equation}.
+\end{align}
+The wave equation propagates signals; diffusion smooths gradients; Poisson's equation constrains a field at a given time in a static or quasistatic model. Boundary conditions are part of the problem, not optional additions.
+
+Separation of variables, $u(x,t)=X(x)T(t)$, works when the operator and geometry permit it. Green functions solve $LG(x,x')=\delta(x-x')$ with specified boundary conditions, producing
+$u(x)=\int G(x,x')s(x')\dd x'$ plus any required homogeneous contribution.
+\begin{example}[Diffusion of a sinusoidal disturbance]
+For $u(x,0)=u_0+A\cos kx$ on an infinite or compatible periodic domain, try $u=u_0+a(t)\cos kx$. The diffusion equation gives $\dot a=-Dk^2a$, hence $a=A\ee^{-Dk^2t}$. Short spatial wavelengths relax faster, with time scale $1/(Dk^2)$.
+\end{example}
+\section{Probability and distributions}
+A probability density satisfies $p(x)\geq0$ and $\int p(x)\dd x=1$. Expectations and variances are
+\begin{equation}
+\avg{f}=\int f(x)p(x)\dd x,\qquad \sigma_x^2=\avg{x^2}-\avg{x}^2.
+\end{equation}
+The Gaussian density is $(2\pi\sigma^2)^{-1/2}\exp[-(x-\mu)^2/(2\sigma^2)]$. The central limit theorem explains its appearance for sums of many weakly dependent contributions under appropriate conditions. A Poisson count has $P(n)=\ee^{-\lambda}\lambda^n/n!$ and variance equal to its mean $\lambda$.
+
+\part{Classical Mechanics}
+\chapter{Newtonian motion and conservation laws}
+\section{Kinematics and Newton's laws}
+Position, velocity, and acceleration are $\vect r$, $\vect v=\dot{\vect r}$, and $\vect a=\ddot{\vect r}$. With constant acceleration,
+\begin{equation}
+\vect v=\vect v_0+\vect at,\qquad
+\vect r=\vect r_0+\vect v_0t+\tfrac12\vect at^2.
+\end{equation}
+Newton's first law defines inertial frames. The second states $\vect F_{\rm net}=\dot{\vect p}$, reducing to $m\vect a$ for a constant Newtonian mass. The third gives equal and opposite pair forces in standard Newtonian particle models; in field theories, field momentum must also be included in total momentum balance.
+
+Common ideal force laws include gravity near Earth, $\vect F=-mg\hat{\vect z}$; Hooke's law, $F_x=-kx$; kinetic dry friction, $|F_f|=\mu_kN$ opposite sliding; and static friction, $|F_f|\leq\mu_sN$, adjusted to prevent slip. A normal force is fixed by constraints and is not automatically $mg$.
+\section{Work, energy, and power}
+Dot $m\dot{\vect v}=\vect F$ with $\vect v$ to obtain
+\begin{equation}
+\od{}{t}\left(\tfrac12mv^2\right)=\vect F\cdot\vect v,
+\quad W=\int\vect F\cdot\dd\vect r=\Delta K,
+\quad P=\od{W}{t}.
+\end{equation}
+For $\vect F=-\grad V$ with no explicit time dependence, $E=K+V$ is conserved. In a simply connected domain, a smooth curl-free force is conservative. If the potential depends explicitly on time, mechanical energy need not be constant.
+\begin{example}[Projectile range]
+Launch from and land at the same elevation with speed $v_0$ and angle $\theta$, neglecting air resistance and Earth's curvature. Then $y=v_0\sin\theta\,t-gt^2/2$ gives $t_f=2v_0\sin\theta/g$, and $R=v_0\cos\theta\,t_f=v_0^2\sin(2\theta)/g$. The maximum at $45^\circ$ depends on these equal-height, no-drag assumptions.
+\end{example}
+\section{Momentum, impulses, and collisions}
+For particles of total mass $M$, the center of mass is $\vect R=M^{-1}\sum_i m_i\vect r_i$. Internal pair forces cancel, giving $M\ddot{\vect R}=\vect F_{\rm ext}$. Impulse is $\vect J=\int\vect F\dd t=\Delta\vect p$.
+
+In an isolated collision, total momentum is conserved. Kinetic energy is also conserved only for an elastic collision. In a perfectly inelastic one-dimensional collision, two masses stick:
+\begin{equation}
+v_f=\frac{m_1v_1+m_2v_2}{m_1+m_2},\qquad
+K_i-K_f=\tfrac12\mu(v_1-v_2)^2,\quad
+\mu=\frac{m_1m_2}{m_1+m_2}.
+\end{equation}
+The lost kinetic energy becomes internal energy, deformation, or radiation; total energy remains conserved.
+\section{Angular momentum and torque}
+About a fixed inertial origin,
+\begin{equation}
+\vect L=\vect r\times\vect p,\qquad
+\vect\tau=\vect r\times\vect F,\qquad
+\dot{\vect L}=\vect\tau.
+\end{equation}
+A central force has zero torque about its center. Angular momentum conservation implies planar motion and equal swept areas in equal times.
+\section{Drag and variable mass}
+Linear drag, $\vect F_d=-b\vect v$, approximates some slow viscous flows. With downward positive, a falling mass satisfies $m\dot v=mg-bv$, yielding
+\begin{equation}
+v(t)=\frac{mg}{b}+\left(v_0-\frac{mg}{b}\right)\ee^{-bt/m}.
+\end{equation}
+Quadratic drag $\vect F_d=-\tfrac12C_D\rho A|\vect v|\vect v$ is often a better model at larger Reynolds number; $C_D$ depends on shape and flow regime.
+
+For an ideal rocket with exhaust speed $u$ relative to the rocket and no external force, momentum flux gives $m\dd v=-u\dd m$, hence $\Delta v=u\ln(m_i/m_f)$. Naively applying $\dd(mv)/\dd t=F_{\rm ext}$ to an open subsystem without its mass flux gives the wrong result.
+
+\chapter{Lagrangian and Hamiltonian mechanics}
+\section{Generalized coordinates and stationary action}
+Coordinates $q_i$ describe independent degrees of freedom after holonomic constraints have been imposed. For standard conservative systems, $L=T-V$. The action is
+\begin{equation}
+S[q]=\int_{t_1}^{t_2}L(q_i,\dot q_i,t)\dd t.
+\end{equation}
+Varying the path while keeping its endpoints fixed and integrating by parts gives
+\begin{equation}
+\delta S=\int\sum_i\left[\pd{L}{q_i}-\od{}{t}\pd{L}{\dot q_i}\right]\delta q_i\dd t=0.
+\end{equation}
+Since the variations are independent, the Euler--Lagrange equations follow:
+\begin{equation}\boxed{\od{}{t}\pd{L}{\dot q_i}-\pd{L}{q_i}=0.}\end{equation}
+The action is stationary, not necessarily a minimum. Nonconservative generalized forces can be added on the right-hand side.
+\begin{example}[Pendulum from an action]
+For a mass on a rigid rod of length $\ell$,
+$L=\tfrac12m\ell^2\dot\theta^2-mg\ell(1-\cos\theta)$.
+Euler--Lagrange gives $\ddot\theta+(g/\ell)\sin\theta=0$. Linearizing near $\theta=0$ produces simple harmonic motion with $\omega_0=\sqrt{g/\ell}$. Near the upright position, the linearized restoring coefficient changes sign and perturbations grow.
+\end{example}
+\section{Symmetry and Noether's theorem}
+A continuous symmetry of the action implies a conserved quantity, with appropriate boundary qualifications. Time translation yields energy, spatial translation momentum, and rotation angular momentum. A cyclic coordinate obeys $\partial L/\partial q_i=0$, so its canonical momentum
+$p_i=\partial L/\partial\dot q_i$ is constant.
+
+If $L$ has no explicit time dependence, $E_L=\sum_i\dot q_ip_i-L$ is conserved. This equals $T+V$ for usual time-independent mechanical coordinates and velocity-independent potentials; more general Lagrangians require using the definition.
+\section{Hamiltonian dynamics and phase space}
+When velocities can be expressed in terms of momenta, define
+\begin{equation}
+H(q,p,t)=\sum_i p_i\dot q_i-L,
+\qquad \dot q_i=\pd{H}{p_i},\qquad \dot p_i=-\pd{H}{q_i}.
+\end{equation}
+A state is a point in phase space $(q,p)$. The Poisson bracket is
+\begin{equation}
+\{f,g\}=\sum_i\left(\pd{f}{q_i}\pd{g}{p_i}-\pd{f}{p_i}\pd{g}{q_i}\right),\qquad
+\dot f=\{f,H\}+\pd{f}{t}.
+\end{equation}
+Hamiltonian flow preserves phase-space volume (Liouville's theorem). Canonical transformations preserve the Poisson structure. For periodic one-dimensional motion, an action variable $J=(2\pi)^{-1}\oint p\dd q$ is approximately conserved under sufficiently slow parameter changes away from separatrices.
+\section{Fields and continuum action}
+For fields $\phi_a(x)$ with Lagrangian density $\mathcal L(\phi_a,\partial_\mu\phi_a,x)$,
+\begin{equation}
+S=\int\mathcal L\,\dd^4x,\qquad
+\partial_\mu\left(\pd{\mathcal L}{(\partial_\mu\phi_a)}\right)-\pd{\mathcal L}{\phi_a}=0.
+\end{equation}
+The mechanical sum over coordinates becomes a continuum of local degrees of freedom. This is the bridge from oscillators to elastic media, electromagnetism, and quantum fields.
+
+\chapter{Gravitation, orbits, and rigid bodies}
+\section{Newtonian gravity and potentials}
+Two point masses attract with $\vect F=-GMm\hat{\vect r}/r^2$, and $V=-GMm/r$ with zero at infinity. For a continuous density,
+\begin{equation}
+\Phi(\vect r)=-G\int\frac{\rho(\vect r')}{|\vect r-\vect r'|}\dd^3r',
+\qquad \vect g=-\grad\Phi,\qquad \lap\Phi=4\pi G\rho.
+\end{equation}
+A spherically symmetric body produces the same exterior field as a point mass at its center. Inside a spherical shell the net gravitational field is zero.
+\section{The two-body problem and effective potential}
+Separate center-of-mass motion from relative motion. The relative particle has reduced mass $\mu$ and potential $-Gm_1m_2/r$. With angular momentum magnitude $\ell$,
+\begin{equation}
+E=\tfrac12\mu\dot r^2+V_{\rm eff}(r),\qquad
+V_{\rm eff}=-\frac{Gm_1m_2}{r}+\frac{\ell^2}{2\mu r^2}.
+\end{equation}
+A circular orbit is an extremum of $V_{\rm eff}$; a local minimum gives radial stability. The orbit is a conic,
+\begin{equation}
+r(\phi)=\frac{p}{1+e\cos\phi},\quad
+p=\frac{\ell^2}{\mu Gm_1m_2},\quad
+e^2=1+\frac{2E\ell^2}{\mu(Gm_1m_2)^2}.
+\end{equation}
+Bound orbits have $E<0$ and $0\leq e<1$. For semimajor axis $a$,
+\begin{equation}
+E=-\frac{Gm_1m_2}{2a},\qquad
+\tau^2=\frac{4\pi^2a^3}{G(m_1+m_2)}.
+\end{equation}
+These are Kepler's laws in dynamical form. For a light satellite around mass $M$,
+$v_c=\sqrt{GM/r}$ and $v_{\rm esc}=\sqrt{2GM/r}$.
+\begin{example}[Why an orbiting astronaut is weightless]
+For a circular orbit, $v^2/r=GM/r^2$. Both spacecraft and astronaut accelerate gravitationally together. A scale reads the contact force, which is nearly zero; gravity itself is not zero. Small differences in gravity across the spacecraft produce tidal accelerations.
+\end{example}
+\section{Rigid-body rotation}
+The inertia tensor about an origin is
+\begin{equation}
+I_{ij}=\int\rho(\vect r)(r^2\delta_{ij}-x_ix_j)\dd V,
+\quad \vect L=I\vect\omega,\quad T_{\rm rot}=\tfrac12\vect\omega\cdot I\vect\omega.
+\end{equation}
+Along a principal axis, $L=I\omega$. The parallel-axis theorem is $I=I_{\rm CM}+Md^2$. In body-fixed principal axes, Euler's equations include
+\begin{equation}
+I_1\dot\omega_1+(I_3-I_2)\omega_2\omega_3=\tau_1,
+\end{equation}
+with cyclic permutations. Torque-free rotation about the largest or smallest principal inertia is stable to small perturbations; rotation about the intermediate one is unstable.
+
+Rolling without slipping imposes $v_{\rm CM}=R\omega$. A body descending height $h$ satisfies
+$mgh=\tfrac12mv^2+\tfrac12I_{\rm CM}v^2/R^2$ if dissipative losses vanish. Static friction can enforce rolling without dissipating mechanical energy on a stationary rigid surface.
+\section{Accelerated frames}
+For axes rotating with $\vect\Omega$ and origin acceleration $\vect A$, the equation of motion includes fictitious forces
+\begin{equation}
+\vect F_{\rm fict}=-m\vect A-2m\vect\Omega\times\vect v'
+-m\vect\Omega\times(\vect\Omega\times\vect r)
+-m\dot{\vect\Omega}\times\vect r.
+\end{equation}
+These are translational, Coriolis, centrifugal, and Euler forces. They account for using a noninertial frame; they do not describe additional interactions.
+
+\chapter{Oscillations, coupled systems, and chaos}
+\section{Simple and damped oscillators}
+Near a smooth stable equilibrium, $V(x)\simeq V(x_0)+\tfrac12k(x-x_0)^2$. Thus
+\begin{equation}
+\ddot x+\omega_0^2x=0,\quad \omega_0=\sqrt{k/m},\quad
+x=A\cos(\omega_0t+\phi).
+\end{equation}
+With linear damping and a sinusoidal drive,
+\begin{equation}
+\ddot x+2\beta\dot x+\omega_0^2x=\frac{F_0}{m}\cos\omega t.
+\end{equation}
+The free underdamped solution has envelope $\ee^{-\beta t}$ and frequency $\omega_d=\sqrt{\omega_0^2-\beta^2}$. Critical damping occurs at $\beta=\omega_0$; overdamping has two real decay rates.
+
+The steady-state displacement is $A(\omega)\cos(\omega t-\delta)$, where
+\begin{equation}
+A=\frac{F_0/m}{\sqrt{(\omega_0^2-\omega^2)^2+4\beta^2\omega^2}},\quad
+\delta=\operatorname{atan2}(2\beta\omega,\omega_0^2-\omega^2).
+\end{equation}
+For weak damping, $Q=\omega_0/(2\beta)$ and the resonance width is approximately $2\beta$. The displacement peak occurs at $\sqrt{\omega_0^2-2\beta^2}$ if that quantity is real; it is not exactly $\omega_0$ for finite damping.
+\section{Coupled modes and beats}
+Two equal masses attached to fixed walls by springs $k$ and coupled by a spring $\kappa$ obey
+\begin{equation}
+m\ddot x_1=-(k+\kappa)x_1+\kappa x_2,\quad
+m\ddot x_2=\kappa x_1-(k+\kappa)x_2.
+\end{equation}
+The coordinates $q_+=x_1+x_2$ and $q_-=x_1-x_2$ oscillate with
+$\omega_+=\sqrt{k/m}$ and $\omega_-=\sqrt{(k+2\kappa)/m}$. General motion superposes these modes. Nearby frequencies yield beats through
+$\cos\omega_1t+\cos\omega_2t=2\cos[(\omega_1-\omega_2)t/2]\cos[(\omega_1+\omega_2)t/2]$.
+\section{Nonlinearity and deterministic chaos}
+Nonlinear systems need not obey superposition. A driven pendulum,
+$\ddot\theta+2\beta\dot\theta+\omega_0^2\sin\theta=f\cos\omega t$,
+can show periodic, quasiperiodic, or chaotic motion. Chaos is sensitive dependence on initial conditions, often quantified locally by
+$|\delta x(t)|\sim|\delta x(0)|\ee^{\lambda t}$ with positive largest Lyapunov exponent.
+
+A phase portrait displays trajectories; a Poincare section samples them once per driving period. Determinism does not guarantee long-term practical predictability. Exponential separation is valid only while perturbations remain small; bounded trajectories eventually saturate the separation.
+
+\part{Continuum Physics, Waves, and Optics}
+\chapter{Elasticity, fluids, and transport}
+\section{Stress and strain}
+For a small displacement field $\vect u$, the infinitesimal strain tensor is
+\begin{equation}
+\epsilon_{ij}=\tfrac12(\partial_i u_j+\partial_j u_i).
+\end{equation}
+Stress $\sigma_{ij}$ relates a surface's orientation to force per area. For a homogeneous isotropic linear elastic solid,
+\begin{equation}
+\sigma_{ij}=\lambda\epsilon_{kk}\delta_{ij}+2\mu\epsilon_{ij},\qquad
+\rho\partial_t^2u_i=\partial_j\sigma_{ij}+f_i.
+\end{equation}
+Here $\lambda,\mu$ are Lame constants and $\mu$ is the shear modulus. Longitudinal and transverse wave speeds are
+$v_L=\sqrt{(\lambda+2\mu)/\rho}$ and $v_T=\sqrt{\mu/\rho}$. One-dimensional stretching gives $\sigma=Y\epsilon$. Linear elasticity fails for large strain, plastic deformation, or fracture.
+\section{Hydrostatics and buoyancy}
+A static fluid cannot sustain shear stress. Its pressure satisfies
+$\grad p=\rho\vect g$. For constant density with upward $z$, $p(z)=p(z_0)-\rho g(z-z_0)$. Integrating pressure over a submerged object's surface gives a buoyant force equal to the weight of displaced fluid.
+
+Surface tension $\gamma$ is energy per area and force per length. Across a curved interface,
+\begin{equation}
+\Delta p=\gamma\left(\frac{1}{R_1}+\frac{1}{R_2}\right).
+\end{equation}
+A spherical liquid droplet has $\Delta p=2\gamma/R$; a thin soap bubble has two interfaces and approximately $4\gamma/R$.
+\section{Mass and momentum conservation}
+A material derivative follows a fluid element:
+$D/Dt=\partial_t+\vect v\cdot\grad$. Mass conservation is
+\begin{equation}\partial_t\rho+\grad\cdot(\rho\vect v)=0.\end{equation}
+For an incompressible Newtonian fluid of constant density and viscosity,
+\begin{equation}
+\rho\left(\partial_t\vect v+\vect v\cdot\grad\vect v\right)
+=-\grad p+\eta\lap\vect v+\rho\vect g,
+\qquad \grad\cdot\vect v=0.
+\end{equation}
+These are the Navier--Stokes equations in a restricted but important form. Inviscid flow sets $\eta=0$. In steady, inviscid, incompressible flow under gravity, integration along a streamline gives Bernoulli's equation:
+\begin{equation}p+\tfrac12\rho v^2+\rho gz=\text{constant along a streamline}.\end{equation}
+Different streamlines need not share the same constant unless additional conditions such as irrotationality hold.
+\section{Viscosity and dimensionless parameters}
+The Reynolds number $\mathrm{Re}=\rho UL/\eta$ compares inertia with viscosity. Low Reynolds number implies creeping flow; large Reynolds number permits inertial instabilities but does not by itself specify a universal transition threshold. For steady fully developed laminar flow through a circular pipe,
+\begin{equation}
+v(r)=\frac{\Delta p}{4\eta L}(R^2-r^2),\qquad
+Q_V=\frac{\pi R^4\Delta p}{8\eta L}.
+\end{equation}
+These results assume a Newtonian incompressible fluid and no slip at the wall. Stokes drag on an isolated sphere at very low Reynolds number is $F=6\pi\eta Rv$.
+\begin{example}[Pipe radius matters]
+Holding pressure drop, length, and viscosity fixed, doubling a pipe's radius multiplies laminar volume flow by $2^4=16$. This strong dependence is a viscous-flow result; applying it after the flow becomes turbulent is unjustified.
+\end{example}
+\section{Diffusion, heat conduction, and random walks}
+Fick's law $\vect j=-D\grad n$ together with number conservation yields $\partial_t n=D\lap n$ for constant $D$. Fourier's heat law is $\vect q=-\kappa\grad T$, giving
+\begin{equation}
+\partial_tT=\alpha\lap T,\qquad \alpha=\frac{\kappa}{\rho c_p}
+\end{equation}
+when material properties are constant and the appropriate mechanical conditions permit use of $c_p$. A diffusion Green function in $d$ dimensions is
+\begin{equation}
+n(\vect r,t)=\frac{N}{(4\pi Dt)^{d/2}}\exp\left(-\frac{r^2}{4Dt}\right),\qquad \avg{r^2}=2dDt.
+\end{equation}
+Diffusion distance grows as $\sqrt t$, whereas ballistic travel grows as $t$.
+
+\chapter{Waves, sound, and interference}
+\section{From a string to a wave equation}
+For small transverse displacement $y(x,t)$ of a string with constant tension $\mathcal T$ and linear mass density $\mu$, transverse force balance on a short segment yields
+\begin{equation}
+\mu\partial_t^2y=\mathcal T\partial_x^2y,\qquad v=\sqrt{\mathcal T/\mu}.
+\end{equation}
+The general one-dimensional solution is $f(x-vt)+g(x+vt)$. A sinusoidal wave has phase $kx-\omega t+\phi$, wavelength $\lambda=2\pi/k$, period $\tau=2\pi/\omega$, and phase speed $\omega/k$.
+\section{Energy, impedance, and boundaries}
+For a sinusoidal traveling string wave of displacement amplitude $A$,
+\begin{equation}
+\avg{P}=\tfrac12\mu\omega^2A^2v.
+\end{equation}
+Waves carry energy even when material elements only oscillate locally. Reflection and transmission are fixed by boundary conditions. At a fixed string end the displacement changes sign on reflection; at a free end it does not.
+
+Fixed ends at $x=0,L$ allow $k_n=n\pi/L$, so $f_n=nv/(2L)$ for positive integers $n$. Standing waves are superpositions of counterpropagating waves; their nodes are permanently at zero displacement.
+\section{Dispersion and wave packets}
+A dispersion relation specifies $\omega(k)$. Phase and group speeds are
+\begin{equation}
+v_p=\frac{\omega}{k},\qquad v_g=\od{\omega}{k}.
+\end{equation}
+The group velocity tracks a narrow packet envelope under suitable weak-distortion conditions. If $\omega''(k)\neq0$, a packet generally spreads. In strongly absorbing or anomalously dispersive media, the group velocity need not be the information velocity.
+\section{Sound and the Doppler effect}
+Linear pressure disturbances in a fluid travel at
+\begin{equation}
+v_s^2=\left(\pd{p}{\rho}\right)_s=\frac{\gamma p}{\rho}
+\end{equation}
+for an ideal gas with locally adiabatic compression. Plane-wave acoustic impedance is $Z=\rho v_s$, and intensity is $I=p_{\rm rms}^2/Z$. The sound intensity level is $10\log_{10}(I/I_0)$ decibels for a specified reference $I_0$.
+
+For collinear motion through a stationary medium, using positive observer speed toward the source and positive source speed toward the observer,
+\begin{equation}f_{
+m obs}=f_{
+m src}\frac{v_s+v_o}{v_s-v_{
+m src}}.\end{equation}
+This classical formula depends on motion relative to the medium and differs from relativistic light Doppler shifts.
+\section{Superposition and coherence}
+For two coherent contributions with intensities $I_1,I_2$ and phase difference $\delta$,
+\begin{equation}I=I_1+I_2+2\sqrt{I_1I_2}\cos\delta.\end{equation}
+The interference term averages away when relative phase varies rapidly over the measurement. Coherence describes stable phase correlations, not merely equal wavelength.
+
+\chapter{Geometrical and physical optics}
+\section{Rays, refraction, and imaging}
+In the short-wavelength limit, Fermat's principle makes optical travel time stationary. Reflection has equal incidence and reflection angles; refraction obeys
+\begin{equation}n_1\sin\theta_1=n_2\sin\theta_2.\end{equation}
+For $n_1>n_2$, total internal reflection occurs above $\theta_c=\arcsin(n_2/n_1)$. The transmitted side still contains an evanescent field near the interface.
+
+For a thin paraxial lens in air, with real object distance $s>0$ and real image distance $s'>0$,
+\begin{equation}\frac1f=\frac1s+\frac1{s'},\qquad m=-\frac{s'}s.\end{equation}
+A virtual image has $s'<0$. With radii positive when their centers of curvature lie to the right for left-to-right incident light, the thin lensmaker equation is
+$1/f=(n-1)(1/R_1-1/R_2)$. Large angles and finite apertures introduce aberrations.
+\section{Diffraction as Fourier analysis}
+In Fraunhofer diffraction, the far-field complex amplitude is proportional to the Fourier transform of the aperture field. For a uniformly illuminated slit of width $a$,
+\begin{equation}
+I(\theta)=I(0)\left(\frac{\sin\beta}{\beta}\right)^2,
+\qquad \beta=\frac{\pi a\sin\theta}{\lambda}.
+\end{equation}
+The first minima satisfy $a\sin\theta=\pm\lambda$. Two narrow slits separated by $d$ yield maxima at $d\sin\theta=m\lambda$, modulated by each slit's diffraction envelope.
+
+For a circular aperture of diameter $D$, the first dark ring is at approximately $1.22\lambda/D$ radians for small angles. The Rayleigh criterion is a useful resolution convention, not an absolute limit independent of noise or measurement method. Grating maxima obey $d\sin\theta=m\lambda$ at normal incidence.
+\section{Polarization and interfaces}
+Polarization specifies the transverse electric field's direction and phase trajectory. Two equal orthogonal components with a $\pi/2$ relative phase produce circular polarization. An ideal linear analyzer obeys Malus's law, $I=I_0\cos^2\theta$, for linearly polarized input.
+
+At normal incidence between transparent nonmagnetic media,
+\begin{equation}R=\left|\frac{n_1-n_2}{n_1+n_2}\right|^2,\qquad T=1-R.\end{equation}
+The transmitted intensity includes the impedance factor; it is not simply the square of the electric-field amplitude ratio. At oblique incidence, the Fresnel coefficients differ for the two linear polarizations. Brewster's angle satisfies $\tan\theta_B=n_2/n_1$ for the same ideal media.
+\begin{example}[Interference fringe spacing]
+For slit separation $d$ and screen distance $L\gg d$, with small angles, $y_m/L\simeq\sin\theta_m=m\lambda/d$. Thus adjacent bright fringes are separated by $\Delta y=\lambda L/d$. Decreasing slit width broadens the envelope; decreasing slit separation broadens the fringe spacing.
+\end{example}
+\section{Lasers and optical amplification}
+Stimulated emission generates a photon in the stimulating mode. A laser combines gain, feedback, and a pumping process that sustains nonequilibrium populations. In a simple gain description, intensity grows as $I(z)=I(0)\ee^{gz}$ before saturation. Laser threshold occurs when round-trip gain balances round-trip loss. An isolated two-level system cannot maintain population inversion under steady resonant pumping alone; practical gain schemes use additional levels or other mechanisms.
+
+\part{Thermal and Statistical Physics}
+\chapter{Thermodynamics}
+\section{Equilibrium, temperature, and the first law}
+Thermodynamics describes macroscopic states through variables such as $U,S,V,N,T,p$. Equilibrium means no net macroscopic flow under the allowed constraints. The zeroth law makes temperature a consistent indicator of mutual thermal equilibrium.
+
+The first law is $\dd U=\delta Q-\delta W_{\rm by}$. Heat and work are path-dependent transfers, hence the notation $\delta$; internal energy is a state function. For reversible pressure-volume work in a simple compressible system, $\delta W_{\rm by}=p\dd V$. An ideal gas obeys
+\begin{equation}pV=N\kb T=nRT,\qquad U=\frac f2N\kb T\end{equation}
+Here $f$ counts the thermally active quadratic degrees of freedom, assuming equipartition. A monatomic nonrelativistic classical gas has $f=3$. Rotational and vibrational modes can freeze out quantum mechanically at low temperature.
+\section{Entropy and the second law}
+For a reversible heat transfer, $\dd S=\delta Q_{\rm rev}/T$. More generally,
+\begin{equation}\Delta S\geq\int\frac{\delta Q}{T_{\rm boundary}},\qquad \Delta S_{\rm isolated}\geq0.\end{equation}
+Entropy can decrease locally if enough entropy is transferred elsewhere. The second law constrains total entropy production, not every subsystem's entropy separately.
+
+For equilibrium neighboring states of a simple one-component system,
+\begin{equation}\boxed{\dd U=T\dd S-p\dd V+\mu\dd N.}\end{equation}
+This fundamental relation identifies temperature, pressure, and chemical potential as derivatives of $U(S,V,N)$. It is a relation among state variables; it does not imply every actual process is reversible.
+\section{Heat capacities and ideal-gas processes}
+Define total heat capacities $C_V=(\partial U/\partial T)_{V,N}$ and $C_p=(\partial H/\partial T)_{p,N}$, where $H=U+pV$. An ideal gas has $C_p-C_V=N\kb$ and $\gamma=C_p/C_V$. With constant heat capacities,
+\begin{align}
+\text{isothermal:}\quad &\Delta U=0,\quad W_{\rm by}=N\kb T\ln(V_f/V_i),\\
+\text{reversible adiabatic:}\quad &pV^\gamma=\text{constant},\quad TV^{\gamma-1}=\text{constant}.
+\end{align}
+An adiabatic process has no heat transfer; it is isentropic only if entropy production also vanishes.
+\begin{example}[Free expansion]
+An ideal gas expands into a vacuum in a thermally insulated rigid container. There is no external work and no heat transfer, so $\Delta U=0$ and $T_f=T_i$. Nevertheless $\Delta S=N\kb\ln(V_f/V_i)>0$. The reversible adiabatic relation $pV^\gamma=\text{constant}$ does not apply to this irreversible process.
+\end{example}
+\section{Engines and refrigerators}
+A cyclic engine absorbs $Q_h$ from a hot reservoir and rejects magnitude $Q_c$ to a cold reservoir. Its efficiency is $\eta=W/Q_h=1-Q_c/Q_h$. The entropy inequality gives
+\begin{equation}\eta\leq1-\frac{T_c}{T_h},\end{equation}
+with equality for a reversible Carnot engine. A refrigerator's coefficient of performance is $\mathrm{COP}=Q_c/W\leq T_c/(T_h-T_c)$. These ratios use absolute temperatures.
+\section{Thermodynamic potentials and Maxwell relations}
+Legendre transforms exchange natural variables:
+\begin{align}
+H&=U+pV,&\dd H&=T\dd S+V\dd p+\mu\dd N,\\
+F&=U-TS,&\dd F&=-S\dd T-p\dd V+\mu\dd N,\\
+G&=U-TS+pV,&\dd G&=-S\dd T+V\dd p+\mu\dd N.
+\end{align}
+At fixed $T,V,N$, equilibrium minimizes Helmholtz free energy $F$; at fixed $T,p,N$, it minimizes Gibbs free energy $G$, subject to the available states and other constraints. Equality of mixed partial derivatives gives, for example,
+\begin{equation}\left(\pd{S}{V}\right)_{T,N}=\left(\pd{p}{T}\right)_{V,N}.\end{equation}
+Such Maxwell relations turn hard-to-measure derivatives into accessible ones.
+\section{Phase equilibrium and stability}
+Coexisting phases share $T,p$, and chemical potential for each exchanged species. For a first-order transition, the coexistence curve obeys the Clapeyron equation
+\begin{equation}\od{p}{T}=\frac{\Delta s}{\Delta v}=\frac{\ell}{T\Delta v},\end{equation}
+where $s,v,\ell$ are entropy, volume, and latent heat per particle (or all per mole). Stability requires positive appropriate heat capacities and positive isothermal compressibility,
+$\kappa_T=-V^{-1}(\partial V/\partial p)_T$.
+
+A critical point ends a first-order coexistence line and can exhibit large fluctuations and diverging correlation length. The third law, in its usual perfect-crystal formulation, gives entropy approaching zero for a unique ground state as $T\to0$; ground-state degeneracy can produce residual entropy.
+
+\chapter{Statistical mechanics}
+\section{Microstates, macrostates, and ensembles}
+A macrostate groups many microscopic configurations. Boltzmann's entropy is $S=\kb\ln\Omega$ for equally likely accessible microstates. For general probabilities,
+\begin{equation}S=-\kb\sum_i p_i\ln p_i.\end{equation}
+The microcanonical ensemble fixes $E,V,N$. The canonical ensemble fixes $T,V,N$ by exchanging energy with a reservoir. The grand canonical ensemble fixes $T,V,\mu$ by exchanging energy and particles. Ensemble equivalence typically emerges for large ordinary systems away from qualifications such as long-range interactions.
+\section{The canonical partition function}
+A reservoir's multiplicity gives probability proportional to $\ee^{-\beta E_i}$, where $\beta=1/(\kb T)$. Define
+\begin{equation}
+Z=\sum_i\ee^{-\beta E_i},\quad p_i=\frac{\ee^{-\beta E_i}}Z,\quad
+F=-\kb T\ln Z,\quad U=-\pd{\ln Z}{\beta}.
+\end{equation}
+Further derivatives yield
+\begin{equation}
+p=\kb T\left(\pd{\ln Z}{V}\right)_{T,N},\qquad
+\avg{(\Delta E)^2}=\kb T^2C_V.
+\end{equation}
+The fluctuation relation links microscopic variability to a macroscopic response.
+\begin{example}[Two-level system]
+For one particle with nondegenerate energies $0$ and $\Delta>0$, $Z=1+\ee^{-\beta\Delta}$ and
+\begin{equation}
+U=\frac{\Delta}{\ee^{\beta\Delta}+1},\qquad
+C_V=\kb(\beta\Delta)^2\frac{\ee^{\beta\Delta}}{(1+\ee^{\beta\Delta})^2}.
+\end{equation}
+At low temperature the excited state is rarely occupied. At high temperature both states become nearly equally populated, so $U\to\Delta/2$ and the heat capacity again tends to zero.
+\end{example}
+\section{Classical ideal gas and equipartition}
+For $N$ identical dilute particles with negligible interactions,
+\begin{equation}
+Z_N=\frac1{N!}\left(\frac{V}{\lambda_T^3}\right)^N,\qquad
+\lambda_T=\frac{h}{\sqrt{2\pi m\kb T}}.
+\end{equation}
+The $N!$ factor removes classical overcounting of permutations of identical particles. The Maxwell--Boltzmann regime requires $n\lambda_T^3\ll1$, where $n=N/V$. Differentiating $\ln Z$ yields $pV=N\kb T$ and $U=3N\kb T/2$.
+
+Each independent quadratic term contributes $\kb T/2$ under classical equilibrium conditions. The speed density is
+\begin{equation}
+f(v)=4\pi\left(\frac{m}{2\pi\kb T}\right)^{3/2}v^2\ee^{-mv^2/(2\kb T)},\quad v\geq0.
+\end{equation}
+It gives $v_{\rm rms}=\sqrt{3\kb T/m}$, distinct from the mean and most probable speeds.
+\section{Quantum statistics}
+For noninteracting particles occupying single-particle levels $\epsilon_j$, mean occupations are
+\begin{equation}
+\bar n_j=\frac1{\ee^{\beta(\epsilon_j-\mu)}-1}\quad\text{(bosons)},\qquad
+\bar n_j=\frac1{\ee^{\beta(\epsilon_j-\mu)}+1}\quad\text{(fermions)}.
+\end{equation}
+Bosons allow multiple occupancy of a single state; fermions obey Pauli exclusion. Both approach Maxwell--Boltzmann statistics when occupations are small. For fermions at $T=0$, levels below the Fermi energy are filled. For a uniform three-dimensional ideal Bose gas with one internal state,
+\begin{equation}
+T_c=\frac{2\pi\hbar^2}{m\kb}\left[\frac{n}{\zeta(3/2)}\right]^{2/3},\quad
+\frac{N_0}{N}=1-\left(\frac{T}{T_c}\right)^{3/2}\quad(T<T_c).
+\end{equation}
+This thermodynamic-limit result depends on dimension, dispersion, and confinement; it is not a universal formula for all traps or interacting systems.
+\section{Blackbody radiation}
+Photons have two transverse polarizations and equilibrium chemical potential zero. Counting modes and using Bose statistics gives spectral energy density per angular frequency,
+\begin{equation}
+u_\omega(T)=\frac{\hbar\omega^3}{\pi^2c^3}\frac1{\ee^{\hbar\omega/(\kb T)}-1}.
+\end{equation}
+Integration yields $u=aT^4$ and isotropic pressure $p=u/3$. A black surface emits flux $j^\star=\sigma T^4$, where
+\begin{equation}a=\frac{\pi^2\kb^4}{15\hbar^3c^3},\qquad \sigma=\frac{ac}{4}.\end{equation}
+The spectral peak shifts inversely with temperature, but its numerical location depends on whether the spectrum is expressed per wavelength or per frequency. These peaks cannot be converted merely by $\lambda=c/\nu$ because the density's Jacobian changes.
+\section{Interactions, order, and critical behavior}
+The Ising model $H=-J\sum_{\langle ij\rangle}s_is_j-h\sum_i s_i$, with $s_i=\pm1$, illustrates collective order. An order parameter such as magnetization distinguishes phases. A schematic Landau free energy is
+\begin{equation}F(m)=F_0+a(T-T_c)m^2+bm^4,\qquad a,b>0.\end{equation}
+Minimization predicts $m=0$ above $T_c$ and $m^2=a(T_c-T)/(2b)$ below it. Fluctuations can invalidate these mean-field exponents, especially in low dimensions. Universality groups very different systems by shared symmetry, dimension, and interaction range.
+
+\part{Electricity and Magnetism}
+\chapter{Electrostatics, potentials, and matter}
+\section{Electric fields and Gauss's law}
+For a point charge,
+\begin{equation}
+\vect E=\frac{q}{4\pi\eps r^2}\hat{\vect r},\qquad \vect F=q_{\rm test}\vect E.
+\end{equation}
+Fields superpose linearly in vacuum. Gauss's law is
+\begin{equation}\oint\vect E\cdot\dd\vect S=\frac{Q_{\rm enc}}\eps,\qquad \grad\cdot\vect E=\frac\rho\eps.\end{equation}
+It is always valid, but determines $E$ directly from a simple Gaussian surface only when sufficient symmetry is present. Electrostatics also has $\grad\times\vect E=0$, so
+\begin{equation}\vect E=-\grad\phi,\qquad \lap\phi=-\rho/\eps.\end{equation}
+In a charge-free region the potential obeys Laplace's equation. Specified boundary values and appropriate regularity yield uniqueness; this justifies methods such as image charges in the physical region.
+\section{Conductors and boundary conditions}
+In electrostatic equilibrium an ideal conductor has zero internal electric field and constant potential. Excess charge lies on its surface. Across an interface,
+\begin{equation}E_{2\perp}-E_{1\perp}=\sigma/\eps,\qquad \vect E_{2\parallel}=\vect E_{1\parallel}\end{equation}
+when $\sigma$ denotes total surface charge in vacuum-form equations. The normal points from region 1 to 2. Boundary conditions follow by applying Gauss's law to a thin pillbox and the zero-curl law to a narrow loop.
+\section{Multipoles and dipoles}
+At distances large compared with a localized charge distribution, expand its potential:
+\begin{equation}
+\phi(\vect r)=\frac1{4\pi\eps}\left[\frac Qr+\frac{\vect p\cdot\hat{\vect r}}{r^2}+\cdots\right],\qquad
+\vect p=\int\vect r'\rho(\vect r')\dd^3r'.
+\end{equation}
+The leading nonzero multipole dominates far away. An ideal permanent dipole in a slowly varying external field has $U=-\vect p\cdot\vect E$, torque $\vect p\times\vect E$, and force $\grad(\vect p\cdot\vect E)$ when its moment is held fixed.
+\section{Capacitance and field energy}
+For a two-conductor capacitor, $C=Q/\Delta\phi$. Its stored energy is
+\begin{equation}U=\frac{Q^2}{2C}=\frac12C(\Delta\phi)^2,\qquad U_E=\frac\eps2\int E^2\dd V.\end{equation}
+Parallel plates of area $A$, spacing $d\ll\sqrt A$, and vacuum between them have $C\simeq\eps A/d$, neglecting fringing. Capacitors add in parallel, while inverse capacitances add in series.
+\begin{example}[Energy and the battery constraint]
+Insert a dielectric with relative permittivity $\kappa$ into an ideal capacitor. If disconnected, $Q$ stays fixed, $C\to\kappa C$, and stored energy falls by $1/\kappa$. If connected to a voltage source, voltage stays fixed and stored energy rises by $\kappa$; battery work must be included in the total energy accounting.
+\end{example}
+\section{Polarization and dielectric response}
+The polarization $\vect P$ is electric dipole moment per volume. Bound charges obey $\rho_b=-\grad\cdot\vect P$ and $\sigma_b=\vect P\cdot\hat{\vect n}$. Define
+\begin{equation}\vect D=\eps\vect E+\vect P,\qquad \grad\cdot\vect D=\rho_{\rm free}.\end{equation}
+For a linear isotropic dielectric, $\vect P=\eps\chi_e\vect E$ and $\vect D=\varepsilon\vect E$. Real materials can be anisotropic, nonlinear, dispersive, or lossy. The energy density $\tfrac12\vect E\cdot\vect D$ applies to the usual linear nondispersive electrostatic case, not every material response.
+
+\chapter{Currents, magnetism, and circuits}
+\section{Charge transport and resistance}
+Current is $I=\dd Q/\dd t=\int\vect J\cdot\dd\vect S$. Local charge conservation is
+\begin{equation}\partial_t\rho+\grad\cdot\vect J=0.\end{equation}
+Ohmic response is $\vect J=\sigma\vect E$. A uniform wire has $R=L/(\sigma A)$ and voltage drop $V=IR$. Joule heating is $P=IV=I^2R$. Ohm's law is a constitutive approximation; it is not a universal law of all components.
+\section{Magnetic forces and steady fields}
+The Lorentz force is
+\begin{equation}\vect F=q(\vect E+\vect v\times\vect B).\end{equation}
+A magnetic field alone changes direction but not the speed of a point charge, since $\vect v\cdot(\vect v\times\vect B)=0$. In a uniform field a nonrelativistic charge has gyroradius $r_L=mv_\perp/(|q|B)$ and cyclotron frequency $\omega_c=|q|B/m$.
+
+For steady currents in vacuum,
+\begin{equation}
+\vect B(\vect r)=\frac{\mun}{4\pi}\int\frac{\vect J(\vect r')\times(\vect r-\vect r')}{|\vect r-\vect r'|^3}\dd^3r',
+\quad \oint\vect B\cdot\dd\vect\ell=\mun I_{\rm enc}.
+\end{equation}
+A long straight wire has $B=\mun I/(2\pi r)$; a long ideal solenoid has $B\simeq\mun nI$ internally. A small current loop has magnetic moment $\vect m=IA\hat{\vect n}$, torque $\vect m\times\vect B$, and energy $-\vect m\cdot\vect B$ in an external field.
+\section{Magnetized matter}
+Magnetization $\vect M$ produces bound currents $\vect J_b=\grad\times\vect M$ and $\vect K_b=\vect M\times\hat{\vect n}$. Define $\vect H=\vect B/\mun-\vect M$. A linear isotropic material can satisfy $\vect B=\mu\vect H$. Diamagnetism, paramagnetism, and ferromagnetism have different microscopic origins; ferromagnetic hysteresis requires more than a single constant permeability.
+\section{Induction and inductance}
+For a stationary loop, Faraday's law is $\mathcal E=\oint\vect E\cdot\dd\vect\ell=-\dd\Phi_B/\dd t$. More generally a moving material loop obeys
+\begin{equation}\mathcal E=\oint(\vect E+\vect u\times\vect B)\cdot\dd\vect\ell=-\od{}{t}\int_{S(t)}\vect B\cdot\dd\vect S.\end{equation}
+The minus sign expresses Lenz's law. A linear inductor has flux linkage $LI$, induced emf $-L\dot I$, and stored energy $LI^2/2$. Coupled circuits have mutual inductance terms. The vacuum magnetic energy density is $B^2/(2\mun)$.
+\section{Lumped circuits and transients}
+Kirchhoff's current law expresses charge conservation at nodes when charge accumulation is negligible. The usual voltage law assumes a consistent lumped description, with changing magnetic flux represented by inductive elements.
+
+An RC charging circuit obeys $R\dot Q+Q/C=V_0$, giving
+$Q=CV_0(1-\ee^{-t/(RC)})$ for an initially uncharged capacitor. An RL circuit has time constant $L/R$. A series RLC circuit satisfies
+\begin{equation}L\ddot Q+R\dot Q+Q/C=V(t),\end{equation}
+mathematically identical to a driven damped oscillator.
+
+With phasors proportional to $\ee^{\ii\omega t}$,
+\begin{equation}Z_R=R,\qquad Z_L=\ii\omega L,\qquad Z_C=\frac1{\ii\omega C}.\end{equation}
+Series impedances add; parallel admittances add. Average power is $V_{\rm rms}I_{\rm rms}\cos\phi$. The lumped approximation becomes inadequate when circuit dimensions approach relevant signal wavelengths or propagation delays matter.
+
+\chapter{Maxwell's equations and electromagnetic waves}
+\section{The unified field equations}
+In vacuum with total charge and current densities,
+\begin{align}
+\grad\cdot\vect E&=\rho/\eps,&\grad\cdot\vect B&=0,\\
+\grad\times\vect E&=-\partial_t\vect B,&
+\grad\times\vect B&=\mun\vect J+\mun\eps\partial_t\vect E.
+\end{align}
+Taking the divergence of the last equation and using Gauss's law yields charge continuity. The displacement-current term is necessary for this consistency, including in a charging capacitor.
+\section{Potentials and gauge freedom}
+Write
+\begin{equation}\vect B=\grad\times\vect A,\qquad \vect E=-\grad\phi-\partial_t\vect A.\end{equation}
+The fields are unchanged by $\vect A\to\vect A+\grad\chi$, $\phi\to\phi-\partial_t\chi$. In Lorenz gauge, $\grad\cdot\vect A+c^{-2}\partial_t\phi=0$, the potentials satisfy sourced wave equations. The causal vacuum solutions are
+\begin{align}
+\phi(\vect r,t)&=\frac1{4\pi\eps}\int\frac{\rho(\vect r',t-R/c)}R\dd^3r',\\
+\vect A(\vect r,t)&=\frac\mun{4\pi}\int\frac{\vect J(\vect r',t-R/c)}R\dd^3r',\qquad R=|\vect r-\vect r'|.
+\end{align}
+Retarded time expresses finite propagation speed.
+\section{Wave derivation and polarization}
+In a source-free vacuum, take the curl of Faraday's law and use the curl-curl identity:
+\begin{equation}\lap\vect E-\frac1{c^2}\partial_t^2\vect E=0,\qquad c=\frac1{\sqrt{\mun\eps}}.\end{equation}
+The magnetic field obeys the same wave equation. For a plane wave, $\vect E\perp\vect B\perp\vect k$, $B=E/c$, and
+$\vect B=\hat{\vect k}\times\vect E/c$. Light is an electromagnetic wave.
+\section{Energy, momentum, and radiation}
+Poynting's theorem is
+\begin{equation}
+\partial_tu+\grad\cdot\vect S=-\vect J\cdot\vect E,
+\quad u=\tfrac12\eps E^2+\frac{B^2}{2\mun},\quad
+\vect S=\frac1\mun\vect E\times\vect B.
+\end{equation}
+It states that decreasing field energy supplies outgoing flux and work on charges. Vacuum momentum density is $\vect g=\vect S/c^2$. Normal radiation pressure is $I/c$ for full absorption and $2I/c$ for ideal reflection.
+
+Accelerating charges radiate. For a nonrelativistic point charge in vacuum, the Larmor power is
+\begin{equation}P=\frac{q^2a^2}{6\pi\eps c^3}.\end{equation}
+Near fields and radiation fields have different distance dependence: the radiative electric field scales as $1/r$, so its intensity scales as $1/r^2$. Radiation reaction requires care beyond inserting this power loss into every motion without checking consistency.
+\section{Plasmas and electromagnetic response}
+A plasma is a many-particle charged medium with collective behavior. With fixed ions and a cold electron fluid, small electron-density oscillations have frequency
+\begin{equation}\omega_p=\sqrt{\frac{n_ee^2}{m_e\eps}}.\end{equation}
+Thermal electrostatic screening has electron Debye length
+$\lambda_D=\sqrt{\eps\kb T_e/(n_ee^2)}$ when other species' screening can be neglected. Multiple mobile species contribute to the inverse squared screening length. In an unmagnetized collisionless cold plasma,
+$\omega^2=\omega_p^2+c^2k^2$ for transverse waves. Below $\omega_p$, these waves are evanescent in the ideal model.
+
+Magnetohydrodynamics treats a sufficiently conducting plasma as a fluid coupled to magnetic fields. Ideal MHD uses $\vect E+\vect v\times\vect B=0$ and predicts magnetic-flux transport with the fluid. Finite resistivity, kinetic effects, and reconnection can invalidate this ideal description.
+
+\part{Relativity and Gravitation}
+\chapter{Special relativity}
+\section{Events, intervals, and Lorentz transformations}
+The laws of physics have the same form in inertial frames, and vacuum light speed is invariant. For a boost along $x$,
+\begin{equation}
+x'=\gamma(x-vt),\quad t'=\gamma(t-vx/c^2),\quad
+\gamma=(1-v^2/c^2)^{-1/2}.
+\end{equation}
+The invariant interval is $\dd s^2=-c^2\dd t^2+\dd\vect r^2$. For a timelike worldline, proper time satisfies
+\begin{equation}\dd\tau=\sqrt{-\dd s^2}/c=\dd t\sqrt{1-v^2/c^2}.\end{equation}
+Time dilation gives $\Delta t=\gamma\Delta\tau$ for a uniformly moving clock. Length contraction gives $L=L_0/\gamma$ when the endpoints are measured simultaneously in the observing frame. Simultaneity itself is frame dependent.
+\section{Velocity addition, light cones, and causality}
+Collinear velocities transform as
+\begin{equation}u'_x=\frac{u_x-v}{1-u_xv/c^2}.\end{equation}
+A light signal stays at $c$. Timelike and null separated events can have a causal connection; spacelike separated events cannot exchange a signal at or below light speed. Spacelike event order may change under a boost without causing a causal contradiction.
+
+For light from a source receding directly along the line of sight at speed $v$,
+\begin{equation}\frac{f_{\rm obs}}{f_{\rm src}}=\sqrt{\frac{1-\beta}{1+\beta}},\qquad \beta=v/c.\end{equation}
+This combines time dilation and changing propagation distance.
+\section{Four-momentum and relativistic energy}
+Four-velocity is $U^\mu=\dd x^\mu/\dd\tau$, with $U^\mu U_\mu=-c^2$. Four-momentum for a massive particle is
+\begin{equation}
+p^\mu=mU^\mu=(E/c,\vect p),\quad
+E=\gamma mc^2,\quad \vect p=\gamma m\vect v,
+\end{equation}
+so
+\begin{equation}\boxed{E^2=p^2c^2+m^2c^4.}\end{equation}
+Rest energy is $mc^2$ and kinetic energy is $(\gamma-1)mc^2\to mv^2/2$ for $v\ll c$. For a photon, $m=0$ and $E=pc=h\nu$. The invariant mass of a multiparticle system includes kinetic and binding energy in its center-of-momentum frame.
+\begin{example}[Two photons can have nonzero system mass]
+Two photons each have energy $E$ and travel in opposite directions. Total momentum is zero and total energy is $2E$, so the system has invariant mass $M=2E/c^2$, even though each photon is individually massless.
+\end{example}
+\section{Collisions and thresholds}
+Conserve total four-momentum, not Newtonian kinetic energy. For a projectile with total energy $E_a$ and rest mass $m_a$ striking a stationary target $m_b$, define the squared center-of-momentum energy
+\begin{equation}s=E_{\rm CM}^2=m_a^2c^4+m_b^2c^4+2m_bc^2E_a.\end{equation}
+At threshold, final particles have no relative motion in that frame, so $E_{\rm CM}=\sum_fm_fc^2$. A fixed-target experiment spends much of its energy on center-of-momentum motion; colliders can use beam energy more efficiently for creating invariant mass.
+\section{Electromagnetic covariance}
+Electric and magnetic fields are components of a single antisymmetric field tensor. Their division depends on the observer. For a frame moving at $\vect v$ relative to the original frame,
+\begin{align}
+\vect E'_\parallel&=\vect E_\parallel,&\vect B'_\parallel&=\vect B_\parallel,\\
+\vect E'_\perp&=\gamma(\vect E_\perp+\vect v\times\vect B),&
+\vect B'_\perp&=\gamma(\vect B_\perp-\vect v\times\vect E/c^2).
+\end{align}
+The scalars $E^2-c^2B^2$ and $\vect E\cdot\vect B$ are invariant. A field that is purely electric for one observer can include magnetism for another.
+
+\chapter{General relativity}
+\section{Equivalence principle and geometry}
+Locally, a freely falling laboratory removes the leading effect of a uniform gravitational field. Tidal effects remain and measure curvature. General relativity describes gravity with a spacetime metric,
+\begin{equation}\dd s^2=g_{\mu\nu}\dd x^\mu\dd x^\nu.\end{equation}
+The equivalence principle is local: curvature cannot generally be removed throughout an extended region by changing coordinates.
+\section{Covariant derivatives and geodesics}
+The Levi-Civita connection is
+\begin{equation}
+\Gamma^\rho_{\mu\nu}=\frac12g^{\rho\sigma}(\partial_\mu g_{\sigma\nu}+\partial_\nu g_{\sigma\mu}-\partial_\sigma g_{\mu\nu}).
+\end{equation}
+For a vector, $\nabla_\mu V^\nu=\partial_\mu V^\nu+\Gamma^\nu_{\mu\rho}V^\rho$. A freely falling massive particle follows
+\begin{equation}\frac{\dd^2x^\mu}{\dd\tau^2}+\Gamma^\mu_{\alpha\beta}\frac{\dd x^\alpha}{\dd\tau}\frac{\dd x^\beta}{\dd\tau}=0.\end{equation}
+Light follows null geodesics with an affine parameter in place of proper time. Curvature can be defined by
+\begin{equation}
+R^\rho{}_{\sigma\mu\nu}=\partial_\mu\Gamma^\rho_{\nu\sigma}-\partial_\nu\Gamma^\rho_{\mu\sigma}
++\Gamma^\rho_{\mu\lambda}\Gamma^\lambda_{\nu\sigma}-\Gamma^\rho_{\nu\lambda}\Gamma^\lambda_{\mu\sigma}.
+\end{equation}
+We use $R_{\sigma\nu}=R^\rho{}_{\sigma\rho\nu}$ and $R=g^{\mu\nu}R_{\mu\nu}$. Sign conventions differ among texts, so tensor definitions and field equations must be used consistently.
+\section{Einstein's field equations}
+\begin{equation}\boxed{G_{\mu\nu}+\Lambda g_{\mu\nu}=\frac{8\pi G}{c^4}T_{\mu\nu},\qquad G_{\mu\nu}=R_{\mu\nu}-\tfrac12Rg_{\mu\nu}.}\end{equation}
+Stress-energy includes energy density, momentum density, pressure, and stress. The geometric identity $\nabla_\mu G^{\mu\nu}=0$ implies $\nabla_\mu T^{\mu\nu}=0$. This is local covariant conservation; a globally conserved total energy requires additional structure and does not exist in every spacetime.
+
+For weak, slowly varying gravity, $g_{00}\simeq-(1+2\Phi/c^2)$ and the geodesic equation gives $\ddot{\vect r}=-\grad\Phi$. Einstein's equations reduce to $\lap\Phi=4\pi G\rho$ when pressure and relativistic corrections are negligible and $\Lambda$ is neglected.
+\section{Schwarzschild geometry and tests}
+Outside a spherical nonrotating mass in vacuum with $\Lambda=0$,
+\begin{equation}
+\dd s^2=-\left(1-\frac{r_s}{r}\right)c^2\dd t^2+
+\left(1-\frac{r_s}{r}\right)^{-1}\dd r^2+r^2\dd\Omega^2,\quad r_s=\frac{2GM}{c^2}.
+\end{equation}
+Static clocks satisfy $\dd\tau=\sqrt{1-r_s/r}\,\dd t$. For static emission and reception outside the horizon,
+\begin{equation}\frac{\nu_r}{\nu_e}=\sqrt{\frac{1-r_s/r_e}{1-r_s/r_r}}.\end{equation}
+Light climbing outward redshifts. Leading weak-field predictions include deflection $\alpha\simeq4GM/(bc^2)$ and periapsis advance per orbit
+$\Delta\phi\simeq6\pi GM/[a(1-e^2)c^2]$.
+
+The surface $r=r_s$ is an event horizon for a Schwarzschild black hole, not a material surface. The metric's singular form there is coordinate dependent; curvature diverges at $r=0$ in the classical solution. Static observers cannot remain at the horizon.
+\section{Gravitational waves and black-hole thermodynamics}
+Weak perturbations of flat spacetime have two transverse tensor polarizations propagating at $c$. Gravitational radiation is sourced at leading order by a changing mass quadrupole; isolated monopole and dipole radiation are excluded by conservation laws. For a circular weak-field binary of separation $a$,
+\begin{equation}P=\frac{32}{5}\frac{G^4\mu^2M^3}{c^5a^5},\qquad M=m_1+m_2.\end{equation}
+Energy loss shrinks the orbit and increases its frequency. Strong-field merger physics generally requires numerical relativity.
+
+Semiclassical theory assigns a Schwarzschild black hole temperature and entropy
+\begin{equation}T_H=\frac{\hbar c^3}{8\pi G M\kb},\qquad S_{\rm BH}=\frac{\kb c^3A}{4G\hbar}.\end{equation}
+These connect gravity, quantum theory, and thermodynamics; a complete microscopic account of general quantum spacetime remains beyond established theory.
+
+\part{Quantum Physics}
+\chapter{Quantum principles and mathematical structure}
+\section{Why classical physics is incomplete}
+Classical equipartition predicts an ultraviolet divergence for thermal radiation. Classical electrodynamics does not yield stable atoms with discrete spectral lines. The photoelectric effect associates the emitted electron's maximum kinetic energy with frequency,
+\begin{equation}K_{\max}=h\nu-W,\end{equation}
+where $W$ is the material's work function in the ideal single-photon description. Increasing intensity changes the photon flux, not the energy $h\nu$ of each photon. Matter also has wave character, with de Broglie wavelength $\lambda=h/p$.
+
+Quantum theory replaces definite classical trajectories with states and probability amplitudes. Classical behavior is recovered under appropriate scale, state, and decoherence conditions, rather than by simply declaring quantum effects absent for every large object.
+\section{States, observables, and the Born rule}
+A pure state is a normalized vector $\ket\psi$ in a complex Hilbert space, with physically irrelevant overall phase. Observables are represented by self-adjoint operators. For a discrete nondegenerate orthonormal eigenbasis $A\ket{a_n}=a_n\ket{a_n}$,
+\begin{equation}
+\ket\psi=\sum_n c_n\ket{a_n},\quad
+P(a_n)=|c_n|^2,\quad \avg A=\bra\psi A\ket\psi.
+\end{equation}
+Degenerate outcomes use projectors onto eigenspaces. Continuous spectra replace sums with integrals and require appropriate normalization conventions. A position wavefunction satisfies
+\begin{equation}\int|\psi(\vect r)|^2\dd^3r=1,\qquad P(\vect r\in V)=\int_V|\psi|^2\dd^3r.\end{equation}
+An ideal projective measurement conditioned on outcome $a$ changes the state to $P_a\ket\psi/\sqrt{\bra\psi P_a\ket\psi}$. More general measurements can be represented by measurement operators.
+\section{Operators and uncertainty}
+In the position representation, $\hat{\vect p}=-\ii\hbar\grad$, and $[x_i,p_j]=\ii\hbar\delta_{ij}$. For suitable states and operator domains,
+\begin{equation}\Delta A\,\Delta B\geq\frac12|\avg{[A,B]}|,\qquad \Delta x\,\Delta p_x\geq\hbar/2.\end{equation}
+The spreads refer to repeated measurements on identically prepared states. This is not merely a statement about disturbing a particle with an instrument. Time usually enters nonrelativistic quantum mechanics as a parameter, so energy-time relations need interpretation different from the position-momentum commutator.
+\section{Schrodinger evolution and continuity}
+For a spinless nonrelativistic particle,
+\begin{equation}\ii\hbar\partial_t\psi=\hat H\psi,\qquad \hat H=-\frac{\hbar^2}{2m}\lap+V(\vect r,t).\end{equation}
+A time-independent Hamiltonian has stationary states $\psi_n=\phi_n\ee^{-\ii E_nt/\hbar}$ with $\hat H\phi_n=E_n\phi_n$. Their probability densities are stationary, although the phase evolves. Superpositions can have time-dependent interference.
+
+For real scalar $V$, subtracting the conjugate Schrodinger equation gives
+\begin{equation}\partial_t|\psi|^2+\grad\cdot\vect j=0,\qquad \vect j=\frac\hbar m\operatorname{Im}(\psi^*\grad\psi).\end{equation}
+With electromagnetic coupling, $\hat H=[-\ii\hbar\grad-q\vect A]^2/(2m)+q\phi$ and the current includes $-q\vect A|\psi|^2/m$. Gauge transformations must transform the wavefunction phase as well as the potentials.
+\section{Ehrenfest's theorem and pictures of dynamics}
+\begin{equation}\od{}{t}\avg A=\frac{\ii}{\hbar}\avg{[H,A]}+\avg{\partial_t A}.\end{equation}
+Thus $\dd\avg x/\dd t=\avg p/m$ and $\dd\avg p/\dd t=-\avg{V'(x)}$. These resemble Newton's equations, but generally $\avg{V'(x)}\neq V'(\avg x)$; a sufficiently narrow packet can make the classical approximation work.
+
+In the Schrodinger picture states evolve; in the Heisenberg picture operators evolve. For time-independent $H$, $U(t)=\ee^{-\ii Ht/\hbar}$ is unitary, preserving probabilities and inner products.
+
+\chapter{Exactly solvable quantum systems}
+\section{Free particles and wave packets}
+A momentum eigenfunction is proportional to $\ee^{\ii(kx-\omega t)}$ with $p=\hbar k$ and $E=\hbar\omega=\hbar^2k^2/(2m)$. It is not square-integrable on an infinite line; physical localized states are superpositions. For an initially minimum-uncertainty Gaussian with position variance $\sigma_0^2$ and no initial position-momentum covariance,
+\begin{equation}\sigma_x^2(t)=\sigma_0^2+\frac{\hbar^2t^2}{4m^2\sigma_0^2}.\end{equation}
+Localization produces momentum spread, which causes dispersive broadening.
+\section{Infinite and finite wells}
+For $V=0$ on $0<x<L$ and infinite walls,
+\begin{equation}\phi_n(x)=\sqrt{\frac2L}\sin\frac{n\pi x}{L},\qquad E_n=\frac{n^2\pi^2\hbar^2}{2mL^2},\quad n=1,2,\ldots\end{equation}
+Boundary conditions quantize the wave number. The ground state has nonzero kinetic energy because confinement forbids a zero-momentum constant wavefunction satisfying both walls.
+
+For finite steps with equal mass and finite potential, $\psi$ and $\psi'$ are continuous. Bound states penetrate classically forbidden regions with decay constant $\kappa=\sqrt{2m(V-E)}/\hbar$. Singular delta potentials instead produce a derivative jump fixed by integrating the Schrodinger equation across the singularity.
+\begin{example}[A superposition in a box]
+For $\psi(x,0)=(\phi_1+\phi_2)/\sqrt2$, the mean energy is $(E_1+E_2)/2$, while an energy measurement yields $E_1$ or $E_2$ with equal probability. The density contains $\phi_1\phi_2\cos[(E_2-E_1)t/\hbar]$, so it oscillates despite the time-independent Hamiltonian.
+\end{example}
+\section{Tunneling through a barrier}
+For a rectangular barrier of height $V_0$ and width $a$, with zero potential on both sides and $0<E<V_0$,
+\begin{equation}T=\left[1+\frac{V_0^2\sinh^2(\kappa a)}{4E(V_0-E)}\right]^{-1},\qquad \kappa=\frac{\sqrt{2m(V_0-E)}}\hbar.\end{equation}
+For a thick barrier, the dominant suppression is $\ee^{-2\kappa a}$. Transmission probability is a ratio of probability currents; when the asymptotic speeds differ, it is not just a squared amplitude ratio. Tunneling does not mean the particle temporarily violates energy conservation.
+\section{The harmonic oscillator}
+For $H=p^2/(2m)+m\omega^2x^2/2$, define
+\begin{equation}a=\sqrt{\frac{m\omega}{2\hbar}}x+\frac{\ii p}{\sqrt{2m\hbar\omega}},\qquad [a,a^\dagger]=1.\end{equation}
+Then $H=\hbar\omega(a^\dagger a+1/2)$, with
+\begin{equation}E_n=\hbar\omega(n+1/2),\quad a\ket n=\sqrt n\ket{n-1},\quad a^\dagger\ket n=\sqrt{n+1}\ket{n+1}.\end{equation}
+The ground state is Gaussian and has $\Delta x\Delta p=\hbar/2$. A coherent state satisfies $a\ket\alpha=\alpha\ket\alpha$; its expectation values follow the classical oscillator motion while retaining quantum fluctuations.
+\section{Angular momentum and spin}
+Angular momentum obeys $[J_i,J_j]=\ii\hbar\epsilon_{ijk}J_k$. Simultaneous eigenstates satisfy
+\begin{equation}J^2\ket{jm}=\hbar^2j(j+1)\ket{jm},\qquad J_z\ket{jm}=\hbar m\ket{jm},\quad m=-j,\ldots,j.\end{equation}
+Orbital angular momentum has integer $\ell$ and angular wavefunctions $Y_{\ell m}$. Intrinsic spin may be integer or half-integer and is not literally a little sphere spinning in ordinary space.
+
+For spin one-half, $\vect S=\hbar\vect\sigma/2$, where
+\begin{equation}\sigma_x=\begin{pmatrix}0&1\\1&0\end{pmatrix},\quad \sigma_y=\begin{pmatrix}0&-\ii\\\ii&0\end{pmatrix},\quad \sigma_z=\begin{pmatrix}1&0\\0&-1\end{pmatrix}.\end{equation}
+A spin state aligned along a unit vector $\hat{\vect n}$ has probability $\cos^2(\theta/2)$ of being measured spin-up along an axis making angle $\theta$ with $\hat{\vect n}$. Adding angular momenta gives $j=|j_1-j_2|,\ldots,j_1+j_2$.
+\section{Hydrogenic atoms}
+For a point nucleus of charge $+Ze$ and a single electron, use reduced mass $\mu$ and potential $-Ze^2/(4\pi\eps r)$. Separation gives $\psi_{n\ell m}=R_{n\ell}(r)Y_{\ell m}(\theta,\phi)$ and
+\begin{equation}E_n=-\frac{\mu Z^2e^4}{2(4\pi\eps)^2\hbar^2n^2},\qquad a_\mu=\frac{4\pi\eps\hbar^2}{\mu e^2}.\end{equation}
+For ordinary hydrogen, the ground-state binding energy is approximately $13.6\,\mathrm{eV}$ and the characteristic radius is about $a_0=5.29\times10^{-11}\,\mathrm m$. Allowed labels are $n\geq1$, $0\leq\ell\leq n-1$, and $-\ell\leq m\leq\ell$. Spin, relativistic effects, nuclear structure, and radiative corrections refine this Coulomb spectrum.
+
+\chapter{Quantum approximation methods and scattering}
+\section{Time-independent perturbation theory}
+Let $H=H_0+\lambda V$. For a nondegenerate unperturbed level,
+\begin{align}
+E_n&=E_n^{(0)}+\lambda\bra n V\ket n+
+\lambda^2\sum_{m\neq n}\frac{|\bra m V\ket n|^2}{E_n^{(0)}-E_m^{(0)}}+\cdots,\\
+\ket{n^{(1)}}&=\sum_{m\neq n}\frac{\bra m V\ket n}{E_n^{(0)}-E_m^{(0)}}\ket m.
+\end{align}
+The states on the right are unperturbed. The expansion fails near degeneracy unless the perturbation is first diagonalized within the degenerate or nearly degenerate subspace.
+\begin{example}[Weak quartic anharmonicity]
+For $V=\lambda x^4$ added to a harmonic oscillator, the ground-state Gaussian has $\avg{x^4}=3[\hbar/(2m\omega)]^2$. The first-order shift is therefore $\Delta E_0=3\lambda\hbar^2/(4m^2\omega^2)$. Its smallness relative to $\hbar\omega$ provides a practical perturbative criterion.
+\end{example}
+\section{Variational principle and WKB}
+For any normalized trial state in the Hamiltonian's domain,
+\begin{equation}E_0\leq\bra{\psi_{\rm trial}}H\ket{\psi_{\rm trial}}.\end{equation}
+Expanding the trial state in energy eigenstates proves the bound: its expected energy is a weighted average no lower than the ground energy. Optimizing trial parameters improves an upper bound, not necessarily the exact wavefunction everywhere.
+
+In one dimension where the local momentum varies slowly,
+\begin{equation}\psi(x)\approx\frac{1}{\sqrt{p(x)}}\left[A\ee^{\frac\ii\hbar\int^x p\dd x'}+B\ee^{-\frac\ii\hbar\int^x p\dd x'}\right],\quad p=\sqrt{2m(E-V)}.\end{equation}
+WKB fails near turning points and requires matching. For two smooth simple turning points,
+\begin{equation}\int_{x_1}^{x_2}p\dd x=(n+1/2)\pi\hbar.\end{equation}
+A smooth thick barrier gives leading transmission
+\begin{equation}T\sim\exp\left[-\frac{2}{\hbar}\int\sqrt{2m(V-E)}\dd x\right],\end{equation}
+where the integral extends over the forbidden interval.
+\section{Time-dependent transitions}
+To first order for a perturbation $V(t)$ switched on at $t=0$,
+\begin{equation}c_f^{(1)}(t)=-\frac\ii\hbar\int_0^t\bra fV(t')\ket i\,\ee^{\ii(E_f-E_i)t'/\hbar}\dd t'.\end{equation}
+For weak coupling to a dense set of final states and a suitable long-time regime, Fermi's golden rule is
+\begin{equation}\Gamma_{i\to f}=\frac{2\pi}{\hbar}|V_{fi}|^2\rho(E_f),\end{equation}
+with energy conservation selecting the resonant final energy, including any energy supplied by a periodic drive. It is a rate approximation, not a universal short-time law.
+
+An isolated resonantly driven two-level system instead exhibits coherent Rabi oscillations, $P_e(t)=\sin^2(\Omega_Rt/2)$ under the rotating-wave approximation and standard definition of $\Omega_R$.
+\section{Adiabatic evolution and geometric phase}
+A system follows an instantaneous nondegenerate eigenstate approximately when changes are slow compared with the relevant inverse energy gaps and transition matrix elements are small. Closing gaps can defeat this approximation. In a cyclic parameter change, the state can acquire both a dynamical phase and Berry phase
+\begin{equation}\gamma_n=\ii\oint\bra{n(\vect R)}\grad_{\!R}\ket{n(\vect R)}\cdot\dd\vect R.\end{equation}
+The accumulated geometric phase can have observable interference consequences.
+\section{Scattering and cross sections}
+For an incoming plane wave and outgoing spherical wave in three dimensions,
+\begin{equation}\psi\sim\ee^{\ii kz}+f(\theta,\phi)\frac{\ee^{\ii kr}}r,\qquad \od{\sigma}{\Omega}=|f|^2\end{equation}
+for elastic scattering with equal incident and outgoing wave numbers. The differential cross section is scattered rate per solid angle divided by incident flux; it has units of area per solid angle.
+
+For a short-range central potential,
+\begin{equation}f(\theta)=\frac1k\sum_{\ell=0}^\infty(2\ell+1)\ee^{\ii\delta_\ell}\sin\delta_\ell P_\ell(\cos\theta),\quad
+\sigma_{\rm tot}=\frac{4\pi}{k^2}\sum_\ell(2\ell+1)\sin^2\delta_\ell.
+\end{equation}
+At sufficiently low energy, the $s$ wave often dominates. Long-range Coulomb scattering requires special treatment of the asymptotic form. The first Born approximation treats a weak scattering potential perturbatively; it is not justified merely because an integral is easy to evaluate.
+
+\chapter{Identical particles, entanglement, and quantum information}
+\chaptermark{Entanglement and quantum information}
+\section{Exchange symmetry}
+For identical bosons the total state is symmetric under exchange; for identical fermions it is antisymmetric. Two fermions cannot occupy the same complete one-particle state. A Slater determinant implements antisymmetry for independent-particle orbitals.
+
+For two electrons, a spin singlet is antisymmetric in spin and must be paired with a symmetric spatial state; spin triplets require antisymmetric spatial states. Exchange effects do not arise from an extra classical force, although they can strongly modify energies and correlations.
+\section{Density operators and subsystems}
+A statistical mixture is represented by
+\begin{equation}\rho=\sum_i p_i\ket{\psi_i}\bra{\psi_i},\qquad \operatorname{Tr}\rho=1,\quad \rho\geq0.\end{equation}
+Expectations are $\avg A=\operatorname{Tr}(\rho A)$. A pure state has $\rho^2=\rho$; a mixed state has $\operatorname{Tr}\rho^2<1$. Closed-system evolution obeys $\ii\hbar\dot\rho=[H,\rho]$. The reduced state of subsystem $A$ is $\rho_A=\operatorname{Tr}_B\rho_{AB}$.
+\section{Entanglement and correlations}
+The Bell state
+\begin{equation}\ket{\Phi^+}=\frac{\ket{00}+\ket{11}}{\sqrt2}\end{equation}
+cannot be factored into a product of states of its two parts. Each subsystem has $\rho_A=I/2$, although the combined state is pure. Entanglement entropy for a pure bipartite state is
+$S_A=-\kb\operatorname{Tr}(\rho_A\ln\rho_A)$.
+
+Bell inequalities constrain local hidden-variable models under their stated assumptions; suitable quantum correlations violate them. Such correlations do not permit controllable faster-than-light signaling. Measurement outcomes are correlated, while each observer's unconditioned local statistics remain unaffected by the distant measurement choice.
+\section{Qubits, interference, and decoherence}
+A qubit is $\alpha\ket0+\beta\ket1$ with $|\alpha|^2+|\beta|^2=1$. A Hadamard operation maps $\ket0$ to $(\ket0+\ket1)/\sqrt2$; a controlled-NOT flips a target when its control is $\ket1$. Together they can create the Bell state from $\ket{00}$.
+
+A quantum computation manipulates amplitudes so useful outcomes interfere constructively. It does not make every amplitude individually readable. Unknown arbitrary quantum states cannot be perfectly cloned by a universal operation. Quantum error correction encodes information in a larger space and extracts error syndromes without directly measuring the encoded logical amplitudes.
+
+Environmental entanglement suppresses interference in a subsystem's reduced state: this is decoherence. It explains the practical emergence of preferred stable observables, but should not be silently identified with every interpretive claim about definite measurement outcomes.
+
+\part{Atoms, Materials, Nuclei, and Particles}
+\chapter{Atomic and molecular physics}
+\section{Atomic structure beyond hydrogen}
+In many-electron atoms, electron-electron repulsion prevents exact separation into independent hydrogenic problems. Useful approximations include a central mean field, Hartree--Fock orbitals with exchange, and correlation corrections. Shell structure, spin, and Pauli exclusion organize the periodic table.
+
+Fine structure combines relativistic kinetic corrections, spin-orbit coupling, and the Darwin term. Hyperfine structure couples nuclear and electronic angular momentum. Radiative corrections and finite nuclear size produce additional shifts, including the Lamb shift. These corrections are smaller than gross Coulomb energies but essential for precision spectra.
+\section{Light-matter interaction and selection rules}
+When the optical wavelength is large compared with an atom, the electric dipole interaction is approximately $H'=-\vect d\cdot\vect E(t)$. Transition strength depends on $|\bra f\vect d\ket i|^2$. For single-electron orbital states, electric dipole selection rules include
+\begin{equation}\Delta\ell=\pm1,\qquad \Delta m=0,\pm1,\end{equation}
+with parity changing. For total angular momentum, $\Delta J=0,\pm1$ except $J=0\to0$; spin is conserved in the ideal spin-independent dipole approximation. Higher multipoles and state mixing can enable weaker transitions.
+
+A finite excited-state lifetime $\tau$ produces a characteristic natural energy width of order $\hbar/\tau$. Doppler motion, collisions, and instrumentation broaden spectral lines further.
+\section{Magnetic fields and resonance}
+A magnetic moment contributes $H_Z=-\vect\mu\cdot\vect B$. In weak fields where angular momentum coupling remains valid, atomic shifts are often written $\Delta E=g_J\mu_Bm_JB$, with $\mu_B=e\hbar/(2m_e)$. Resonant oscillatory fields drive transitions at the level splitting divided by $\hbar$.
+
+Electron spin resonance and nuclear magnetic resonance probe different magnetic moments and environments. Nuclear chemical shifts and spin couplings reflect electronic structure; they are not described fully by the isolated-nucleus gyromagnetic ratio alone.
+\section{Molecules and the Born--Oppenheimer approximation}
+Nuclei are much heavier than electrons. Solving electronic motion at approximately fixed nuclear positions produces potential energy surfaces for slower nuclear motion. This separation can fail near electronic degeneracies or during rapid nonadiabatic processes.
+
+A diatomic molecule near equilibrium has approximate vibrational energies $E_v=\hbar\omega(v+1/2)$ and rigid-rotor energies
+\begin{equation}E_J=\frac{\hbar^2J(J+1)}{2I},\qquad I=\mu R_e^2.\end{equation}
+Electronic, vibrational, and rotational energy scales are typically successively smaller. Covalent bonding involves shared electronic states; ionic bonding involves charge transfer and electrostatic attraction; dispersion forces arise from correlated charge fluctuations.
+
+\chapter{Condensed matter and collective phenomena}
+\section{Crystals, reciprocal space, and phonons}
+A crystal is periodic under lattice translations. Reciprocal vectors satisfy $\vect G\cdot\vect R=2\pi n$, organizing diffraction and wave states. Bragg's law is $2d\sin\theta=n\lambda$ when $\theta$ is measured from the lattice planes.
+
+Small lattice vibrations become coupled harmonic modes. Quantization produces phonons with energies $\hbar\omega_{\vect k,s}(n+1/2)$. Acoustic branches have $\omega\to0$ as $k\to0$; multi-atom unit cells can also have optical branches. The Debye model predicts low-temperature lattice heat capacity $C_V\propto T^3$ in three dimensions, while the high-temperature classical limit is approximately $3N\kb$.
+\section{Bloch's theorem and electronic bands}
+For a periodic single-particle potential,
+\begin{equation}\psi_{n\vect k}(\vect r)=\ee^{\ii\vect k\cdot\vect r}u_{n\vect k}(\vect r),\qquad u_{n\vect k}(\vect r+\vect R)=u_{n\vect k}(\vect r).\end{equation}
+Allowed energies form bands $E_n(\vect k)$ separated in some cases by gaps. A partially filled band supports metallic behavior in the simple band picture; filled bands separated from empty bands by a gap give an insulator at zero temperature. Correlations and disorder can alter this classification.
+
+A semiclassical wave packet in an isolated ordinary band has
+\begin{equation}\vect v=\frac1\hbar\grad_{\!k}E_n,\qquad \hbar\dot{\vect k}=-e(\vect E+\vect v\times\vect B).\end{equation}
+Berry curvature can add an anomalous velocity term. Near an isotropic parabolic extremum, $E\simeq E_0+\hbar^2k^2/(2m^*)$ defines effective mass. Crystal momentum is not generally the free-space mechanical momentum.
+\section{Fermi gases and electron transport}
+For a three-dimensional noninteracting spin-one-half electron gas,
+\begin{equation}k_F=(3\pi^2n)^{1/3},\qquad E_F=\frac{\hbar^2k_F^2}{2m}.\end{equation}
+At low temperature only states near the Fermi surface can change occupation, yielding electronic heat capacity proportional to $T$ rather than the classical constant.
+
+The Drude model with relaxation time $\tau$ gives $\sigma=ne^2\tau/m$; a band effective mass can replace $m$ in a suitable simple band model. The single-carrier Hall coefficient is $R_H=-1/(ne)$ for electrons. Multiband transport, scattering anisotropy, and strong correlations require more complete models.
+\section{Semiconductors and junctions}
+A semiconductor has a band gap small enough that thermal excitation and doping can control carrier density. Donors tend to supply electrons; acceptors tend to supply holes. A hole is a useful positive-charge quasiparticle describing an unfilled valence-band state.
+
+A $p$--$n$ junction develops a depletion region and built-in electric field. Under ideal diffusion-dominated conditions, its current-voltage relation is
+\begin{equation}I=I_s\left(\ee^{eV/(n_{\rm id}\kb T)}-1\right),\end{equation}
+with ideality factor $n_{\rm id}=1$ in the simplest model. Recombination, series resistance, and breakdown change this relation. Photons above the gap can create electron-hole pairs, enabling photodetectors and solar cells.
+\section{Magnetism, superconductivity, and superfluidity}
+Exchange interactions can favor aligned or alternating spins, producing ferromagnetic or antiferromagnetic order. A Heisenberg model uses $H=-\sum_{ij}J_{ij}\vect S_i\cdot\vect S_j$ with units of $J_{ij}$ chosen for the spin convention. Collective spin excitations are magnons.
+
+A superconductor exhibits dissipationless direct-current transport under suitable limits and the Meissner effect, expelling weak magnetic fields from its bulk. London theory gives magnetic penetration over a length $\lambda_L$; the coherence length $\xi$ characterizes spatial variation of the order parameter. In conventional BCS superconductors, paired electrons form a coherent many-body state, with weak-coupling result
+\begin{equation}\Delta(0)\simeq1.764\kb T_c,\qquad \Phi_0=\frac{h}{2e}.\end{equation}
+The first relation is not universal across all superconductors. The second is the usual flux quantum for charge-$2e$ condensates. Josephson junctions satisfy $I=I_c\sin\varphi$ and $\dot\varphi=2eV/\hbar$ in the ideal relations.
+
+Superfluidity involves coherent flow with restricted dissipation channels. A useful Landau criterion is $v_c=\min_p[\epsilon(p)/p]$ for elementary excitation production in the ideal setting; vortices and boundaries can lower observed critical velocities.
+\section{Topology and emergence}
+Macroscopic phases can differ through global properties of their quantum states as well as local order parameters. In an ideal integer quantum Hall plateau,
+\begin{equation}\sigma_{xy}=\nu\frac{e^2}{h},\qquad \nu\in\mathbb Z.\end{equation}
+The integer relates to a topological invariant of occupied states. Edge transport and bulk topology are connected, subject to the system's symmetry and gap conditions. Fractional quantum Hall states require interactions and support excitations with fractionalized properties.
+
+Quasiparticles, order parameters, and effective theories illustrate emergence: the most useful degrees of freedom at long distances need not resemble the microscopic ingredients directly.
+
+\chapter{Nuclear physics}
+\section{Nuclear scales and binding}
+A nucleus contains $Z$ protons and $N$ neutrons, with mass number $A=Z+N$. A useful empirical radius scale is $R\simeq r_0A^{1/3}$ with $r_0\simeq1.2\,\mathrm{fm}$. Nuclear binding energy is
+\begin{equation}B=[Zm_p+Nm_n-M_{\rm nucleus}]c^2.\end{equation}
+If atomic masses are used, electron masses and binding must be accounted for consistently. Binding reflects residual strong interactions, opposed in part by proton Coulomb repulsion.
+
+A schematic semi-empirical mass formula is
+\begin{equation}B=a_vA-a_sA^{2/3}-a_c\frac{Z(Z-1)}{A^{1/3}}-a_a\frac{(A-2Z)^2}{A}+\delta(A,Z).\end{equation}
+Its terms represent volume attraction, surface correction, Coulomb energy, neutron-proton asymmetry, and pairing. Shell effects cause additional structure and explain enhanced stability at magic nucleon numbers.
+\section{Radioactive decay}
+For independent nuclei with constant decay rate $\lambda$,
+\begin{equation}\dot N=-\lambda N,\quad N=N_0\ee^{-\lambda t},\quad t_{1/2}=\frac{\ln2}{\lambda},\quad \mathcal A=\lambda N.\end{equation}
+The exponential law is an excellent intermediate-time description; exact quantum survival amplitudes need not be exponential at arbitrarily short or long times. Competing decay modes have total rate $\lambda=\sum_i\lambda_i$ and branching fractions $\lambda_i/\lambda$.
+
+Alpha decay emits a helium nucleus and is enabled by tunneling through a Coulomb barrier. Beta-minus decay changes a neutron into a proton, electron, and electron antineutrino; beta-plus decay changes a proton into a neutron, positron, and electron neutrino when energetically allowed. Gamma decay changes nuclear excitation without changing $A$ or $Z$.
+\section{Reaction energetics and cross sections}
+A reaction's energy release is
+\begin{equation}Q=(M_{\rm initial}-M_{\rm final})c^2.\end{equation}
+Positive $Q$ is exothermic. Negative $Q$ requires sufficient incident energy, with recoil making the laboratory threshold exceed $|Q|$ in general. A beam with flux $\Phi$ incident on $N_t$ thin-target nuclei gives event rate approximately $R=\Phi N_t\sigma$ when attenuation and multiple interactions are negligible.
+
+Fusion of light nuclei and fission of sufficiently heavy nuclei can release binding energy because products may be more tightly bound per nucleon. Their rates depend on barriers, quantum states, and reaction channels, not simply on a favorable $Q$ value. Stellar fusion occurs through tunneling at energies below the classical Coulomb barrier.
+\section{Nuclear models and dense matter}
+The liquid-drop model explains bulk trends; the shell model treats nucleons in an effective mean field with strong spin-orbit effects. Collective rotational and vibrational models describe other spectra. No single simple model captures all nuclear structure.
+
+At extreme density, neutron-rich matter is governed by degeneracy, nuclear interactions, and relativistic gravity. Its equation of state relates pressure to energy density and composition. Neutron-star structure therefore links microscopic many-body physics to macroscopic gravitational observations.
+
+\chapter{Relativistic quantum theory and particle physics}
+\section{Why quantum fields are needed}
+Relativity permits energy to create particle-antiparticle pairs. A fixed-particle-number wavefunction is therefore insufficient for general high-energy processes. Quantum field theory assigns operators to fields; particles are excitations of those fields, and interactions can change particle number.
+
+For the remainder of this chapter use $\hbar=c=1$ unless restored explicitly. Keep the metric signature $(-,+,+,+)$ and define $\Box=\partial_\mu\partial^\mu=-\partial_t^2+\lap$. A free scalar field obeys
+\begin{equation}(\Box-m^2)\phi=0,\end{equation}
+which gives $E^2=\vect p^{\,2}+m^2$. The Lagrangian density
+$\mathcal L=-\tfrac12\partial_\mu\phi\partial^\mu\phi-\tfrac12m^2\phi^2$ yields this equation with our signature.
+\section{Spinors, antiparticles, and quantization}
+A Dirac equation can be written
+\begin{equation}(\ii\gamma^\mu\partial_\mu-m)\psi=0,\qquad \{\gamma^\mu,\gamma^\nu\}=-2g^{\mu\nu}I,\end{equation}
+using this explicitly chosen gamma-matrix convention with the mostly-plus metric. Squaring the operator reproduces the stated Klein--Gordon dispersion. Other texts often use the opposite metric and corresponding Clifford-algebra convention.
+
+A free field decomposes into harmonic modes, promoted to creation and annihilation operators. Bosonic operators obey commutators and fermionic ones anticommutators. In local relativistic quantum theories satisfying the usual assumptions, the spin-statistics connection links integer spin with bosons and half-integer spin with fermions. Antiparticles have the same mass and spin as their partners and opposite additive internal charges.
+\section{Interactions, diagrams, and effective theories}
+An interaction term couples fields. Perturbation theory expands amplitudes in coupling constants; Feynman diagrams organize integrals in that expansion. Internal lines are propagators, not directly observed little particles following classical paths. Observable rates come from amplitudes, interference, phase space, and the appropriate normalization.
+
+Loop integrals require regularization and renormalization. Measured masses and couplings depend on how parameters are defined and, for running couplings, on the energy scale. Effective field theory organizes allowed interactions by symmetry and powers of a small ratio $E/\Lambda$, where $\Lambda$ is a higher scale. It can make precise low-energy predictions without claiming validity at arbitrarily high energy.
+\section{The Standard Model's structure}
+The Standard Model is a gauge theory with group $SU(3)_C\times SU(2)_L\times U(1)_Y$. Its matter fields form three generations of quarks and leptons:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Generation & Quarks & Leptons\\
+\midrule
+1 & up, down & electron, electron neutrino\\
+2 & charm, strange & muon, muon neutrino\\
+3 & top, bottom & tau, tau neutrino\\
+\bottomrule
+\end{tabular}
+\end{center}
+Quarks carry color and fractional electric charges; leptons do not carry color. Gluons mediate the strong interaction, the photon electromagnetism, and $W^\pm,Z$ the weak interaction. The Higgs field's nonzero vacuum value is associated with electroweak symmetry breaking and masses for the weak bosons; Yukawa couplings generate charged-fermion masses. Most of the proton's mass is associated with QCD dynamics, rather than simply the sum of its valence-quark masses.
+
+The minimal original Standard Model has massless neutrinos. Observed flavor oscillations require neutrino mass differences and therefore an extension of that minimal formulation; the detailed mass mechanism is not fixed by oscillation data alone.
+\section{Strong and weak interactions}
+Quantum chromodynamics is the $SU(3)$ gauge theory of color. Its coupling weakens at short distances (asymptotic freedom) and becomes strong at large distances. Isolated colored quarks and gluons are not observed as asymptotic free particles; they form color-neutral hadrons. Baryons include three-valence-quark states such as protons and neutrons; mesons include quark-antiquark states, with sea constituents and gluons also contributing.
+
+Weak interactions can change flavor and violate parity. Quark flavor mixing is described by the CKM matrix; lepton mixing by the PMNS matrix. Charge conjugation and parity together are also violated in some processes. In the two-flavor vacuum approximation, restoring $\hbar,c$,
+\begin{equation}P(\nu_\alpha\to\nu_\beta)=\sin^2(2\theta)\sin^2\left(\frac{\Delta m^2c^3L}{4\hbar E}\right),\quad \alpha\neq\beta.\end{equation}
+This assumes relativistic coherent propagation. Three-flavor effects and matter interactions modify the expression.
+\section{Symmetries, conservation, and open questions}
+Energy-momentum and electric charge conservation strongly constrain reactions. Additional quantum numbers may be exact, approximate, or violated by particular interactions; a conservation rule from one regime should not be assumed universally.
+
+Established quantum field theories do not by themselves provide a complete quantum theory of gravity, identify the microscopic nature of dark matter, or explain every cosmological initial condition. These are open problems. Proposed answers should be distinguished from the tested framework used to calculate spectra and scattering.
+
+\part{Astrophysics, Cosmology, and Synthesis}
+\chapter{Stars, compact objects, and the expanding universe}
+\section{Stellar structure and energy transport}
+A spherical nonrotating star in Newtonian hydrostatic equilibrium satisfies
+\begin{equation}\od{M_r}{r}=4\pi r^2\rho,\qquad \od{p}{r}=-\frac{GM_r\rho}{r^2},\qquad \od{L_r}{r}=4\pi r^2\rho\epsilon,\end{equation}
+where $M_r$ is enclosed mass, $L_r$ is outward luminosity, and $\epsilon$ is net local energy generation per mass per time. An equation of state and an energy-transport law complete the model. In an optically thick radiative region,
+\begin{equation}\od{T}{r}=-\frac{3\kappa_R\rho L_r}{16\pi ac\,r^2T^3},\end{equation}
+where $\kappa_R$ is the Rosseland mean opacity and $a$ the radiation constant. Convection becomes important when the required temperature gradient is sufficiently steep; convection modeling is an additional physical problem.
+
+For a self-gravitating stationary system with negligible surface terms, the virial theorem gives $2\avg K+\avg U=0$ for an inverse-distance potential. A star can heat as it loses total energy through gravitational contraction: its thermal kinetic energy increases while gravitational energy becomes more negative.
+\section{Degeneracy pressure and compact remnants}
+Electron degeneracy supports white dwarfs. For nonrelativistic degenerate electrons, $p\propto n_e^{5/3}$; in the ultrarelativistic limit, $p\propto n_e^{4/3}$. The change in scaling leads to a limiting white-dwarf mass of order a solar mass, conventionally about $1.4M_\odot$ for common idealized composition assumptions.
+
+Neutron stars require relativistic hydrostatic balance. Writing $\rho$ for total energy density divided by $c^2$, the Tolman--Oppenheimer--Volkoff equation is
+\begin{equation}
+\od{p}{r}=-\frac{G(\rho+p/c^2)(M_r+4\pi r^3p/c^2)}{r^2[1-2GM_r/(rc^2)]},\qquad
+\od{M_r}{r}=4\pi r^2\rho.
+\end{equation}
+Pressure contributes to gravitation, and the equation of state controls the possible masses and radii. Sufficiently compact collapse can form a black hole. Rotation, magnetic fields, and accretion complicate these idealized pictures.
+\section{Homogeneity, isotropy, and expansion}
+On sufficiently large scales, the cosmological principle models space as statistically homogeneous and isotropic. The FLRW metric is
+\begin{equation}\dd s^2=-c^2\dd t^2+a^2(t)\left[\frac{\dd r^2}{1-kr^2}+r^2\dd\Omega^2\right].\end{equation}
+Here take $r$ dimensionless, $a$ to have dimensions of length, and $k=0,\pm1$. The expansion rate is $H=\dot a/a$. Comoving wavelength grows with $a$, so
+\begin{equation}1+z=\frac{a(t_0)}{a(t_{\rm emission})}.\end{equation}
+Nearby galaxies approximately satisfy $v\simeq H_0d$ when peculiar motion is negligible. At large distances, cosmological recession is not simply a special-relativistic velocity in one global inertial frame.
+\section{Friedmann equations and cosmic contents}
+For a perfect fluid with mass-equivalent density $\rho$,
+\begin{align}
+H^2&=\frac{8\pi G}{3}\rho-\frac{kc^2}{a^2}+\frac{\Lambda c^2}{3},\\
+\frac{\ddot a}{a}&=-\frac{4\pi G}{3}\left(\rho+\frac{3p}{c^2}\right)+\frac{\Lambda c^2}{3},\\
+\dot\rho+3H\left(\rho+\frac p{c^2}\right)&=0.
+\end{align}
+Here $\rho,p$ exclude the explicitly displayed cosmological constant. For a separately conserved component with constant $p=w\rho c^2$,
+\begin{equation}\rho\propto a^{-3(1+w)}.\end{equation}
+Nonrelativistic matter has $w\simeq0$ and dilutes as $a^{-3}$; radiation has $w=1/3$ and scales as $a^{-4}$ because its photons also redshift. Vacuum energy has $w=-1$ and constant density.
+
+In flat universes dominated by a single component and with no separate $\Lambda$, $a\propto t^{2/3}$ for matter and $a\propto t^{1/2}$ for radiation. Positive constant vacuum energy instead produces exponential expansion when it dominates. The critical density is $\rho_c=3H^2/(8\pi G)$. Numerical estimates of cosmological parameters depend on observations and models; no particular current fit is required for these relations.
+\begin{example}[Temperature of expanding radiation]
+For equilibrium freely redshifting radiation, $\rho_{\rm rad}\propto a^{-4}$ and $u=a_{\rm rad}T^4$ imply $T\propto a^{-1}$. Thus radiation observed at redshift $z$ had temperature $T(z)=T_0(1+z)$ if no additional entropy was transferred into it during the interval being modeled.
+\end{example}
+\section{Thermal history and structure formation}
+The hot expanding-universe model organizes early particle reactions, light-element nucleosynthesis, formation of neutral atoms, and the release of radiation now observed as the cosmic microwave background. Recombination and photon decoupling are related but distinct processes: atomic populations evolve while the photon scattering rate becomes too small to maintain tight coupling.
+
+A reaction remains near equilibrium when its rate $\Gamma$ greatly exceeds $H$. Freeze-out occurs roughly when $\Gamma\lesssim H$, although accurate abundances require kinetic equations. For cold nonrelativistic matter on subhorizon scales in the linear pressureless approximation, density contrast obeys
+\begin{equation}\ddot\delta+2H\dot\delta-4\pi G\rho_m\delta=0.\end{equation}
+Expansion competes with gravitational growth. Pressure, radiation, free streaming, and nonlinear collapse require extensions.
+\section{Dark sectors and inflation}
+Dark matter denotes gravitating matter inferred from multiple gravitational effects whose dominant microscopic identity is not established. Dark energy is a description of the component associated with accelerated expansion; a cosmological constant is one model. These terms summarize different phenomena and should not be treated as interchangeable.
+
+Inflation proposes an early accelerated-expansion phase that can address horizon and flatness problems and generate primordial perturbations. Its specific field content and dynamics are model dependent. A homogeneous canonical scalar field in units $c=\hbar=1$ has $\rho=\dot\phi^2/2+V(\phi)$ and $p=\dot\phi^2/2-V(\phi)$; potential domination yields negative pressure. This mechanism is a theoretical framework, not a complete experimentally selected account of the earliest universe.
+
+\chapter{Computational physics and model validation}
+\section{Discretization and numerical error}
+Numerical physics approximates a well-posed mathematical model, whose own physical approximations remain separate from numerical error. A forward difference has error $O(h)$, while
+\begin{equation}f'(x)\simeq\frac{f(x+h)-f(x-h)}{2h}\end{equation}
+has truncation error $O(h^2)$ for a sufficiently smooth function. Taking $h$ extremely small can amplify floating-point cancellation. Numerical integration likewise balances resolution, smoothness, and cost.
+
+Convergence means the computed result approaches a stable limit as resolution improves. Agreement at one step size is insufficient evidence. Compare conserved quantities, analytic limiting cases, and independent formulations whenever feasible.
+\section{Time integration and Hamiltonian systems}
+Forward Euler uses $y_{n+1}=y_n+h f(t_n,y_n)$ and is first-order globally. Fourth-order Runge--Kutta combines several slope estimates for smooth ordinary differential equations. Stiff systems may require implicit or specially designed solvers rather than impractically tiny explicit steps.
+
+For $\ddot{\vect r}=\vect a(\vect r)$, velocity Verlet is
+\begin{align}
+\vect r_{n+1}&=\vect r_n+h\vect v_n+\tfrac12h^2\vect a_n,\\
+\vect v_{n+1}&=\vect v_n+\tfrac h2(\vect a_n+\vect a_{n+1}).
+\end{align}
+For separable conservative Hamiltonians it is a second-order symplectic scheme, often maintaining bounded long-term energy error for suitable steps. Symplectic does not mean exact energy conservation at every step.
+\section{PDE stability and eigenvalue problems}
+For explicit centered-space diffusion in one dimension,
+\begin{equation}u_j^{n+1}=u_j^n+r(u_{j+1}^n-2u_j^n+u_{j-1}^n),\qquad r=D\Delta t/(\Delta x)^2,\end{equation}
+linear stability requires $r\leq1/2$. For a common explicit centered wave scheme, the one-dimensional Courant condition is $v\Delta t/\Delta x\leq1$. Conditions depend on the actual algorithm, geometry, and dimension; these bounds are not universal for every discretization.
+
+Discretizing a Schrodinger or normal-mode operator produces a matrix eigenproblem. Boundary conditions, grid spacing, and domain size affect the spectrum. Verify normalization, orthogonality, and convergence of the lowest states before trusting highly excited numerical modes.
+\section{Monte Carlo and statistical sampling}
+Monte Carlo integration estimates an expectation using samples, with typical independent-sample error scaling as $N^{-1/2}$ for finite variance. In Markov-chain Monte Carlo, samples are correlated; the effective sample size is smaller. Metropolis sampling accepts a proposed configuration change with probability
+\begin{equation}P_{\rm accept}=\min(1,\ee^{-\beta\Delta E})\end{equation}
+for a symmetric proposal in a canonical ensemble. Asymmetric proposals require an additional proposal-probability ratio. Check equilibration, autocorrelation, and sampling across distinct metastable regions.
+\section{A practical verification checklist}
+\begin{enumerate}
+\item Check the continuum equations, units, parameter regime, and boundary conditions.
+\item Reproduce an analytic special case or a trusted limiting solution.
+\item Refine time step, spatial grid, domain size, or sample count separately.
+\item Monitor relevant invariants and calculate uncertainty rather than relying only on plots.
+\item Distinguish numerical artifacts from model limitations and measurement disagreement.
+\end{enumerate}
+
+\chapter{Connections across the subject}
+\section{Conservation from local balance}
+Many laws share the structure
+\begin{equation}\partial_t\rho+\grad\cdot\vect j=s.\end{equation}
+Here $\rho$ is a stored density, $\vect j$ its flux, and $s$ a source. Integrating over a fixed volume gives
+\begin{equation}\od{}{t}\int_V\rho\dd V=-\oint_{\partial V}\vect j\cdot\dd\vect S+\int_Vs\dd V.\end{equation}
+Mass continuity, charge conservation, heat flow, and quantum probability conservation are instances. Their different flux laws create different dynamics.
+\section{The oscillator as a recurring model}
+A spring, an LC circuit, a molecular vibration, an electromagnetic cavity mode, and a free quantum-field mode all reduce to oscillator mathematics in an appropriate regime. Frequencies come from restoring forces and inertia or their generalized analogues. Damping represents coupling to other degrees of freedom; quantization turns normal modes into discrete excitations.
+\section{Symmetry, gauge freedom, and observables}
+A physical symmetry relates states while preserving the laws. Gauge freedom is a redundancy of description; gauge-related potentials describe the same physical situation when matter fields are transformed consistently. Continuous symmetries generate conservation laws, while symmetry breaking and boundary conditions determine which states occur.
+
+Only observable predictions can be compared directly with experiments. Coordinate components, wavefunction phases, and gauge potentials may be essential calculation tools without being individually observable in every form.
+\section{Scale and effective descriptions}
+The same matter can be modeled as particles, a continuous fluid, a thermodynamic system, or a quantum many-body state. The useful description depends on resolution and the question asked. A hierarchy of small parameters can organize the choice:
+\begin{center}
+\begin{tabular}{p{0.30\textwidth}p{0.59\textwidth}}
+\toprule
+Parameter or comparison & Physical significance\\
+\midrule
+$v/c$ & Relativistic kinematic corrections\\
+$GM/(rc^2)$ & Strength of relativistic gravitational effects\\
+$\hbar/S_{\rm characteristic}$ & Semiclassical action scale; not a complete criterion for every state\\
+$n\lambda_T^3$ & Quantum degeneracy of a dilute particle gas\\
+Mean free path divided by system size & Validity of a local continuum description\\
+Wavelength divided by apparatus size & Wave optics versus a possible ray approximation\\
+Interaction energy divided by a level gap & Suitability of nondegenerate perturbation theory\\
+\bottomrule
+\end{tabular}
+\end{center}
+No one approximation wins everywhere. A good solution identifies the relevant regime and estimates its own neglected effects.
+
+\appendix
+\chapter{Constants, units, and useful identities}
+\section{Common constants}
+Exact SI-defining values are distinguished below from rounded reference values. Rounded values suffice for review calculations and are not a precision metrology table.
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Quantity & Symbol & Value in SI units\\
+\midrule
+Vacuum light speed & $c$ & $299\,792\,458\ \mathrm{m\,s^{-1}}$ (exact)\\
+Planck constant & $h$ & $6.62607015\times10^{-34}\ \mathrm{J\,s}$ (exact)\\
+Elementary charge & $e$ & $1.602176634\times10^{-19}\ \mathrm C$ (exact)\\
+Boltzmann constant & $\kb$ & $1.380649\times10^{-23}\ \mathrm{J\,K^{-1}}$ (exact)\\
+Avogadro constant & $N_A$ & $6.02214076\times10^{23}\ \mathrm{mol^{-1}}$ (exact)\\
+Reduced Planck constant & $\hbar=h/(2\pi)$ & $\simeq1.05457\times10^{-34}\ \mathrm{J\,s}$\\
+Gravitational constant & $G$ & $\simeq6.6743\times10^{-11}\ \mathrm{m^3\,kg^{-1}\,s^{-2}}$\\
+Electron mass & $m_e$ & $\simeq9.1094\times10^{-31}\ \mathrm{kg}$\\
+Proton mass & $m_p$ & $\simeq1.6726\times10^{-27}\ \mathrm{kg}$\\
+Vacuum permittivity & $\eps$ & $\simeq8.8542\times10^{-12}\ \mathrm{F\,m^{-1}}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Useful conversions include $1\,\mathrm{eV}=1.602176634\times10^{-19}\,\mathrm J$, $1\,\mathrm{fm}=10^{-15}\,\mathrm m$, $1\,\text{angstrom}=10^{-10}\,\mathrm m$, and $\hbar c\simeq197.33\,\mathrm{MeV\,fm}$. The fine-structure constant is $\alpha=e^2/(4\pi\eps\hbar c)\simeq1/137$. In SI, $\mun\eps c^2=1$; $\mun$ is not an independently exact fixed decimal constant under the modern SI definition.
+\section{Integrals and expansions}
+For $a>0$,
+\begin{align}
+\int_{-\infty}^{\infty}\ee^{-ax^2}\dd x&=\sqrt{\pi/a},&
+\int_{-\infty}^{\infty}x^2\ee^{-ax^2}\dd x&=\frac{\sqrt\pi}{2a^{3/2}},\\
+\int_0^\infty x^n\ee^{-ax}\dd x&=\frac{n!}{a^{n+1}}\quad(n=0,1,\ldots).&&
+\end{align}
+Common small-$x$ expansions are
+\begin{equation}\ee^x=1+x+x^2/2+\cdots,\quad \ln(1+x)=x-x^2/2+\cdots,\quad (1+x)^a=1+ax+\tfrac12a(a-1)x^2+\cdots.\end{equation}
+An expansion is useful only within its convergence or asymptotic regime and with a sufficiently small neglected contribution.
+\section{Natural units and restoring dimensions}
+Setting $c=\hbar=1$ makes time and length inverse-energy quantities, while mass and momentum have energy units. Temperature can also be measured in energy if $\kb=1$. Restore constants using physical dimensions: $E^2=p^2+m^2$ becomes $E^2=p^2c^2+m^2c^4$, while a Compton length $1/m$ becomes $\hbar/(mc)$. Dimensional restoration may not determine numerical factors or distinguish quantities with identical dimensions.
+
+\chapter{Review problems}
+Try each problem before reading its solution. State assumptions and check dimensions even when the algebra is short.
+\begin{enumerate}
+\item A particle starts from rest under linear drag and a constant force $F_0$ in one dimension. Find its velocity and the time at which it reaches half its terminal velocity.
+\item A uniform solid cylinder rolls without slipping down a height $h$. Find its final center-of-mass speed and compare it with a frictionless sliding point mass.
+\item For $V(r)=-\kappa/r$, find the circular-orbit radius and energy in terms of reduced mass $\mu$ and angular momentum $\ell$.
+\item Two equal masses have the coupled-spring system in the oscillations chapter. If $x_1(0)=A$, $x_2(0)=0$, and both velocities vanish, find $x_1(t),x_2(t)$.
+\item A string of length $L$ is fixed at both ends. What happens to all mode frequencies if tension is multiplied by four while linear density stays fixed?
+\item Two ideal polarizers are oriented at $45^\circ$ to one another. Unpolarized light of intensity $I_0$ enters the first. Find the final intensity.
+\item One mole of a monatomic ideal gas is heated reversibly at constant pressure from $T$ to $2T$. Find $Q$, $W_{\rm by}$, $\Delta U$, and $\Delta S$.
+\item For $N$ independent nondegenerate two-level systems with gap $\Delta$, find the high- and low-temperature limits of internal energy and entropy.
+\item A uniformly charged solid sphere has radius $R$ and total charge $Q$. Find the electric field inside and outside, and the potential at the center with zero at infinity.
+\item A capacitor initially charged to voltage $V_0$ discharges through resistance $R$. Find $V(t)$ and total heat dissipated.
+\item A vacuum plane wave has peak electric field $E_0$. Find average intensity and mean pressure on a perfectly reflecting normal surface.
+\item A particle has speed $0.8c$. Find $\gamma$, its kinetic energy in units of $mc^2$, and its momentum in units of $mc$.
+\item An emitter is static at Schwarzschild radius-coordinate $r_e=4GM/c^2$. What frequency is measured by a static observer at infinity relative to the emitted frequency?
+\item In the infinite well $0<x<L$, find the ground-state $\avg x$, $\avg p$, and $\avg{p^2}$, interpreting the latter through kinetic energy.
+\item A harmonic oscillator in its ground state is perturbed by $V'=fx$, with constant force parameter $f$. Find the exact energy shift by completing the square and compare with first-order perturbation theory.
+\item A spin initially in $\ket{+z}$ is measured along $+x$, then along $+z$, with the first outcome recorded but not selected. What is the final probability of $+z$?
+\item Trace out either qubit of $\ket{\Phi^+}$. Find the reduced purity and entropy in units of $\kb$.
+\item A radioactive sample has two independent decay channels with rates $\lambda_1,\lambda_2$. Find its half-life and the fraction of decays in channel 1.
+\item Show that a spatially flat matter-only expanding universe has $a(t)\propto t^{2/3}$, taking $a=0$ at $t=0$.
+\item For the explicit diffusion scheme, insert an error mode $u_j^n=A^n\ee^{\ii kj\Delta x}$. Derive its amplification factor and stability bound.
+\end{enumerate}
+
+\chapter{Solutions and reasoning}
+\begin{enumerate}
+\item Solve $m\dot v=F_0-bv$: $v=(F_0/b)(1-\ee^{-bt/m})$. Thus $v_\infty=F_0/b$ and $t_{1/2}=(m/b)\ln2$. The velocity approaches the terminal value monotonically for positive $F_0,b$.
+\item With $I=mR^2/2$, energy conservation gives $mgh=3mv^2/4$, hence $v=\sqrt{4gh/3}$. Sliding gives $\sqrt{2gh}$; rolling stores some energy in rotation. Enough static friction is assumed to enforce rolling.
+\item Set $V_{\rm eff}'=\kappa/r^2-\ell^2/(\mu r^3)=0$, yielding $r_c=\ell^2/(\mu\kappa)$. Then $E_c=-\kappa/(2r_c)=-\mu\kappa^2/(2\ell^2)$. The second derivative at $r_c$ is positive, so the orbit is radially stable.
+\item Both normal coordinates initially equal $A$. Therefore $x_1=A[\cos(\omega_+t)+\cos(\omega_-t)]/2$ and $x_2=A[\cos(\omega_+t)-\cos(\omega_-t)]/2$. A mass initially at rest can later move through exchange of mode energy contributions.
+\item Since $v=\sqrt{\mathcal T/\mu}$ doubles, every $f_n=nv/(2L)$ doubles. The spatial node locations for each mode do not change.
+\item The first transmits $I_0/2$. The second transmits another factor $\cos^245^\circ=1/2$, leaving $I_0/4$.
+\item For one mole, $C_V=3R/2$ and $C_p=5R/2$. Thus $Q=5RT/2$, $W_{\rm by}=R\Delta T=RT$, $\Delta U=3RT/2$, and $\Delta S=C_p\ln2=(5R/2)\ln2$. Here the initial temperature is denoted by $T$.
+\item At low $T$, all systems approach the unique ground state: $U\to0$ and $S\to0$. At high $T$, each has equal probabilities: $U\to N\Delta/2$, $S\to N\kb\ln2$. The bounded spectrum explains why the high-temperature energy saturates.
+\item Gauss's law gives $\vect E=Qr\hat{\vect r}/(4\pi\eps R^3)$ inside and $Q\hat{\vect r}/(4\pi\eps r^2)$ outside. Integrating inward from infinity gives $\phi(0)=3Q/(8\pi\eps R)$. Inside, $\phi(r)=Q(3-r^2/R^2)/(8\pi\eps R)$.
+\item $V=V_0\ee^{-t/(RC)}$. Integrating $V^2/R$ from zero to infinity gives heat $CV_0^2/2$, exactly the initial stored energy.
+\item Since $\avg{E^2}=E_0^2/2$, $I=\eps cE_0^2/2$. Reflection reverses normal photon momentum, so $\bar p=2I/c=\eps E_0^2$. Here $p$ is pressure, not momentum.
+\item $\gamma=1/\sqrt{1-0.64}=5/3$. Thus $K/(mc^2)=2/3$ and $p/(mc)=\gamma(v/c)=4/3$. The invariant check is $(5/3)^2-(4/3)^2=1$.
+\item Since $r_e=2r_s$, $\nu_\infty/\nu_e=\sqrt{1-r_s/r_e}=1/\sqrt2$. This assumes a static emitter, rather than a freely falling one whose motion adds a Doppler effect.
+\item Symmetry gives $\avg x=L/2$ and a real stationary wavefunction gives zero mean momentum. Since $E_1=\pi^2\hbar^2/(2mL^2)$, $\avg{p^2}=2mE_1=\pi^2\hbar^2/L^2$. Strict operator-domain issues for momentum in a hard-wall interval do not change this kinetic-energy result.
+\item Completing the square gives
+\[
+\tfrac12m\omega^2x^2+fx=\tfrac12m\omega^2\left(x+\frac f{m\omega^2}\right)^2-\frac{f^2}{2m\omega^2}.
+\]
+Every level shifts by $-f^2/(2m\omega^2)$. First order vanishes because $\avg x=0$ in an unperturbed number state; the leading shift is second order.
+\item The $x$ measurement gives either outcome with probability $1/2$. Each $x$ eigenstate gives $+z$ with probability $1/2$, so the final probability is $1/2$. Without the intervening measurement, it would have been 1 for no intervening dynamics.
+\item $\rho_A=(\ket0\bra0+\ket1\bra1)/2=I/2$. Then $\operatorname{Tr}\rho_A^2=1/2$ and $S_A/\kb=\ln2$. The global purity is still 1.
+\item Survival depends on the sum of rates: $N=N_0\ee^{-(\lambda_1+\lambda_2)t}$. Therefore $t_{1/2}=\ln2/(\lambda_1+\lambda_2)$ and the channel-1 branching fraction is $\lambda_1/(\lambda_1+\lambda_2)$.
+\item Conservation gives $\rho=C/a^3$. The Friedmann equation implies $\dot a^2=(8\pi GC/3)/a$, so $a^{1/2}\dd a=\sqrt{8\pi GC/3}\dd t$. Integration yields $a^{3/2}\propto t$ and $a\propto t^{2/3}$.
+\item Substitution yields $A=1+r(\ee^{\ii k\Delta x}-2+\ee^{-\ii k\Delta x})=1-4r\sin^2(k\Delta x/2)$. Requiring $|A|\leq1$ for all resolved modes and $r\geq0$ gives $r\leq1/2$.
+\end{enumerate}
+
+\chapter{Further study and a route through the material}
+These established textbook references provide deeper derivations and problems. They are reading pointers, not claims that the present review reproduces any particular edition. No specific edition is required for the topic mapping.
+\begin{longtable}{p{0.25\textwidth}p{0.67\textwidth}}
+\toprule
+Subject & References\\
+\midrule
+\endhead
+Broad foundations & Halliday, Resnick, and Walker, \emph{Fundamentals of Physics}; Feynman, Leighton, and Sands, \emph{The Feynman Lectures on Physics}.\\
+Mathematical methods & Boas, \emph{Mathematical Methods in the Physical Sciences}; Arfken, Weber, and Harris, \emph{Mathematical Methods for Physicists}.\\
+Classical mechanics & Taylor, \emph{Classical Mechanics}; Goldstein, Poole, and Safko, \emph{Classical Mechanics}.\\
+Fluids & Acheson, \emph{Elementary Fluid Dynamics}.\\
+Optics & Hecht, \emph{Optics}.\\
+Thermal physics & Schroeder, \emph{An Introduction to Thermal Physics}; Reif, \emph{Fundamentals of Statistical and Thermal Physics}.\\
+Electromagnetism & Griffiths, \emph{Introduction to Electrodynamics}; Jackson, \emph{Classical Electrodynamics}.\\
+Relativity & Taylor and Wheeler, \emph{Spacetime Physics}; Carroll, \emph{Spacetime and Geometry}.\\
+Quantum mechanics & Griffiths and Schroeter, \emph{Introduction to Quantum Mechanics}; Shankar, \emph{Principles of Quantum Mechanics}; Sakurai and Napolitano, \emph{Modern Quantum Mechanics}.\\
+Condensed matter & Kittel, \emph{Introduction to Solid State Physics}; Ashcroft and Mermin, \emph{Solid State Physics}.\\
+Nuclear physics & Krane, \emph{Introductory Nuclear Physics}.\\
+Particles and fields & Griffiths, \emph{Introduction to Elementary Particles}; Peskin and Schroeder, \emph{An Introduction to Quantum Field Theory}.\\
+Cosmology & Ryden, \emph{Introduction to Cosmology}.\\
+Computational physics & Newman, \emph{Computational Physics}.\\
+\bottomrule
+\end{longtable}
+\section*{Suggested sequence}
+First become fluent with dimensions, calculus, Newtonian conservation, oscillators, and the mathematical meaning of boundary conditions. Next connect fields and fluxes through fluid mechanics and electromagnetism, and connect microscopic probabilities to thermodynamics. Then study special relativity and basic quantum mechanics before proceeding to atoms, materials, nuclei, and fields. General relativity and cosmology benefit from all of these foundations.
+
+For each chapter, be able to explain the physical picture, derive at least one central equation, solve a representative problem, and identify a regime in which the model fails. That combination is more useful than memorizing an isolated list of formulas.
+\backmatter
+\chapter*{Building this document}
+\addcontentsline{toc}{chapter}{Building this document}
+The source is a single self-contained file with no external figures, bibliography database, or shell-escape requirement. It uses common LaTeX packages from a standard TeX Live or MiKTeX installation. From the source directory, compile twice so the table of contents and internal references settle:
+\begin{verbatim}
+pdflatex -interaction=nonstopmode -halt-on-error \
+  Physics_Review_Classical_to_Modern.tex
+pdflatex -interaction=nonstopmode -halt-on-error \
+  Physics_Review_Classical_to_Modern.tex
+\end{verbatim}
+Alternatively, compile with:
+\begin{verbatim}
+latexmk -pdf Physics_Review_Classical_to_Modern.tex
+\end{verbatim}
+You can also upload the source as the main file in an online LaTeX editor with the listed packages available.
+\end{document}
