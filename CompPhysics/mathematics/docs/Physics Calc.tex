@@ -4,6 +4,8 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{booktabs,longtable,array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
 \usepackage{xcolor}
 \usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black]{hyperref}
 \usepackage{microtype}
@@ -28,6 +30,23 @@
 \newcommand{\kb}{k_{\mathrm B}}
 \newcommand{\eps}{\varepsilon_0}
 \newcommand{\mun}{\mu_0}
+\newcommand{\chaptervisual}[4]{
+\begin{figure}[tb]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw=blue!55!black,rounded corners=3pt,align=center,
+    minimum height=1.05cm,text width=0.245\textwidth,inner sep=5pt},
+  flow/.style={-{Latex[length=2mm]},very thick,blue!55!black}
+]
+\node[box,fill=blue!5] (input) {\textbf{Physical input}\\#2};
+\node[box,fill=green!6,right=9mm of input] (operation) {\textbf{Mathematical operation}\\#3};
+\node[box,fill=orange!8,right=9mm of operation] (output) {\textbf{Observable result}\\#4};
+\draw[flow] (input) -- (operation);
+\draw[flow] (operation) -- (output);
+\end{tikzpicture}
+\caption{Visual model for #1: the physical question becomes mathematics and returns as an observable prediction.}
+\end{figure}
+}
 \newtheoremstyle{reviewstyle}{8pt}{8pt}{\normalfont}{} {\bfseries}{.}{.5em}{}
 \theoremstyle{reviewstyle}
 \newtheorem{example}{Worked example}[chapter]
@@ -55,12 +74,25 @@ Not every formula has the same status. Some are definitions, some are empirical 
 
 Read a derivation once for the physical story, then cover the next line and try to supply it yourself. If a step seems mysterious, ask whether the missing ingredient is an algebraic identity, a boundary condition, or an assumption about the system. Those are different obstacles and call for different remedies. The review problems at the end provide another chance to reconstruct the argument without its intermediate steps already in front of you.
 
+\section*{A slower rhythm for every unit}
+The units are intentionally layered. Each one begins with an observable physical situation and a picture, introduces only the notation needed for that situation, works through a small model in full, and then returns to the same idea at greater depth. A reader should be able to pause after the first layer and still understand the physical question; later layers add precision rather than repairing an unexplained jump.
+
+Use this four-step rhythm throughout the book:
+\begin{enumerate}
+\item \textbf{See it:} identify the objects, measurements, symmetries, and limiting cases in a visual model.
+\item \textbf{Name it:} define the variables, units, mathematical operation, and assumptions.
+\item \textbf{Derive it:} work from the local rule to a prediction, checking dimensions and boundary conditions.
+\item \textbf{Test it:} change one parameter, compare with a simulation or experiment, and record what would falsify the model.
+\end{enumerate}
+Chapters may therefore become longer as the subject becomes more advanced. Length is less important than giving each new abstraction enough physical and mathematical repetitions to become familiar.
+
 \section*{A note on notation}
 Symbols are defined locally because different subjects traditionally reuse the same letters. For example, $\mu$ can denote reduced mass, linear density, or chemical potential; $k$ can denote a spring constant or wave number. Context and units distinguish them. A dot usually denotes a time derivative, a prime a derivative of a one-variable function, and bold symbols denote spatial vectors. The upright $\dd$ marks an ordinary differential. When an approximation is made, look for its stated regime before applying it elsewhere.
 
 \mainmatter
 \part{Mathematical and Physical Foundations}
 \chapter{Scales, dimensions, and measurement}
+\chaptervisual{scales and measurement}{measured quantities and uncertainties}{units, dimensions, and dimensionless ratios}{a testable estimate with error bars}
 Before we describe how anything moves, let us ask what a physical prediction actually contains. A number alone is rarely enough: we need a unit, an estimate of uncertainty, and a statement of the conditions under which the number means something. These habits will guide every calculation in this book. We begin with dimensions because they let you question an equation even before you know how to solve it.
 
 \section{Physical quantities and dimensional analysis}
@@ -132,6 +164,7 @@ Square this expression and average. With zero-mean fluctuations, $\avg{\delta x_
 The minus sign in $\partial v/\partial t=-d/t^2$ disappears upon squaring. This is why independent fractional errors add in quadrature even when one quantity is in a denominator.
 
 \chapter{Calculus, vectors, and differential equations}
+\chaptervisual{calculus and differential equations}{a changing position or field}{differentiate, integrate, or solve a local equation}{a rate, accumulated quantity, or trajectory}
 Calculus becomes much easier to remember when each operation answers a physical question. A derivative asks how something changes locally. An integral asks how many small contributions accumulate. A differential equation states a local rule and asks us to reconstruct the whole motion or field. In this chapter we build that language, including the geometry needed when a system occupies space rather than a single line.
 
 \section{Derivatives, integrals, and conservation}
@@ -333,6 +366,7 @@ Thus the canonical distribution is not an arbitrary rule: it is the maximum-entr
 
 \part{Classical Mechanics}
 \chapter{Newtonian motion and conservation laws}
+\chaptervisual{Newtonian motion}{forces, positions, and velocities}{Newton's law and a time integral}{trajectory, momentum, and energy}
 We now put the mathematical language to work. The central problem of mechanics is to predict a trajectory from forces and initial conditions. Sometimes the most direct route is to integrate Newton's law. Sometimes energy or momentum lets us bypass most of that integration. Learning mechanics means learning to recognize which question each method answers most efficiently.
 
 \section{Kinematics and Newton's laws}
@@ -449,6 +483,7 @@ v_f-v_i&=-u\int_{m_i}^{m_f}\frac{\dd m}{m}
 The exhaust term is essential because the rocket alone is an open system. The logarithm follows from the changing mass that must be accelerated at each stage.
 
 \chapter{Lagrangian and Hamiltonian mechanics}
+\chaptervisual{analytical mechanics}{nearby trial paths}{stationary action and a Legendre transform}{equations of motion and phase-space flow}
 Newton's laws remain valid, but constrained systems can make their component form cumbersome. A pendulum moves along a circle; an angle describes that motion more naturally than two coordinates and an unknown tension. Analytical mechanics lets us choose such coordinates first and obtain their equations systematically. It also reveals why symmetries and conservation laws appear together.
 
 \section{Generalized coordinates and stationary action}
@@ -561,6 +596,7 @@ The first term is kinetic energy per length; the second is the increase of elast
 This is our first example of a wave equation arising from an action. Each point supplies inertia, while spatial bending supplies a restoring force.
 
 \chapter{Gravitation, orbits, and rigid bodies}
+\chaptervisual{gravity and rigid bodies}{mass distributions and initial velocities}{inverse-square force and inertia tensor}{orbits, rotation, and conserved angular momentum}
 Gravity and rotation bring the conservation laws together. An orbit is a continuously falling trajectory, shaped by both attraction and angular momentum. A rotating body is a collection of moving pieces whose geometry matters as much as its total mass. We will simplify both problems by identifying what is conserved and choosing coordinates that expose it.
 
 \section{Newtonian gravity and potentials}
@@ -672,6 +708,7 @@ Apply this rule first to position and then to velocity. The result is
 Insert this into $m\vect a=\vect F$ and move every frame term to the force side. That produces the fictitious forces above, including their signs. The factor two in the Coriolis term comes from two differentiations involving the rotating basis.
 
 \chapter{Oscillations, coupled systems, and chaos}
+\chaptervisual{oscillations and chaos}{displacement from equilibrium}{linearization, eigenmodes, and nonlinear iteration}{frequency spectra, beats, and trajectory separation}
 Oscillations recur throughout physics because a smooth potential looks approximately quadratic near a stable minimum. This makes the spring much more than one mechanical example: it is a model for small departures from equilibrium. We will first solve that model, then ask what changes when energy leaks away, a driver supplies energy, or nonlinearity becomes too large to ignore.
 
 \section{Simple and damped oscillators}
@@ -746,6 +783,7 @@ The coefficient now changes along the reference trajectory. This equation explai
 
 \part{Continuum Physics, Waves, and Optics}
 \chapter{Elasticity, fluids, and transport}
+\chaptervisual{continuum physics}{a small cell with density and flux}{local balance, constitutive law, and divergence}{flow, deformation, and transport across boundaries}
 When tracking every atom is unnecessary, we describe matter using fields such as density, velocity, and temperature. The guiding method is to balance what enters and leaves a small region, then relate the fluxes and forces to local fields. Conservation laws supply the bookkeeping; material properties supply the response.
 
 \section{Stress and strain}
@@ -866,6 +904,7 @@ Combine $\partial_tn+\grad\cdot\vect j=0$ with $\vect j=-D\grad n$:
 for spatially constant $D$. The minus sign in the flux law makes peaks flatten rather than sharpen. In one dimension, an independent random walk of step length $a$ every $\Delta t$ has $\avg{x^2}=Na^2=(a^2/\Delta t)t$. Comparing with $2Dt$ identifies $D=a^2/(2\Delta t)$. The continuum coefficient thus measures the cumulative effect of microscopic steps, while the diffusion equation describes their smooth large-scale distribution.
 
 \chapter{Waves, sound, and interference}
+\chaptervisual{waves and interference}{a disturbed string or pressure field}{wave equation and Fourier decomposition}{propagation, reflection, and interference fringes}
 A wave lets a disturbance travel without requiring the material to travel with it. Each part of the medium responds locally and influences its neighbors. We will derive the wave equation from that interaction, then use boundary conditions and superposition to explain standing waves, packets, and interference.
 
 \section{From a string to a wave equation}
@@ -952,6 +991,7 @@ With real nonnegative $A_1,A_2$ and a common intensity normalization,
 For equal individual intensities $I_0$, constructive interference gives $4I_0$ and destructive interference gives zero. Energy is redistributed across the interference pattern rather than created at the bright fringes. If the phase wanders, the measured cross term contains $\avg{\cos\delta}$; a uniformly wandering phase makes that average vanish.
 
 \chapter{Geometrical and physical optics}
+\chaptervisual{optics}{rays, apertures, and phase fronts}{refraction, path difference, and Fourier transform}{images, diffraction, and polarization}
 Optics offers two complementary descriptions. Rays are useful when wavelength is small compared with the features that shape the light. Wave amplitudes are necessary when phase differences, apertures, or polarization matter. We will connect these descriptions by asking which information each approximation retains.
 
 \section{Rays, refraction, and imaging}
@@ -1029,6 +1069,7 @@ Threshold sets this factor to one, giving $g_{\rm th}=\alpha+(2L)^{-1}\ln[1/(R_1
 
 \part{Thermal and Statistical Physics}
 \chapter{Thermodynamics}
+\chaptervisual{thermodynamics}{a gas state and controlled boundary}{first law, equations of state, and Legendre transform}{work, heat, entropy, and equilibrium}
 Thermodynamics asks what we can predict without following every molecule. Its strength comes from carefully defining a system, the energy transfers across its boundary, and the constraints on its states. Much of the mathematics is ordinary calculus; the subtlety is knowing which variables are held fixed and which processes can actually occur.
 
 \section{Equilibrium, temperature, and the first law}
@@ -1142,6 +1183,7 @@ For a pure phase, the chemical potential obeys $\dd\mu=-s\dd T+v\dd p$, with $s$
 A reversible phase conversion at temperature $T$ transfers latent heat per particle $\ell=T(s_2-s_1)$. Combining the two statements produces the Clapeyron equation. The sign of the volume change matters: it determines whether increasing pressure raises or lowers the transition temperature for a positive latent heat.
 
 \chapter{Statistical mechanics}
+\chaptervisual{statistical mechanics}{microstates and a reservoir}{probability weights, counting, and partition functions}{macroscopic averages and fluctuations}
 Thermodynamics told us which macroscopic changes are possible. Statistical mechanics asks why those rules emerge from microscopic states. The strategy is to assign probabilities consistently with the system's surroundings, count the states, and average the quantities we can measure. The partition function will become a compact way to perform many of those calculations at once.
 
 \section{Microstates, macrostates, and ensembles}
@@ -1279,6 +1321,7 @@ Above $T_c$, only $m=0$ is a minimum. Below $T_c$, the curvature there becomes n
 
 \part{Electricity and Magnetism}
 \chapter{Electrostatics, potentials, and matter}
+\chaptervisual{electrostatics}{charges and a test charge}{Coulomb superposition, gradient, and boundary conditions}{field lines, equipotentials, and force}
 The electric field describes what a test charge would experience at each location. Potential describes the same electrostatic situation through energy per charge. We will move between these descriptions according to the geometry: symmetry often makes fields simple, while superposition and boundary-value problems often favor potential.
 
 \section{Electric fields and Gauss's law}
@@ -1361,6 +1404,7 @@ Insert $\rho_{\rm total}=\rho_{\rm free}+\rho_b$ and $\rho_b=-\grad\cdot\vect P$
 This motivates $\vect D$. For a homogeneous linear dielectric filling a parallel-plate capacitor, it gives $D=Q_{\rm free}/A$ and $E=D/\varepsilon$, hence $C=\varepsilon A/d$. The constitutive relation is the extra material information needed to convert a free-charge constraint into an electric field.
 
 \chapter{Currents, magnetism, and circuits}
+\chaptervisual{currents and magnetism}{moving charge and circuit elements}{continuity, Lorentz force, and circuit equations}{current, voltage, magnetic force, and stored energy}
 Allow charges to move and the description acquires currents and magnetic fields. Circuit models compress the field behavior into a few variables, but their laws still express charge conservation, induction, and energy transfer. We will use those connections to explain both steady response and the time-dependent approach to it.
 
 \section{Charge transport and resistance}
@@ -1446,6 +1490,7 @@ For a sinusoidal current or voltage, a derivative becomes multiplication by $\ii
 All the oscillator methods now apply, with charge taking the role of displacement and inductance taking the role of inertia.
 
 \chapter{Maxwell's equations and electromagnetic waves}
+\chaptervisual{Maxwell's equations}{electric and magnetic fields}{curl, divergence, and coupled time evolution}{transverse waves and Poynting energy flow}
 The separate electrical and magnetic laws fit into one dynamical system. Electric and magnetic fields can sustain one another through time-dependent coupling, even far from their sources. The wave speed will emerge from the field equations themselves, and an energy balance will tell us how those waves carry power.
 
 \section{The unified field equations}
@@ -1552,6 +1597,7 @@ The ions are treated as fixed and thermal pressure is neglected. The density dep
 
 \part{Relativity and Gravitation}
 \chapter{Special relativity}
+\chaptervisual{special relativity}{events and moving observers}{Lorentz transformation and invariant interval}{light cones, time dilation, and simultaneity}
 Newtonian mechanics assumes that different inertial observers share a common time. Electromagnetic waves force us to reconsider that assumption: all inertial observers measure the same vacuum light speed. The solution is to transform space and time together. We will derive consequences by comparing events and invariants rather than relying on pictures of moving objects alone.
 
 \section{Events, intervals, and Lorentz transformations}
@@ -1652,6 +1698,7 @@ E'^2-c^2B'^2=\gamma^2E^2(1-v^2/c^2)=E^2.
 A magnetic component has appeared, but the invariant is unchanged. For a vacuum plane wave, both $E^2-c^2B^2$ and $\vect E\cdot\vect B$ vanish. No inertial boost can turn a nonzero such wave into a purely electric static field.
 
 \chapter{Differential geometry and introductory topology}
+\chaptervisual{differential geometry and topology}{a surface, tangent vector, and loop}{metric, parallel transport, and curvature}{geodesics, holonomy, and holes}
 Classical vectors are usually introduced in a fixed Euclidean basis, but relativity compares measurements made in curved spacetime and in many coordinate systems. Geometry supplies the language for doing this without confusing coordinates with physical objects. Topology then records which global features cannot be removed by smooth stretching.
 
 \section{Manifolds, tangent spaces, and coordinate changes}
@@ -1702,6 +1749,7 @@ Topology ignores distances and angles and keeps only properties preserved by con
 These ideas are deliberately introductory. General relativity primarily needs smooth manifolds, metrics, connections, and curvature; topology becomes especially important when discussing horizons, defects, gauge fields, and topological phases. The purpose here is to give those later claims a precise conceptual home before the formulas become dense.
 
 \chapter{General relativity}
+\chaptervisual{general relativity}{a metric and neighboring free-fall paths}{connection, geodesic equation, and curvature}{tidal separation, lensing, and gravitational time}
 Special relativity describes measurements in flat spacetime. General relativity makes spacetime geometry dynamical and uses it to describe gravity. This chapter introduces the sequence of ideas needed to read the equations: the metric defines intervals, the connection defines parallel transport, curvature measures the failure of transport to be path independent, and stress-energy helps determine curvature. Some full solutions require techniques beyond this introduction; we will develop the accessible steps and identify where a deeper calculation enters.
 
 \section{Equivalence principle and geometry}
@@ -1797,6 +1845,7 @@ The negative sign shows shrinking separation. Since orbital frequency scales as 
 
 \part{Quantum Physics}
 \chapter{Quantum principles and mathematical structure}
+\chaptervisual{quantum principles}{a normalized state and a measurement basis}{projection, operators, and the Born rule}{probabilities, expectation values, and uncertainty}
 Quantum mechanics changes the object we predict. Instead of assigning a definite trajectory to every particle, we evolve a state and calculate probabilities for specified measurements. The algebra of vectors, operators, and complex amplitudes is the machinery for doing that. We will distinguish the theory's postulates from consequences derived from them, so the starting assumptions stay visible.
 
 \section{Why classical physics is incomplete}
@@ -1890,6 +1939,7 @@ For $H=p^2/(2m)+V(x)$, the commutators are $[H,x]=-\ii\hbar p/m$ and $[H,p]=\ii\
 The linear fluctuation term averages to zero. A narrow packet in a smoothly varying force can follow approximately classical mean motion; a quadratic potential makes the displayed correction vanish exactly.
 
 \chapter{Exactly solvable quantum systems}
+\chaptervisual{solvable quantum systems}{a potential and boundary conditions}{eigenvalue equation and normalizable solutions}{nodes, energy levels, and probability density}
 Simple quantum models are valuable because each exposes a different mechanism: boundary conditions quantize a box, forbidden regions produce exponential tails, and operator algebra organizes an oscillator. In every case, begin with the potential, solve the appropriate differential or algebraic equation, and impose the conditions that make a state physically admissible.
 
 \section{Free particles and wave packets}
@@ -2022,6 +2072,7 @@ For the ground state, try $R(r)=A\ee^{-r/a}$ with $\ell=0$. Its radial Laplacian
 The $1/r$ coefficient must vanish: $a=\hbar^2/(\mu\kappa)=a_\mu/Z$. The remaining constant gives $E_1=-\mu\kappa^2/(2\hbar^2)$. Higher levels require solving the radial polynomial problem with the same boundary conditions; that further step yields the $1/n^2$ spectrum.
 
 \chapter{Quantum approximation methods and scattering}
+\chaptervisual{quantum approximations}{an exact system plus a small interaction}{perturbation, variation, WKB, or scattering expansion}{energy shifts and cross sections}
 Exact solutions are landmarks, not the typical case. When a problem differs slightly from a solvable one, we can organize corrections. When no nearby exact solution is available, we may seek a bound or a semiclassical approximation. The important question is not just how to apply a method, but which small parameter, gap, or length scale makes it trustworthy.
 
 \section{Time-independent perturbation theory}
@@ -2125,6 +2176,7 @@ For incident amplitude one, $j_{\rm in}=\hbar k/m$. Far away, the outgoing spher
 The distance cancels, explaining $\dd\sigma/\dd\Omega=|f|^2$. For a central potential, partial waves separate the angular-momentum channels; phase shifts measure how much each radial wave differs from free motion. The complicated interaction region is encoded in those shifts before the outgoing channels are recombined.
 
 \chapter{Identical particles, entanglement, and quantum information}
+\chaptervisual{entanglement and quantum information}{a joint state of several subsystems}{tensor products, partial trace, and correlations}{reduced states, entropy, and interference}
 With several quantum systems, the state space grows by tensor products. This introduces two ideas with no direct classical-particle counterpart: exchanging identical particles constrains the allowed states, and a joint state need not assign a pure state to each part. Density operators let us describe both incomplete preparation knowledge and subsystems of entangled states.
 
 \chaptermark{Entanglement and quantum information}
@@ -2193,8 +2245,82 @@ If an environment becomes correlated with the qubit, the joint state may be $\al
 \end{equation}
 Nearly orthogonal environmental records suppress this coherence. This calculation shows how interference can become inaccessible locally while the full system still undergoes quantum evolution.
 
+\part{Quantum Computing}
+\chapter{Quantum computing from bits to algorithms}
+\chaptervisual{quantum computing}{bits, qubits, and circuit inputs}{unitary gates, amplitude interference, and measurement}{algorithmic probability and computational speedup}
+Quantum computing is not simply faster computation with smaller hardware. It is a theory of information in which amplitudes evolve linearly, measurement produces probabilities, and carefully arranged interference changes which answers are likely to be observed. We will begin with ordinary bits, then add one new idea at a time: a qubit, a gate, a circuit, an algorithm, and finally the noise that makes real devices difficult.
+
+\section{Bits, states, and reversible operations}
+A classical bit is either $0$ or $1$. A register of $n$ bits has one definite string at a time, although an algorithm may manipulate many possible inputs over many runs. A reversible classical operation is a permutation of those strings; it has an inverse and loses no information.
+
+For two bits, a controlled-NOT maps $(a,b)$ to $(a,a\mathbin{\mathrm{xor}}b)$. Applying it twice returns the original pair. Reversibility matters because a quantum gate must be represented by a unitary transformation, and unitary transformations preserve inner products and total probability.
+
+\section{One qubit and the Bloch sphere}
+A qubit is a normalized complex vector
+\begin{equation}
+\ket\psi=\alpha\ket0+\beta\ket1,\qquad |\alpha|^2+|\beta|^2=1.
+\end{equation}
+The coefficients are amplitudes, not probabilities. Measuring in the computational basis returns $0$ with probability $|\alpha|^2$ and $1$ with probability $|\beta|^2$. The relative phase between $\alpha$ and $\beta$ can later change an interference pattern.
+
+Ignoring an overall phase, every pure qubit can be written
+\begin{equation}
+\ket\psi=\cos\frac\theta2\ket0+\ee^{\ii\phi}\sin\frac\theta2\ket1.
+\end{equation}
+The pair $(\theta,\phi)$ places the state on the Bloch sphere. The sphere is a picture of a two-complex-dimensional vector after normalization and removal of one physically irrelevant phase; it is not an ordinary position space.
+
+\section{Gates as rotations and interference}
+Quantum gates are unitary matrices. The Pauli matrices generate rotations, while the Hadamard gate changes between computational and interference-friendly bases:
+\begin{equation}
+H=\frac1{\sqrt2}\begin{pmatrix}1&1\\1&-1\end{pmatrix},\qquad
+H\ket0=\frac{\ket0+\ket1}{\sqrt2},\quad
+H\ket1=\frac{\ket0-\ket1}{\sqrt2}.
+\end{equation}
+Applying $H$ twice returns the input. The second application adds amplitudes with signs, so cancellation and reinforcement occur before measurement. This is the central visual idea of quantum algorithms.
+
+For a general state, a phase gate changes $\beta$ without changing computational-basis probabilities immediately. A later Hadamard converts that hidden phase into a measurable probability difference. Therefore an experiment must display both amplitudes and the final measurement histogram; either one alone hides part of the calculation.
+
+\section{Registers, tensor products, and circuits}
+Two qubits occupy the tensor-product space with basis $\ket{00},\ket{01},\ket{10},\ket{11}$. A product state has amplitudes that factor, while an entangled state does not. A circuit is a time-ordered product of gates, with wires showing subsystems and measurement symbols showing where probabilities are extracted.
+
+The controlled-NOT acts as
+\begin{equation}
+\operatorname{CNOT}\ket{a,b}=\ket{a,a\mathbin{\mathrm{xor}}b}.
+\end{equation}
+Starting from $\ket{00}$, apply $H$ to the first qubit and then CNOT:
+\begin{equation}
+\ket{00}\xrightarrow{H\otimes I}
+\frac{\ket{00}+\ket{10}}{\sqrt2}
+\xrightarrow{\operatorname{CNOT}}
+\frac{\ket{00}+\ket{11}}{\sqrt2}.
+\end{equation}
+The final state is entangled. Measuring one qubit predicts the corresponding result of the other, but neither result is individually determined before measurement.
+
+\section{A first algorithm: amplitude amplification}
+Suppose one item among $N$ possibilities is marked by an oracle. Classical search needs order $N$ queries in the worst case. Grover's algorithm prepares a uniform superposition, flips the marked amplitude, and reflects amplitudes about their average. Each round rotates the state toward the marked direction.
+
+In the two-dimensional space spanned by the marked state $\ket w$ and the normalized unmarked state $\ket r$, write
+\begin{equation}
+\ket\psi=\sin\theta\ket w+\cos\theta\ket r,
+\qquad \sin\theta=\frac1{\sqrt N}.
+\end{equation}
+The oracle reflection and diffusion reflection together rotate by approximately $2\theta$. After $k$ iterations,
+\begin{equation}
+P_k=\sin^2[(2k+1)\theta].
+\end{equation}
+The quadratic speedup comes from rotation in amplitude space, not from reading all amplitudes individually. Measuring too late rotates past the marked direction, so the number of iterations is part of the algorithm.
+
+\section{Noise, error correction, and what the picture must show}
+Real qubits lose phase coherence, suffer gate errors, and can be measured imperfectly. A density matrix describes the resulting mixed state. Error correction encodes one logical qubit into several physical qubits so that error syndromes can be measured without directly revealing the logical state.
+
+For a simple phase-damping model, the off-diagonal density-matrix element evolves as
+\begin{equation}
+\rho_{01}(t)=\rho_{01}(0)\ee^{-t/T_2},
+\end{equation}
+while the diagonal probabilities remain fixed. A useful visual therefore shows the Bloch vector shrinking toward the measurement axis, alongside the circuit and the changing probability histogram. The picture must distinguish a changing amplitude from a changing classical probability and must report the noise model used.
+
 \part{Atoms, Materials, Nuclei, and Particles}
 \chapter{Atomic and molecular physics}
+\chaptervisual{atomic and molecular physics}{charges, orbitals, and energy levels}{Coulomb Hamiltonian, symmetry, and matrix elements}{spectra, transitions, and bonding}
 The hydrogen atom gave us a starting model. Real atoms add electron-electron interactions, spin couplings, and corrections at smaller energy scales. Molecules add moving nuclei and bonding. We will build a hierarchy of approximations, using each simpler model to identify which additional terms are likely to matter next.
 
 \section{Atomic structure beyond hydrogen}
@@ -2252,6 +2378,7 @@ U(R)\simeq U(R_e)+\tfrac12U''(R_e)(R-R_e)^2,
 This is the oscillator again, now for relative nuclear motion. Rotation at nearly fixed separation has classical energy $L^2/(2I)$; replacing $L^2$ by its eigenvalue $\hbar^2J(J+1)$ yields the rotor spectrum. The approximations neglect bond stretching during rotation and anharmonicity at large vibration amplitude, giving clear directions for later corrections.
 
 \chapter{Condensed matter and collective phenomena}
+\chaptervisual{condensed matter}{a periodic lattice and occupied states}{normal modes, reciprocal space, and band structure}{phonons, gaps, and transport}
 A solid contains too many interacting particles to solve by listing all their coordinates. Its regularities suggest better variables: lattice waves, electron bands, collective order, and quasiparticles. The purpose of these descriptions is to retain the information needed for a particular scale and measurement. Their success comes from symmetry and controlled approximations, not from pretending the microscopic interactions disappear.
 
 \section{Crystals, reciprocal space, and phonons}
@@ -2346,6 +2473,7 @@ Quasiparticles, order parameters, and effective theories illustrate emergence: t
 Read the Hall formula as two separate statements. The combination $e^2/h$ supplies the conductance scale; the integer $\nu$ contains the topological information. Dimensional analysis can identify a possible scale but cannot prove integer quantization or determine which integer a sample realizes. Those conclusions require the quantum states and their response. This is a useful place to remember the boundary between an instructive scaling argument and a full microscopic derivation.
 
 \chapter{Nuclear physics}
+\chaptervisual{nuclear physics}{nucleons, masses, and reaction channels}{binding energy, tunneling, and conservation laws}{stability, decay, and released energy}
 Nuclear physics brings together binding energy, quantum statistics, tunneling, and reaction kinematics at much shorter distances. Start by accounting for mass and charge consistently, then distinguish whether a process is energetically allowed from whether it happens rapidly. Favorable energy release alone does not determine a decay or reaction rate.
 
 \section{Nuclear scales and binding}
@@ -2398,6 +2526,7 @@ At extreme density, neutron-rich matter is governed by degeneracy, nuclear inter
 For dense matter, the key output needed by a stellar model is an equation of state. Microscopic calculations determine how pressure changes with energy density and composition; gravitational balance then determines the density profile. This is a chain of models with distinct jobs. Agreement with one nuclear binding trend does not by itself establish the high-density equation of state needed inside a neutron star.
 
 \chapter{Relativistic quantum theory and particle physics}
+\chaptervisual{particle physics}{fields and incoming particles}{relativistic Lagrangian, symmetry, and interaction vertex}{allowed processes and measurable rates}
 Quantum mechanics and special relativity meet most naturally in quantum field theory, where particle number can change and fields supply the underlying degrees of freedom. A full development requires a substantial course of its own. Here we build the entry points carefully: relativistic dispersion, field equations, quantized modes, and the role of interactions and symmetries. Treat the more advanced results as a map for further study, with their assumptions visible.
 
 \section{Why quantum fields are needed}
@@ -2502,6 +2631,7 @@ Conservation is necessary but not sufficient for an appreciable rate. A channel 
 
 \part{Astrophysics, Cosmology, and Synthesis}
 \chapter{Stars, compact objects, and the expanding universe}
+\chaptervisual{astrophysics and cosmology}{matter, radiation, and gravity across scales}{equations of state, hydrostatic balance, and expansion}{stellar structure, redshift, and cosmic history}
 Astrophysics combines the previous modules on a grand scale. Stellar pressure is supplied by matter and radiation; gravity sets the required support; nuclear reactions and transport determine energy flow. Cosmology replaces the internal profile of one object with the evolution of a nearly homogeneous universe. In both settings, state the symmetry assumptions before reducing field equations to a manageable model.
 
 \section{Stellar structure and energy transport}
@@ -2609,6 +2739,7 @@ In the scalar-field units specified above,
 The acceleration equation with no separate cosmological constant therefore permits $\ddot a>0$ when $V>\dot\phi^2$. Potential domination gives $p\simeq-\rho$, analogous to a nearly constant vacuum component. Establishing a complete inflationary model additionally requires the field's dynamics, an end to the accelerated era, and predictions for perturbations. The inequality identifies the mechanism, not all of those ingredients.
 
 \chapter{Computational physics and model validation}
+\chaptervisual{computational physics}{a continuum model and discrete samples}{discretization, timestep, and convergence test}{stable numerical trajectories and error estimates}
 A numerical solution is another approximation, layered on top of the physical model. It can make an unsolvable analytic problem accessible, but smooth output alone does not establish accuracy. The aim of this chapter is to make computational choices explainable: derive the discrete rule, estimate its error, and test it against something whose answer you understand.
 
 \section{Discretization and numerical error}
@@ -2699,6 +2830,7 @@ Treat verification as part of solving the problem, not a final cosmetic step. Fo
 When a check fails, change one thing at a time. If halving the time step changes the result but enlarging the spatial domain does not, the evidence points toward time discretization rather than the outer boundary. If the numerical result converges but still disagrees with experiment, revisit model assumptions and parameter uncertainty. Separating these questions prevents you from spending computation to refine the wrong physical model.
 
 \chapter{Connections across the subject}
+\chaptervisual{connections across physics}{the same pattern in different systems}{conservation, oscillation, symmetry, and scale}{a reusable physical argument}
 By now the same mathematical patterns have appeared in very different settings. Recognizing them lets you reuse an argument without confusing the physical meanings of its symbols. We close the main text by tracing four recurring ideas: local balance, oscillation, symmetry, and scale. Each is a guide to choosing where a new calculation should begin.
 
 \section{Conservation from local balance}
@@ -2799,6 +2931,86 @@ Further differentiation supplies higher even moments. To justify the starting Ga
 Natural units reduce clutter by using constants as conversion factors between units. Setting $c=1$ does not make a physical speed disappear; it means that length and time are measured in compatible units. Restore constants by identifying the dimensions of the physical quantity, not by placing $c$ or $\hbar$ wherever an expression happens to look familiar.
 
 Setting $c=\hbar=1$ makes time and length inverse-energy quantities, while mass and momentum have energy units. Temperature can also be measured in energy if $\kb=1$. Restore constants using physical dimensions: $E^2=p^2+m^2$ becomes $E^2=p^2c^2+m^2c^4$, while a Compton length $1/m$ becomes $\hbar/(mc)$. Dimensional restoration may not determine numerical factors or distinguish quantities with identical dimensions.
+
+\chapter{Visual models and computational experiments}
+Equations become easier to trust when their consequences can be seen. A visual model is not decoration: it chooses a physical representation, identifies the quantities that should change, and gives the learner an observation to test. The tables in this chapter assign one distinct visual experiment to every preceding physics chapter. They can guide figures embedded in this book, interactive applications in the repository, or both.
+
+\section{How to use a visual model}
+For each experiment, identify the state variables and adjustable parameters, make one prediction before changing a control, and compare the result with an invariant or limiting case. A good animation should reveal the mathematical structure: slopes should become rates, fluxes should cross boundaries, eigenvectors should become independent patterns, and probability should become a normalized area or count.
+
+\section{Mathematical and physical foundations}
+\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
+\toprule Chapter & Visual model & Experiment and observation\\ \midrule
+\endhead
+Scales, dimensions, and measurement & Scaling laboratory & Change length, time, and mass scales while preserving dimensionless ratios; check which predictions survive a change of units.\\
+Calculus, vectors, and differential equations & Tangent-to-trajectory lab & Show a moving point, its tangent, velocity, acceleration, and accumulated displacement together; compare local slopes with global motion.\\
+\bottomrule
+\end{longtable}
+
+\section{Classical mechanics}
+\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
+\toprule Chapter & Visual model & Experiment and observation\\ \midrule
+\endhead
+Newtonian motion and conservation laws & Force and momentum arena & Apply impulses and collisions to bodies with visible momentum arrows; verify that center-of-mass motion changes only through external impulse.\\
+Lagrangian and Hamiltonian mechanics & Configuration-space paths & Draw neighboring pendulum paths and highlight the stationary-action path; switch to phase space and observe Hamiltonian contours.\\
+Gravitation, orbits, and rigid bodies & Orbit and inertia explorer & Rotate the inertia ellipsoid and launch circular, elliptical, and escape trajectories; compare angular momentum and energy diagnostics.\\
+Oscillations, coupled systems, and chaos & Mode and sensitivity laboratory & Start coupled oscillators in different modes, then perturb a chaotic pendulum and compare nearby trajectories.\\
+\bottomrule
+\end{longtable}
+
+\section{Continuum physics, waves, and optics}
+\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
+\toprule Chapter & Visual model & Experiment and observation\\ \midrule
+\endhead
+Elasticity, fluids, and transport & Conservation-cell laboratory & Display each cell's incoming and outgoing fluxes; use a shallow-water dam break to test mass conservation, positivity, and the CFL limit.\\
+Waves, sound, and interference & Wave-packet and spectrum view & Superpose pulses, show the Fourier spectrum, and vary dispersion to observe reflection, interference, and packet spreading.\\
+Geometrical and physical optics & Ray and aperture bench & Trace rays through lenses, then replace the aperture with a slit and watch the far-field pattern emerge from Fourier structure.\\
+\bottomrule
+\end{longtable}
+
+\section{Thermal physics and electromagnetism}
+\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
+\toprule Chapter & Visual model & Experiment and observation\\ \midrule
+\endhead
+Thermodynamics & State-space process map & Move a gas through isothermal, isochoric, and adiabatic paths on $p$--$V$ and $T$--$S$ diagrams; compare work, heat, and entropy.\\
+Statistical mechanics & Microstate-to-macrostate simulator & Display particles, energy histograms, and the partition function together; vary temperature and watch relative fluctuations change.\\
+Electrostatics, potentials, and matter & Field-line and equipotential map & Move charges and display field arrows and equipotential contours; verify that field lines cross equipotentials normally.\\
+Currents, magnetism, and circuits & Charge-flow circuit bench & Animate charge conservation, voltage drops, magnetic force, and transients while plotting current and stored energy.\\
+Maxwell's equations and electromagnetic waves & Poynting-flow field lab & Show coupled electric and magnetic fields with energy-flow arrows; change polarization and observe transversality.\\
+\bottomrule
+\end{longtable}
+
+\section{Relativity, gravitation, and quantum physics}
+\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
+\toprule Chapter & Visual model & Experiment and observation\\ \midrule
+\endhead
+Special relativity & Spacetime diagram laboratory & Move between inertial frames and display worldlines, light cones, simultaneity slices, and invariant intervals.\\
+Differential geometry and introductory topology & Parallel-transport surface & Carry a vector around loops on a sphere and a plane; compare transport rotation and contractible versus noncontractible loops.\\
+General relativity & Curved-spacetime geodesic map & Launch neighboring geodesics on a metric grid and compare coordinate distortion with measurable separation and lensing.\\
+Quantum principles and mathematical structure & State-vector projection lab & Rotate a state between measurement bases and show amplitudes, projections, and probabilities as geometric components.\\
+Exactly solvable quantum systems & Wavefunction and boundary laboratory & Compare box, oscillator, and hydrogenic states; show nodes, probability density, phase, and quantized energy.\\
+Quantum approximation methods and scattering & Scattering and semiclassical lab & Vary barrier height and wavelength while comparing exact, WKB, and Born-approximation predictions.\\
+Identical particles, entanglement, and quantum information & Correlation and reduced-state display & Show a two-particle amplitude grid, marginal probabilities, and interference before and after tracing out one subsystem.\\
+Quantum computing from bits to algorithms & Circuit and Bloch-sphere laboratory & Start with bits, apply unitary gates, display amplitude interference, and compare ideal measurement histograms with decohering qubits.\\
+\bottomrule
+\end{longtable}
+
+\section{Atoms, materials, nuclei, particles, and cosmology}
+\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
+\toprule Chapter & Visual model & Experiment and observation\\ \midrule
+\endhead
+Atomic and molecular physics & Spectral-line and orbital explorer & Change quantum numbers and field strength while showing orbital density, selection rules, and line splitting.\\
+Condensed matter and collective phenomena & Lattice and band-structure laboratory & Animate a crystal lattice, phonon modes, reciprocal space, and band dispersion; open and close a gap to change transport.\\
+Nuclear physics & Binding-energy landscape & Plot binding energy per nucleon and animate decay or reaction channels; separate energy release from reaction probability.\\
+Relativistic quantum theory and particle physics & Field-mode and interaction diagram & Build a particle as a field excitation, then display vertices, conservation laws, and relativistic dispersion.\\
+Stars, compact objects, and the expanding universe & Stellar and cosmological scale map & Move from hydrostatic stellar balance to expanding cosmic volumes; compare pressure, density, temperature, and timescales.\\
+Computational physics and model validation & Convergence and invariant dashboard & Run one model at several resolutions and display error, stability, conserved quantities, and the difference between visual plausibility and validity.\\
+Connections across the subject & Physics pattern atlas & Follow conservation, oscillation, symmetry, and scale from mechanics to fields or quantum theory.\\
+\bottomrule
+\end{longtable}
+
+\section{A visual experiment template}
+Every future figure or application should label the physical question, adjustable parameters, predicted invariant or limit, and observation that would falsify the model. For example, the shallow-water visualizer should display volume error and positivity beside the water surface, while a quantum wave-packet visualizer should display norm and regional probability beside the animation. This keeps the visual layer tied to mathematics instead of turning it into an attractive but untestable movie.
 
 \chapter{Review problems}
 Try each problem before reading its solution. State assumptions and check dimensions even when the algebra is short.
