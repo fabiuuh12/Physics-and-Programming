@@ -187,6 +187,23 @@ In spherical coordinates, a small cell has side lengths $\dd r$, $r\dd\theta$, a
 \end{equation}
 Putting $A_r=\dd f/\dd r$ gives the radial Laplacian. The geometry has supplied the extra $r^2$ factors; they are not corrections to the physics.
 
+\section{Bases, inner products, and tensors}
+The components of a vector depend on the basis used to describe it, while the vector itself does not. In an orthonormal basis $\{\vect e_i\}$, write $\vect v=v^i\vect e_i$. If the basis changes by $\vect e'_a=R^i{}_a\vect e_i$, equality of the geometric vector requires
+\begin{equation}
+v'^a=(R^{-1})^a{}_iv^i.
+\end{equation}
+This distinction becomes essential when comparing Cartesian, rotating, and curvilinear descriptions of the same physical quantity.
+
+An inner product measures angles and lengths: $\vect u\cdot\vect v=u_i v_i$ in an orthonormal Euclidean basis. Orthogonal projection onto a unit direction $\hat{\vect n}$ is $(\vect v\cdot\hat{\vect n})\hat{\vect n}$, and the residual is perpendicular to that direction. Least squares, Fourier coefficients, quantum amplitudes, and normal-mode decompositions all use this projection idea.
+
+A tensor is a multilinear map whose components transform according to the transformations of its indices. For a change of basis, a $(1,1)$ tensor obeys
+\begin{equation}
+T'^a{}_b=(R^{-1})^a{}_iT^i{}_jR^j{}_b.
+\end{equation}
+The inertia tensor, stress tensor, and electromagnetic field tensor are different physical examples of this same transformation principle. Contracting one upper and one lower index produces a basis-independent quantity; this is why index notation is more than shorthand.
+
+For a symmetric matrix, orthogonal eigenvectors provide principal directions. In a non-orthonormal coordinate basis, the metric $g_{ij}=\vect e_i\cdot\vect e_j$ replaces the identity matrix, lengths become $\norm{\vect v}^2=g_{ij}v^iv^j$, and raising or lowering an index means contracting with $g_{ij}$ or its inverse. These ideas will reappear as spacetime geometry rather than being introduced for the first time in relativity.
+
 \section{Linear algebra and normal modes}
 When two objects are coupled, moving one generally changes the force on the other. Solving directly for every coordinate can hide a simpler description: some collective patterns keep their shape while their amplitudes oscillate. Finding those patterns is an eigenvector problem.
 
@@ -258,6 +275,28 @@ T_n(t)=\ee^{-D(n\pi/L)^2t},\qquad n=1,2,\ldots.
 \end{equation}
 Thus $u(x,t)=\sum_n b_nX_n(x)T_n(t)$, with $b_n$ found by expanding the initial profile in a sine series. We did not guess an entire complicated solution. We solved for simple allowed pieces and used the initial condition to decide how much of each piece to include.
 
+\section{Green functions and boundary-value problems}
+Separation of variables gives a basis of homogeneous solutions, while a Green function gives the response to a localized source. The boundary condition is part of its definition: two operators with the same differential expression but different boundaries have different Green functions.
+
+For the one-dimensional operator $L=-\dd^2/\dd x^2$ on $0<x<L$ with $G(0,x')=G(L,x')=0$, solve
+\begin{equation}
+-\frac{\partial^2G}{\partial x^2}=\delta(x-x').
+\end{equation}
+Away from $x=x'$, the solution is linear. Continuity at $x'$ and integration across the source give the derivative jump
+\begin{equation}
+G_x(x'^+,x')-G_x(x'^-,x')=-1.
+\end{equation}
+The result is
+\begin{equation}
+G(x,x')=\frac{x_<\,(L-x_>)}{L},\qquad
+x_<=\min(x,x'),\quad x_>=\max(x,x').
+\end{equation}
+Therefore the solution of $-y''=s(x)$ with zero endpoint values is
+\begin{equation}
+y(x)=\int_0^L G(x,x')s(x')\dd x'.
+\end{equation}
+The kink in $G$ is not a defect: it is exactly what produces the delta-function source. This pattern generalizes to electrostatics, diffusion, forced oscillators, and quantum propagators.
+
 \section{Probability and distributions}
 A density is probability per unit of its variable, rather than the probability of one exact value. For a continuous position, the probability of an interval of width $\dd x$ is $p(x)\dd x$. This distinction is the reason normalization requires an integral and the reason a probability density can carry units.
 
@@ -273,6 +312,24 @@ The variance measures the mean squared departure from the mean $\mu=\avg x$. Exp
 =\avg{x^2}-\avg x^2.
 \end{equation}
 For independent steps $\xi_i$ with zero mean and variance $s^2$, the displacement $X_N=\sum_i\xi_i$ has $\avg{X_N^2}=Ns^2$: cross terms vanish by independence. Its typical magnitude is therefore proportional to $\sqrt N$, not $N$. When steps occur at regular time intervals, this becomes the $\sqrt t$ spreading characteristic of diffusion.
+
+\section{Covariance and entropy maximization}
+For random variables $X_i$, the covariance matrix is
+\begin{equation}
+C_{ij}=\avg{(X_i-\avg{X_i})(X_j-\avg{X_j})}.
+\end{equation}
+It is positive semidefinite, and its diagonal entries are variances. Under a linear transformation $\vect Y=A\vect X$, the covariance transforms as $C_Y=AC_XA^{\mathsf T}$. This is the probabilistic version of a tensor transformation and explains why correlated measurement errors cannot be combined by adding variances independently.
+
+The least-biased distribution subject to known constraints can be found by maximizing Shannon entropy. For discrete probabilities, maximize
+\begin{equation}
+S=-\sum_i p_i\ln p_i
+\end{equation}
+subject to $\sum_i p_i=1$ and $\sum_i p_iE_i=U$. With multipliers $\alpha$ and $\beta$, stationarity of
+$S-\alpha(\sum_i p_i-1)-\beta(\sum_i p_iE_i-U)$ gives
+\begin{equation}
+p_i=\frac{\ee^{-\beta E_i}}{Z},\qquad Z=\sum_i\ee^{-\beta E_i}.
+\end{equation}
+Thus the canonical distribution is not an arbitrary rule: it is the maximum-entropy distribution at fixed mean energy. The same calculation with additional constraints produces chemical potentials and other generalized ensembles.
 
 \part{Classical Mechanics}
 \chapter{Newtonian motion and conservation laws}
@@ -430,6 +487,19 @@ For the pendulum, carry out the derivatives explicitly:
 \qquad m\ell^2\ddot\theta+mg\ell\sin\theta=0.
 \end{equation}
 Near the bottom, replace $\sin\theta$ by $\theta$. Comparing with $\ddot\theta+\omega_0^2\theta=0$ gives $\omega_0^2=g/\ell$, so $\tau=2\pi/\omega_0=2\pi\sqrt{\ell/g}$. We have now obtained the numerical factor that dimensional analysis could not determine.
+
+\section{Constraints and multipliers}
+Not every variation is physically allowed. A bead constrained to a surface must satisfy $f(q)=0$, so its trial paths cannot move freely in every coordinate direction. Introduce a multiplier $\lambda(t)$ and vary the augmented action
+\begin{equation}
+S_*[q,\lambda]=\int\left[L(q,\dot q,t)+\lambda(t)f(q,t)\right]\dd t.
+\end{equation}
+Variation with respect to $\lambda$ returns the constraint. Variation with respect to $q_i$ gives
+\begin{equation}
+\od{}{t}\pd{L}{\dot q_i}-\pd{L}{q_i}=\lambda\pd{f}{q_i}.
+\end{equation}
+The multiplier is the generalized constraint force required to keep the path on the allowed surface. It should be solved from the constraint and the equations of motion, rather than discarded as an algebraic nuisance.
+
+The same idea handles constrained equilibrium. To maximize entropy subject to normalization and fixed mean energy, add multipliers to the objective; to minimize a potential subject to a geometric condition, add a multiplier to the potential. In each case the multiplier measures the response of the optimum to a small change in the imposed constraint. This common structure links mechanics, thermodynamics, and optimization.
 
 \section{Symmetry and Noether's theorem}
 A symmetry means that a change in our description or configuration leaves the relevant action unchanged. If sliding the whole experiment in space changes nothing, there is no preferred location. If shifting the starting time changes nothing, there is no preferred clock reading. Conservation laws give these statements a precise dynamical form.
@@ -1580,6 +1650,56 @@ For a field with $\vect B=0$ and $\vect E\perp\vect v$, the transformed fields s
 E'^2-c^2B'^2=\gamma^2E^2(1-v^2/c^2)=E^2.
 \end{equation}
 A magnetic component has appeared, but the invariant is unchanged. For a vacuum plane wave, both $E^2-c^2B^2$ and $\vect E\cdot\vect B$ vanish. No inertial boost can turn a nonzero such wave into a purely electric static field.
+
+\chapter{Differential geometry and introductory topology}
+Classical vectors are usually introduced in a fixed Euclidean basis, but relativity compares measurements made in curved spacetime and in many coordinate systems. Geometry supplies the language for doing this without confusing coordinates with physical objects. Topology then records which global features cannot be removed by smooth stretching.
+
+\section{Manifolds, tangent spaces, and coordinate changes}
+A smooth manifold is a space that looks like $\mathbb R^n$ in a sufficiently small neighborhood, even if no single coordinate chart covers it without distortion. A point $p$ has a tangent space $T_pM$ containing the possible infinitesimal directions through that point. A tangent vector can be defined by how it acts on smooth functions:
+\begin{equation}
+v[f]=\left.\frac{\dd}{\dd t}f(\gamma(t))\right|_{t=0}
+\end{equation}
+for any curve $\gamma$ with $\gamma(0)=p$ and tangent $v$. In coordinates, $v=v^\mu\partial_\mu$, but the components change when coordinates change.
+
+The dual space $T_p^*M$ contains covectors, which act linearly on tangent vectors. The differential $\dd f$ is the covector satisfying $\dd f(v)=v[f]$. A metric is a smoothly varying inner product $g_p$ on each tangent space:
+\begin{equation}
+\lVert v\rVert^2=g_{\mu\nu}v^\mu v^\nu.
+\end{equation}
+It determines lengths, angles, and causal character in relativity, but it need not be positive definite. The spacetime metric has one timelike and three spacelike directions.
+
+\section{Differential forms and integration}
+A differential one-form is a covector field such as $A=A_\mu\dd x^\mu$. Its exterior derivative is the two-form
+\begin{equation}
+\dd A=\frac12(\partial_\mu A_\nu-\partial_\nu A_\mu)\dd x^\mu\wedge\dd x^\nu.
+\end{equation}
+The exterior derivative obeys $\dd^2=0$, so an exact form is automatically closed. In electromagnetism, writing the field strength as $F=\dd A$ makes one pair of Maxwell equations identities; the remaining pair contains the sources.
+
+The generalized Stokes theorem is
+\begin{equation}
+\int_{\partial \Omega}\omega=\int_\Omega\dd\omega.
+\end{equation}
+The familiar fundamental theorem of calculus, Green's theorem, Stokes' theorem, and the divergence theorem are different-dimensional cases of this statement. Orientation is part of the integration data: reversing it changes the sign of the integral.
+
+\section{Connections, parallel transport, and curvature}
+Vectors at different points belong to different tangent spaces, so there is no automatic way to subtract them. A connection defines such a comparison. Along a curve with tangent $u^\mu$, parallel transport of $V^\mu$ means
+\begin{equation}
+\frac{\dd V^\mu}{\dd\lambda}+\Gamma^\mu{}_{\nu\rho}u^\nu V^\rho=0.
+\end{equation}
+The connection coefficients depend on coordinates, but the statement that a vector is parallel transported is geometric. For the unique torsion-free connection compatible with a metric, the coefficients are the Levi--Civita symbols used in the GR chapter.
+
+Transport around a small closed loop need not return a vector to its original direction. The curvature tensor measures this failure:
+\begin{equation}
+[\nabla_\mu,\nabla_\nu]V^\rho
+=R^\rho{}_{\sigma\mu\nu}V^\sigma.
+\end{equation}
+Flat polar coordinates have nonzero connection coefficients but zero curvature. This is the clean distinction between coordinate effects and genuine gravitational tidal geometry.
+
+\section{Geodesics and topology}
+A geodesic is locally straight according to the connection. Equivalently, it makes the metric length stationary under endpoint-fixed variations. In a curved space, geodesics can converge, diverge, or fail to remain globally minimizing. This is why local free fall and global orbital structure are separate questions.
+
+Topology ignores distances and angles and keeps only properties preserved by continuous deformation. A space is connected if it cannot be separated into two disjoint open pieces. A loop may or may not be continuously shrinkable to a point; the distinction detects holes. The circle has a noncontractible loop, while a disk does not. Orientability asks whether a consistent choice of local orientation exists across the whole space; a Mobius strip fails this test.
+
+These ideas are deliberately introductory. General relativity primarily needs smooth manifolds, metrics, connections, and curvature; topology becomes especially important when discussing horizons, defects, gauge fields, and topological phases. The purpose here is to give those later claims a precise conceptual home before the formulas become dense.
 
 \chapter{General relativity}
 Special relativity describes measurements in flat spacetime. General relativity makes spacetime geometry dynamical and uses it to describe gravity. This chapter introduces the sequence of ideas needed to read the equations: the metric defines intervals, the connection defines parallel transport, curvature measures the failure of transport to be path independent, and stress-energy helps determine curvature. Some full solutions require techniques beyond this introduction; we will develop the accessible steps and identify where a deeper calculation enters.
