@@ -9,7 +9,18 @@
 \usepackage{xcolor}
 \usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black]{hyperref}
 \usepackage{microtype}
-\setlength{\emergencystretch}{1.5em}
+\usepackage{titlesec}
+\setlength{\emergencystretch}{2em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65em plus 0.15em minus 0.08em}
+\linespread{1.08}
+\setlength{\abovedisplayskip}{0.9em plus 0.25em minus 0.15em}
+\setlength{\belowdisplayskip}{0.9em plus 0.25em minus 0.15em}
+\setlength{\abovedisplayshortskip}{0.65em plus 0.2em minus 0.1em}
+\setlength{\belowdisplayshortskip}{0.65em plus 0.2em minus 0.1em}
+\titlespacing*{\chapter}{0pt}{-8pt}{28pt}
+\titlespacing*{\section}{0pt}{2.2em plus 0.4em minus 0.2em}{0.9em plus 0.2em minus 0.1em}
+\titlespacing*{\subsection}{0pt}{1.6em plus 0.3em minus 0.15em}{0.65em plus 0.15em minus 0.1em}
 \raggedbottom
 \allowdisplaybreaks
 \setcounter{tocdepth}{2}
@@ -90,7 +101,118 @@ Chapters may therefore become longer as the subject becomes more advanced. Lengt
 Symbols are defined locally because different subjects traditionally reuse the same letters. For example, $\mu$ can denote reduced mass, linear density, or chemical potential; $k$ can denote a spring constant or wave number. Context and units distinguish them. A dot usually denotes a time derivative, a prime a derivative of a one-variable function, and bold symbols denote spatial vectors. The upright $\dd$ marks an ordinary differential. When an approximation is made, look for its stated regime before applying it elsewhere.
 
 \mainmatter
-\part{Mathematical and Physical Foundations}
+\part{First Steps: Physics and Mathematics}
+\chapter{What a physical model is}
+\chaptervisual{the first physical model}{an object, a measurement, and a question}{choose variables, units, and an approximation}{a prediction that can be checked}
+Physics begins with a concrete question: how far did something move, how long did it take, or how much energy changed hands? We do not begin by naming every advanced mathematical tool. We begin by deciding what is being measured, what can be ignored for now, and what observation would tell us whether the model worked.
+
+\section{Quantities, units, and estimates}
+A physical quantity combines a number with a unit. Five meters and five seconds have different meanings even though both begin with the number five. A unit conversion changes the number and the unit together without changing the physical quantity:
+\begin{equation}
+3.0\,\mathrm{m}=300\,\mathrm{cm},\qquad 2.0\,\mathrm{min}=120\,\mathrm{s}.
+\end{equation}
+Before calculating, estimate the answer. A person walks roughly one meter per second, a classroom is a few meters across, and a car travels tens of meters in a second on a highway. Estimates catch missing factors and impossible answers before detailed algebra hides them.
+
+\section{Graphs and proportional reasoning}
+A graph is a picture of how one quantity changes with another. A straight line through the origin represents direct proportionality, $y=Cx$. Doubling $x$ doubles $y$. A horizontal line means that the plotted quantity remains constant, while a curved line tells us that the rate of change itself is changing.
+
+For a pendulum in the small-angle regime, dimensional reasoning suggests $T\propto\sqrt{\ell/g}$. This is not yet a complete derivation, but it already predicts that a longer pendulum swings more slowly and a stronger gravitational field makes it swing faster. Good physics often begins with this kind of reliable partial answer.
+
+\section{A first model and its limits}
+A model is a deliberately simplified description. Treating a thrown ball as a point particle ignores its size and spin; ignoring air resistance removes a force; assuming constant gravity limits the height range. These choices are not mistakes when they are stated and tested. They become mistakes when a result is used outside the regime that supported it.
+
+At the end of every first calculation, ask four questions: Are the units correct? Is the sign sensible? Does the result behave correctly when a parameter becomes very large or very small? What effect did the model leave out?
+
+\chapter{Change and accumulation}
+\chaptervisual{change and accumulation}{a position graph and small intervals}{slope for local change and area for accumulation}{velocity, displacement, and average rate}
+The first mathematics of motion is the language of change. A derivative describes what is happening now; an integral adds many small contributions into a total. We will use only the one-variable ideas needed to describe ordinary motion before expanding to fields and several coordinates later.
+
+\section{Average and instantaneous change}
+If a cyclist travels a distance $\Delta x$ during a time $\Delta t$, the average velocity is $\Delta x/\Delta t$. To ask for the velocity at one instant, examine smaller and smaller intervals around that instant:
+\begin{equation}
+v(t)=\lim_{\Delta t\to0}\frac{x(t+\Delta t)-x(t)}{\Delta t}=\od{x}{t}.
+\end{equation}
+On a graph, this is the slope of the tangent line. A steep slope means rapid motion; a negative slope means that the chosen coordinate is decreasing.
+
+Acceleration is the rate at which velocity changes,
+\begin{equation}
+a(t)=\od{v}{t}=\frac{\dd^2x}{\dd t^2}.
+\end{equation}
+The second derivative is not ``distance traveled twice.'' It measures how the velocity changes. A car moving at constant speed around a bend has acceleration because its velocity direction changes even when its speed does not.
+
+\section{Area under a graph}
+If velocity is known, a short time interval contributes approximately $v(t)\dd t$ to the displacement. Adding all those contributions gives
+\begin{equation}
+x(t)-x(t_0)=\int_{t_0}^{t}v(s)\dd s.
+\end{equation}
+The integral is the signed area under the velocity-time graph. Motion in the negative direction contributes negative area, so displacement and total distance are different quantities.
+
+\section{The first differential equation}
+An equation such as $\dot x=v$ is a rule for how a quantity changes. It does not determine one unique motion until an initial value is supplied. If $v$ is constant and $x(0)=x_0$, integration gives
+\begin{equation}
+x(t)=x_0+vt.
+\end{equation}
+This is the basic pattern of an initial-value problem: a local rule plus enough starting information determines a particular history.
+
+\chapter{Vectors and first motion models}
+\chaptervisual{vectors and motion}{a position arrow and coordinate axes}{components, addition, and time derivatives}{a trajectory with direction and speed}
+Motion is not always one-dimensional. A vector records both size and direction. We will first use vectors geometrically, then differentiate their components to describe motion in a plane or in space.
+
+\section{Components and directions}
+In a fixed Cartesian basis, a position is $\vect r=x\hat{\vect i}+y\hat{\vect j}+z\hat{\vect k}$. Addition is performed component by component. The length is
+\begin{equation}
+|\vect r|=\sqrt{x^2+y^2+z^2},
+\end{equation}
+and the dot product $\vect a\cdot\vect b$ measures how much one vector points along another. A zero dot product means perpendicular directions.
+
+Velocity and acceleration are vector derivatives:
+\begin{equation}
+\vect v=\od{\vect r}{t},\qquad \vect a=\od{\vect v}{t}.
+\end{equation}
+The components can change independently. In projectile motion, horizontal velocity remains constant in the simplest model while vertical velocity changes because gravity acts downward.
+
+\section{Constant-acceleration motion}
+For constant acceleration, integrate $\dot{\vect v}=\vect a$ and then integrate velocity:
+\begin{align}
+\vect v(t)&=\vect v_0+\vect at,\\
+\vect r(t)&=\vect r_0+\vect v_0t+\tfrac12\vect at^2.
+\end{align}
+These equations are not universal motion formulas. They apply only while acceleration is constant. Their value is that they let a beginner see how a local rule becomes a trajectory.
+
+\section{A first visual experiment}
+Launch a projectile with a chosen initial speed and angle. Display its position, velocity arrow, and acceleration arrow at the same time. The path curves because the velocity changes; the acceleration arrow remains constant in the ideal model. Then add drag and observe precisely which assumption stops working.
+
+\chapter{First forces and oscillations}
+\chaptervisual{first forces and oscillations}{a force diagram and a displaced spring}{Newton's law and a linear restoring approximation}{motion, energy exchange, and a period}
+Now connect the first mathematical tools to a physical cause. A force changes momentum. Near a stable equilibrium, many systems behave like a spring, which gives the first important differential equation beyond constant-acceleration motion.
+
+\section{Newton's second law}
+For a constant-mass object,
+\begin{equation}
+\vect F_{\rm net}=m\vect a.
+\end{equation}
+Draw the object and the forces before writing components. A force diagram prevents us from quietly inventing a direction or assuming that the normal force must equal the weight.
+
+\section{Work and energy}
+Dot Newton's law with displacement velocity to obtain
+\begin{equation}
+\vect F\cdot\vect v=\od{}{t}\left(\tfrac12mv^2\right).
+\end{equation}
+After integration, work changes kinetic energy. If a force comes from a time-independent potential, $E=K+V$ is constant. Energy is useful because it can answer a speed question without solving the entire trajectory.
+
+\section{The spring as a first oscillation}
+For a spring force $F=-kx$, Newton's law becomes
+\begin{equation}
+m\ddot x+kx=0,
+\qquad \omega=\sqrt{k/m},
+\qquad x(t)=A\cos(\omega t+\phi).
+\end{equation}
+The motion repeatedly exchanges kinetic and potential energy. This is the first model that will later reappear as a circuit, a wave mode, a molecular vibration, an electromagnetic mode, and a quantum oscillator.
+
+\section{Checkpoint before the deeper pass}
+At this point a reader should be able to interpret a graph's slope, calculate an area, add vectors, draw a force diagram, use Newton's law, and explain why a spring oscillates. The following foundations chapter develops the same tools more deeply, but it is no longer the only route into the subject.
+
+\part{Mathematical and Physical Foundations: Second Pass}
 \chapter{Scales, dimensions, and measurement}
 \chaptervisual{scales and measurement}{measured quantities and uncertainties}{units, dimensions, and dimensionless ratios}{a testable estimate with error bars}
 Before we describe how anything moves, let us ask what a physical prediction actually contains. A number alone is rarely enough: we need a unit, an estimate of uncertainty, and a statement of the conditions under which the number means something. These habits will guide every calculation in this book. We begin with dimensions because they let you question an equation even before you know how to solve it.
