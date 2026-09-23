@@ -5,8 +5,7 @@ Interactive math-oriented tools and supporting documents.
 ## Contents
 
 - `docs/`: math and physics reference documents
-  - [Physics: A Comprehensive Review (PDF)](docs/Physics_Review_Classical_to_Modern.pdf) ([LaTeX source](docs/Physics_Review_Classical_to_Modern.tex)): a standalone LaTeX book covering mathematical foundations, classical and modern physics, derivations, worked examples, and review problems with solutions.
-  - `QuantumStuff_Equations.tex`: a compact companion to the visualization scripts.
+  - [Physics Calc (PDF)](docs/Physics%20Calc.pdf) ([LaTeX source](docs/Physics%20Calc.tex)): a standalone LaTeX book covering mathematical foundations, classical and modern physics, derivations, worked examples, and review problems with solutions.
 - `equation_solver_animation.py`: black-screen algebra animation for equations, derivatives, and integrals
 
 ## Run
@@ -34,13 +33,13 @@ Controls:
 - arrow keys: move the input cursor
 - `[` / `]`: slower / faster animation
 
-## Build the physics review
+## Build Physics Calc
 
 With a standard LaTeX installation, run from `CompPhysics/mathematics/docs`:
 
 ```bash
-pdflatex -interaction=nonstopmode -halt-on-error Physics_Review_Classical_to_Modern.tex
-pdflatex -interaction=nonstopmode -halt-on-error Physics_Review_Classical_to_Modern.tex
+pdflatex -interaction=nonstopmode -halt-on-error "Physics Calc.tex"
+pdflatex -interaction=nonstopmode -halt-on-error "Physics Calc.tex"
 ```
 
 The second pass populates the table of contents. The source is self-contained and can also be uploaded to an online LaTeX editor.

@@ -31,7 +31,7 @@
 \newtheorem{example}{Worked example}[chapter]
 \newtheorem*{pitfall}{Common pitfall}
 \newtheorem*{connection}{Connection}
-\title{Physics: A Comprehensive Review\\\large Mathematical Foundations, Classical Theory, and Modern Physics}
+\title{Physics Calc\\\large Mathematical Foundations, Classical Theory, and Modern Physics}
 \author{Physics and Programming}
 \date{September 2026}
 \begin{document}
@@ -1286,13 +1286,13 @@ For each chapter, be able to explain the physical picture, derive at least one c
 The source is a single self-contained file with no external figures, bibliography database, or shell-escape requirement. It uses common LaTeX packages from a standard TeX Live or MiKTeX installation. From the source directory, compile twice so the table of contents and internal references settle:
 \begin{verbatim}
 pdflatex -interaction=nonstopmode -halt-on-error \
-  Physics_Review_Classical_to_Modern.tex
+  "Physics Calc.tex"
 pdflatex -interaction=nonstopmode -halt-on-error \
-  Physics_Review_Classical_to_Modern.tex
+  "Physics Calc.tex"
 \end{verbatim}
 Alternatively, compile with:
 \begin{verbatim}
-latexmk -pdf Physics_Review_Classical_to_Modern.tex
+latexmk -pdf "Physics Calc.tex"
 \end{verbatim}
 You can also upload the source as the main file in an online LaTeX editor with the listed packages available.
 \end{document}
