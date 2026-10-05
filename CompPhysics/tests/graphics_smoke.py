@@ -21,7 +21,8 @@ def main():
     results = []
     for target, source in rows:
         source_path = root / source
-        if args.filter not in target or 'common/studio.h' not in source_path.read_text():
+        uses_studio = any(header in source_path.read_text() for header in ('common/studio.h', 'common/cosmic_studio.h'))
+        if args.filter not in target or not uses_studio:
             continue
         executable = root / "build-native" / target
         is_water = source_path.stem == "shallow_water_sandbox_viz"

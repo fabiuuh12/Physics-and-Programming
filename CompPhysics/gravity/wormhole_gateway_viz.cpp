@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "../common/cosmic_studio.h"
 
 #include <algorithm>
 #include <array>
@@ -97,14 +98,14 @@ Color LerpColor(Color a, Color b, float t) {
 }
 
 void UpdateOrbitCamera(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && studio::over(cosmic::view)) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0035f;
         *pitch += delta.y * 0.0033f;
         *pitch = std::clamp(*pitch, -1.46f, 1.46f);
     }
 
-    *distance -= GetMouseWheelMove() * 0.9f;
+    if (studio::over(cosmic::view)) *distance -= GetMouseWheelMove() * 0.9f;
     *distance = std::clamp(*distance, 3.0f, 70.0f);
 
     float cp = std::cos(*pitch);
@@ -248,6 +249,39 @@ void SpawnEnergyStreak(std::vector<EnergyStreak>* streaks, int direction, float 
     });
 }
 
+float FlowAdvance(const FlowParticle& p,float time,float speed) {
+    return p.speed*(0.6f+speed*0.5f)*(0.7f+0.7f*(0.5f+0.5f*std::sin(time*1.4f)));
+}
+Vector3 FlowPosition(const FlowParticle& p,float time,float throat,float flare,float pulse,float swirl) {
+    float z=-kHalfLength+p.u*(2*kHalfLength);
+    float r=WormholeRadius(z,throat,flare,pulse);
+    float lane=r*(0.22f+p.radialFraction*0.58f+0.06f*std::sin(time*2.6f+p.phase));
+    float theta=p.theta+swirl*z*0.18f;
+    return {lane*std::cos(theta),lane*std::sin(theta),z};
+}
+// Instantaneous velocity includes axial drift, swirl, flare slope and breathing.
+Vector3 FlowVelocity(const FlowParticle& p,float time,float throat,float flare,float pulse,
+                     float pulseRate,float swirl,float speed) {
+    float z=-kHalfLength+p.u*(2*kHalfLength), x=std::fabs(z)/kHalfLength;
+    float dz=FlowAdvance(p,time,speed)*(2*kHalfLength);
+    float sign=z>0 ? 1.0f : (z<0 ? -1.0f : 0.0f);
+    float radius=WormholeRadius(z,throat,flare,pulse);
+    float dr=(flare*(4.6f*x+2.55f*x*x)+pulse*0.15f)*sign/kHalfLength*dz+(0.1f+0.15f*x)*pulseRate;
+    float laneFactor=0.22f+p.radialFraction*0.58f+0.06f*std::sin(time*2.6f+p.phase);
+    float lane=radius*laneFactor;
+    float dl=dr*laneFactor+radius*0.06f*2.6f*std::cos(time*2.6f+p.phase);
+    float theta=p.theta+swirl*z*0.18f;
+    float w=swirl*(0.9f+p.radialFraction*0.8f)+swirl*dz*0.18f;
+    return {dl*std::cos(theta)-lane*w*std::sin(theta),dl*std::sin(theta)+lane*w*std::cos(theta),dz};
+}
+Vector3 StreakPosition(const EnergyStreak& s) {
+    return {s.radius*std::cos(s.theta),s.radius*std::sin(s.theta),s.z};
+}
+Vector3 StreakVelocity(const EnergyStreak& s,float swirl) {
+    float w=swirl*1.4f;
+    return {-s.radius*w*std::sin(s.theta),s.radius*w*std::cos(s.theta),s.direction*s.speed};
+}
+
 void DrawWarpedRing(float z, float baseRadius, Color color, float wobble, float time, float phase) {
     const int segments = 120;
     for (int i = 0; i < segments; ++i) {
@@ -263,7 +297,10 @@ void DrawWarpedRing(float z, float baseRadius, Color color, float wobble, float 
 }  // namespace
 
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "Wormhole Gateway 3D - C++ (raylib)");
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(kScreenWidth, kScreenHeight, "Wormhole Gateway | Transit Lab");
+    RenderTexture2D scene=LoadRenderTexture(cosmic::viewWidth,cosmic::viewHeight);
+    SetTextureFilter(scene.texture,TEXTURE_FILTER_BILINEAR);
     SetTargetFPS(60);
 
     const EnvironmentPalette nearPalette{
@@ -302,9 +339,9 @@ int main() {
         {3.08f, 0.42f, 27.0f, {0.0f, 0.0f, 0.0f}},
     }};
 
-    float camYaw = leftPresets[0].yaw;
-    float camPitch = leftPresets[0].pitch;
-    float camDistance = leftPresets[0].distance;
+    float camYaw = leftPresets[2].yaw;
+    float camPitch = leftPresets[2].pitch;
+    float camDistance = leftPresets[2].distance;
 
     float throatRadius = 1.12f;
     float flare = 1.15f;
@@ -312,6 +349,8 @@ int main() {
     float transitSpeed = 1.0f;
     float distortion = 0.85f;
     bool paused = false;
+    bool showVectors=true, showTrails=true, showSurface=true;
+    float arrowScale=1.0f;
     int farPaletteIndex = 0;
     int currentSide = -1;
     float time = 0.0f;
@@ -332,11 +371,9 @@ int main() {
     InitializeNebula(&nebulaBlobs);
     energyStreaks.reserve(200);
 
-    ApplyPreset(leftPresets[0], &camera, &camYaw, &camPitch, &camDistance);
+    ApplyPreset(leftPresets[2], &camera, &camYaw, &camPitch, &camDistance);
 
     while (!WindowShouldClose()) {
-        const EnvironmentPalette& farPalette = farPalettes[farPaletteIndex];
-
         auto applyContextPreset = [&](int index) {
             if (index < 0 || index > 2) return;
             if (currentSide < 0) ApplyPreset(leftPresets[index], &camera, &camYaw, &camPitch, &camDistance);
@@ -352,14 +389,19 @@ int main() {
             delayedPulseTimer = 0.55f;
         };
 
+        if (IsKeyPressed(KEY_V) || studio::clicked({1130,407,128,40})) showVectors=!showVectors;
+        if (IsKeyPressed(KEY_L) || studio::clicked({1268,407,128,40})) showTrails=!showTrails;
+        if (IsKeyPressed(KEY_G) || studio::clicked({1130,457,128,40})) showSurface=!showSurface;
+        if (IsKeyDown(KEY_COMMA)) arrowScale=std::max(0.25f,arrowScale*std::exp(-GetFrameTime()));
+        if (IsKeyDown(KEY_PERIOD)) arrowScale=std::min(3.0f,arrowScale*std::exp(GetFrameTime()));
         if (IsKeyPressed(KEY_ONE) && !transit.active) applyContextPreset(0);
         if (IsKeyPressed(KEY_TWO) && !transit.active) applyContextPreset(1);
         if (IsKeyPressed(KEY_THREE) && !transit.active) applyContextPreset(2);
         if (IsKeyPressed(KEY_FOUR) && !transit.active) beginTransit();
 
-        if (IsKeyPressed(KEY_T) && !transit.active) beginTransit();
-        if (IsKeyPressed(KEY_M)) farPaletteIndex = (farPaletteIndex + 1) % static_cast<int>(farPalettes.size());
-        if (IsKeyPressed(KEY_P)) paused = !paused;
+        if ((IsKeyPressed(KEY_T) || studio::clicked({1130,510,266,40})) && !transit.active) beginTransit();
+        if (IsKeyPressed(KEY_M) || studio::clicked({1130,129,266,40})) farPaletteIndex = (farPaletteIndex + 1) % static_cast<int>(farPalettes.size());
+        if (IsKeyPressed(KEY_P) || studio::clicked({1268,457,128,40})) paused = !paused;
         if (IsKeyPressed(KEY_R)) {
             throatRadius = 1.12f;
             flare = 1.15f;
@@ -369,6 +411,7 @@ int main() {
             paused = false;
             farPaletteIndex = 0;
             currentSide = -1;
+            camera.fovy=42.0f;
             time = 0.0f;
             entrancePulse = 0.0f;
             exitPulse = 0.0f;
@@ -380,7 +423,7 @@ int main() {
             InitializeStars(&stars);
             InitializeNebula(&nebulaBlobs);
             energyStreaks.clear();
-            ApplyPreset(leftPresets[0], &camera, &camYaw, &camPitch, &camDistance);
+            ApplyPreset(leftPresets[2], &camera, &camYaw, &camPitch, &camDistance);
         }
 
         if (IsKeyDown(KEY_UP)) throatRadius = std::min(2.2f, throatRadius + 0.55f * GetFrameTime());
@@ -396,7 +439,7 @@ int main() {
 
         if (!transit.active) UpdateOrbitCamera(&camera, &camYaw, &camPitch, &camDistance);
 
-        float dt = GetFrameTime();
+        float dt = std::min(GetFrameTime(),0.05f);
         if (!paused) {
             time += dt;
             entrancePulse = std::max(0.0f, entrancePulse - dt);
@@ -408,9 +451,9 @@ int main() {
 
             float pulseWave = 0.5f + 0.5f * std::sin(time * 1.4f);
             for (FlowParticle& particle : flowParticles) {
-                particle.u += particle.speed * dt * (0.6f + transitSpeed * 0.5f) * (0.7f + 0.7f * pulseWave);
-                if (particle.u > 1.0f) particle.u -= 1.0f;
-                particle.theta += dt * swirlIntensity * (0.9f + particle.radialFraction * 0.8f);
+                particle.u += FlowAdvance(particle,time,transitSpeed)*dt;
+                particle.u=std::fmod(particle.u,1.0f);
+                particle.theta=std::fmod(particle.theta+dt*swirlIntensity*(0.9f+particle.radialFraction*0.8f),2*kPi);
             }
             for (RimMote& mote : rimMotes) {
                 mote.theta += mote.speed * dt * (0.9f + 0.3f * pulseWave);
@@ -466,28 +509,25 @@ int main() {
         float entranceMouthZ = -kHalfLength;
         float exitMouthZ = kHalfLength;
 
-        BeginDrawing();
-        ClearBackground(Color{3, 5, 11, 255});
+        const EnvironmentPalette& farPalette = farPalettes[farPaletteIndex];
+        float pulseRate=0.75f*0.5f*1.35f*std::cos(time*1.35f)-(std::max(entrancePulse,exitPulse)>0 ? 0.25f : 0);
+        cosmic::beginScene(scene);
 
         BeginMode3D(camera);
-
-        for (const NebulaBlob& blob : nebulaBlobs) {
-            const EnvironmentPalette& palette = blob.side < 0 ? nearPalette : farPalette;
-            Color c = LerpColor(palette.nebula, palette.fog, blob.tint);
-            DrawSphere(blob.position, blob.radius, Fade(c, blob.alpha));
-        }
 
         for (const DistantStar& star : stars) {
             const EnvironmentPalette& palette = star.side < 0 ? nearPalette : farPalette;
             float mouthZ = star.side < 0 ? entranceMouthZ : exitMouthZ;
             Vector3 warped = DistortAroundMouth(star.position, mouthZ, distortion);
             Color c = LerpColor(palette.star, Color{255, 255, 255, 255}, star.tint);
-            DrawSphere(warped, star.size, Fade(c, 0.92f));
+            DrawSphereEx(warped,star.size*0.65f,4,4,Fade(c,0.8f));
         }
 
         const int rings = 74;
         const int segments = 56;
-        for (int i = 0; i < rings - 1; ++i) {
+        rlDrawRenderBatchActive();
+        rlDisableDepthMask();
+        if (showSurface) for (int i = 0; i < rings - 1; ++i) {
             float z0 = -kHalfLength + (2.0f * kHalfLength * i) / static_cast<float>(rings - 1);
             float z1 = -kHalfLength + (2.0f * kHalfLength * (i + 1)) / static_cast<float>(rings - 1);
             float pulse0 = pulseValue * std::sin(time * 1.1f + z0 * 0.35f);
@@ -502,12 +542,23 @@ int main() {
 
                 float centerGlow = 1.0f - std::abs(z0) / kHalfLength;
                 Color c = TubeColor(z0, nearPalette, farPalette, pulseValue);
-                c.a = static_cast<unsigned char>(28 + 58 * centerGlow + 25 * pulseValue);
+                c.a = static_cast<unsigned char>(10 + 18 * centerGlow + 8 * pulseValue);
                 DrawTriangle3D(p00, p10, p01, c);
                 DrawTriangle3D(p01, p10, p11, c);
+                DrawTriangle3D(p00, p01, p10, c);
+                DrawTriangle3D(p01, p11, p10, c);
             }
         }
 
+        for (int meridian=0;meridian<12;++meridian) {
+            float theta=2*kPi*meridian/12;
+            for (int i=0;i<64;++i) {
+                float z0=-kHalfLength+2*kHalfLength*i/64, z1=-kHalfLength+2*kHalfLength*(i+1)/64;
+                float p0=pulseValue*std::sin(time*1.1f+z0*0.35f), p1=pulseValue*std::sin(time*1.1f+z1*0.35f);
+                DrawLine3D(TubePoint(z0,theta,throatRadius,flare,p0),TubePoint(z1,theta,throatRadius,flare,p1),
+                           Fade(TubeColor(z0,nearPalette,farPalette,pulseValue),0.28f));
+            }
+        }
         for (int i = 0; i < 28; ++i) {
             float z = -kHalfLength + std::fmod(time * (3.0f + transitSpeed * 2.0f) + i * 0.68f, 2.0f * kHalfLength);
             float pulse = std::sin(time * 1.2f + z * 0.32f);
@@ -525,6 +576,8 @@ int main() {
         DrawWarpedRing(exitMouthZ, WormholeRadius(exitMouthZ, throatRadius, flare, pulseValue) + 0.65f,
                        Fade(farPalette.accent, 0.32f), 0.26f + exitPulse * 0.28f, time, 2.1f);
 
+        rlDrawRenderBatchActive();
+        rlEnableDepthMask();
         for (const RimMote& mote : rimMotes) {
             float mouthZ = mote.mouthSign < 0 ? entranceMouthZ : exitMouthZ;
             const EnvironmentPalette& palette = mote.mouthSign < 0 ? nearPalette : farPalette;
@@ -535,86 +588,95 @@ int main() {
                 ringRadius * std::sin(mote.theta),
                 mouthZ + mote.lift + 0.18f * std::sin(time * 2.0f + mote.phase),
             };
-            DrawSphere(position, mote.size, Fade(palette.accent, 0.12f + 0.20f * mote.ringFraction));
+            DrawSphereEx(position,mote.size,4,4,Fade(palette.accent,0.12f+0.20f*mote.ringFraction));
         }
 
         for (const FlowParticle& particle : flowParticles) {
             float z = -kHalfLength + particle.u * (2.0f * kHalfLength);
             float centerFactor = 1.0f - std::abs(z) / kHalfLength;
-            float radius = WormholeRadius(z, throatRadius, flare, pulseValue);
-            float lane = radius * (0.22f + particle.radialFraction * 0.58f +
-                                   0.06f * std::sin(time * 2.6f + particle.phase));
-            float theta = particle.theta + swirlIntensity * z * 0.18f;
-            Vector3 position{lane * std::cos(theta), lane * std::sin(theta), z};
+            Vector3 position=FlowPosition(particle,time,throatRadius,flare,pulseValue,swirlIntensity);
+
             Color c = TubeColor(z, nearPalette, farPalette, pulseValue);
             c = LerpColor(c, Color{255, 255, 255, 255}, particle.glow * 0.25f + centerFactor * 0.22f);
-            DrawSphere(position, 0.03f + 0.045f * particle.glow + 0.02f * centerFactor, Fade(c, 0.16f + 0.18f * particle.glow));
+            Vector3 velocity=FlowVelocity(particle,time,throatRadius,flare,pulseValue,pulseRate,swirlIntensity,transitSpeed);
+            if (showTrails) DrawLine3D(Vector3Subtract(position,Vector3Scale(velocity,0.10f)),position,Fade(c,0.45f));
+            DrawSphereEx(position,0.03f+0.045f*particle.glow+0.02f*centerFactor,4,6,Fade(c,0.3f+0.3f*particle.glow));
         }
 
         for (const EnergyStreak& streak : energyStreaks) {
             Color c = TubeColor(streak.z, nearPalette, farPalette, pulseValue);
             c = LerpColor(c, Color{255, 255, 255, 255}, 0.45f);
             float fade = 1.0f - std::clamp(streak.age / streak.ttl, 0.0f, 1.0f);
-            Vector3 position{
-                streak.radius * std::cos(streak.theta),
-                streak.radius * std::sin(streak.theta),
-                streak.z,
-            };
-            Vector3 tail = {
-                position.x * 0.85f,
-                position.y * 0.85f,
-                position.z - streak.direction * 0.85f,
-            };
-            DrawLine3D(tail, position, Fade(c, 0.35f * fade));
-            DrawSphere(position, streak.width, Fade(c, 0.32f * fade));
+            Vector3 position=StreakPosition(streak);
+            Vector3 velocity=StreakVelocity(streak,swirlIntensity);
+            if (showTrails) DrawLine3D(Vector3Subtract(position,Vector3Scale(velocity,0.055f)),position,Fade(c,0.55f*fade));
+            DrawSphereEx(position,streak.width,4,6,Fade(c,0.55f*fade));
+        }
+        if (showVectors) {
+            for (size_t i=10;i<flowParticles.size();i+=27) {
+                const auto& p=flowParticles[i];
+                cosmic::arrow(FlowPosition(p,time,throatRadius,flare,pulseValue,swirlIntensity),
+                              FlowVelocity(p,time,throatRadius,flare,pulseValue,pulseRate,swirlIntensity,transitSpeed),
+                              0.38f*arrowScale,cosmic::motion);
+            }
+            int count=0;
+            for (size_t i=0;i<energyStreaks.size() && count<6;i+=5) {
+                const auto& p=energyStreaks[i];
+                if (std::abs(p.z)<kHalfLength) {
+                    cosmic::arrow(StreakPosition(p),StreakVelocity(p,swirlIntensity),0.13f*arrowScale,
+                                  p.direction>0 ? cosmic::warm : cosmic::purple);
+                    ++count;
+                }
+            }
         }
 
         EndMode3D();
-
-        Vector2 leftMouthScreen = GetWorldToScreen({0.0f, 0.0f, entranceMouthZ}, camera);
-        Vector2 rightMouthScreen = GetWorldToScreen({0.0f, 0.0f, exitMouthZ}, camera);
-        DrawCircleGradient(static_cast<int>(leftMouthScreen.x), static_cast<int>(leftMouthScreen.y),
-                           140.0f + entrancePulse * 55.0f,
-                           Fade(nearPalette.mouth, 0.10f + entrancePulse * 0.05f),
-                           Fade(Color{0, 0, 0, 0}, 0.0f));
-        DrawCircleGradient(static_cast<int>(rightMouthScreen.x), static_cast<int>(rightMouthScreen.y),
-                           140.0f + exitPulse * 55.0f,
-                           Fade(farPalette.mouth, 0.10f + exitPulse * 0.05f),
-                           Fade(Color{0, 0, 0, 0}, 0.0f));
-
-        DrawRectangle(16, 16, 760, 118, Fade(Color{8, 14, 28, 255}, 0.78f));
-        DrawText("Wormhole Gateway", 30, 26, 34, Color{236, 240, 248, 255});
-        DrawText("Mouse orbit | wheel zoom | 1-3 presets | 4/T transit | Up/Down throat | [ ] flare | Left/Right swirl",
-                 30, 62, 18, Color{166, 186, 210, 255});
-        DrawText("-/= transit speed | D increase distortion | S decrease distortion | M switch destination | P pause | R reset",
-                 30, 84, 18, Color{166, 186, 210, 255});
-
-        DrawRectangle(GetScreenWidth() - 350, 20, 318, 190, Fade(Color{8, 14, 28, 255}, 0.80f));
-        DrawText("Gateway Status", GetScreenWidth() - 328, 30, 26, Color{236, 240, 248, 255});
-        char status[420];
-        std::snprintf(status, sizeof(status),
-                      "Near field: %s\nFar field: %s\nThroat radius: %.2f\nFlare: %.2f\nSwirl: %.2f\nTransit speed: %.2f\nDistortion: %.2f\nMode: %s\nObserver side: %s%s",
-                      nearPalette.name, farPalette.name, throatRadius, flare, swirlIntensity, transitSpeed, distortion,
-                      transit.active ? "Transit" : "Orbit",
-                      currentSide < 0 ? "Near field" : "Far field",
-                      paused ? "\n[PAUSED]" : "");
-        DrawText(status, GetScreenWidth() - 328, 68, 20, Color{124, 228, 255, 255});
-
-        DrawRectangle(GetScreenWidth() - 350, 226, 318, 96, Fade(Color{8, 14, 28, 255}, 0.74f));
-        DrawText("Pulse Echo", GetScreenWidth() - 328, 236, 22, Color{236, 240, 248, 255});
-        DrawRectangle(GetScreenWidth() - 324, 272, 280, 10, Fade(Color{40, 56, 84, 255}, 0.95f));
-        DrawRectangle(GetScreenWidth() - 324, 272, static_cast<int>(280.0f * std::clamp(entrancePulse / 1.2f, 0.0f, 1.0f)), 10, nearPalette.accent);
-        DrawRectangle(GetScreenWidth() - 324, 290, static_cast<int>(280.0f * std::clamp(exitPulse / 1.1f, 0.0f, 1.0f)), 10, farPalette.accent);
-        DrawText("entrance pulse", GetScreenWidth() - 324, 256, 16, Color{188, 204, 224, 255});
-        DrawText("exit echo", GetScreenWidth() - 324, 304, 16, Color{188, 204, 224, 255});
-
-        DrawCircleGradient(GetScreenWidth() / 2, GetScreenHeight() / 2, 300.0f,
-                           Fade(LerpColor(nearPalette.fog, farPalette.fog, 0.5f), 0.035f),
-                           Fade(Color{0, 0, 0, 0}, 0.0f));
-        DrawFPS(30, GetScreenHeight() - 42);
+        for (const auto& blob:nebulaBlobs) {
+            const auto& palette=blob.side<0 ? nearPalette : farPalette;
+            cosmic::glow(camera,blob.position,LerpColor(palette.nebula,palette.fog,blob.tint),blob.alpha*0.35f,blob.radius*35);
+        }
+        cosmic::drawMotion(camera);
+        cosmic::glow(camera,{0,0,entranceMouthZ},nearPalette.mouth,0.06f+entrancePulse*0.04f,110);
+        cosmic::glow(camera,{0,0,exitMouthZ},farPalette.mouth,0.06f+exitPulse*0.04f,110);
+        cosmic::label(camera,{0,WormholeRadius(0,throatRadius,flare,pulseValue)+0.4f,0},"THROAT",cosmic::purple,{10,-25});
+        cosmic::label(camera,{0,0,-kHalfLength},"NEAR MOUTH",nearPalette.accent,{15,20});
+        cosmic::label(camera,{0,0,kHalfLength},"FAR MOUTH",farPalette.accent,{15,20});
+        cosmic::compose(scene,"ILLUSTRATIVE SPACETIME / 04","Wormhole gateway","Two mouths, a flared throat, and a guided transit");
+        float x=cosmic::panelX+20;
+        studio::text("GATEWAY",x,40,13,cosmic::muted);
+        studio::text(paused ? "PAUSED" : (transit.active ? "IN TRANSIT" : "ORBIT VIEW"),x,66,19,cosmic::motion);
+        studio::text(nearPalette.name,x,105,15,nearPalette.accent);
+        cosmic::button({x,129,266,40},TextFormat("M  %s",farPalette.name),true,farPalette.accent);
+        studio::text(TextFormat("Throat parameter     %.2f",throatRadius),x,196,17,cosmic::text);
+        studio::text(TextFormat("Mouth flare               %.2f",flare),x,230,17,cosmic::text);
+        studio::text(TextFormat("Swirl                         %.2f",swirlIntensity),x,264,17,cosmic::motion);
+        studio::text(TextFormat("Transit speed            %.2fx",transitSpeed),x,298,17,cosmic::text);
+        studio::text(TextFormat("Distortion                  %.2f",distortion),x,332,17,cosmic::text);
+        studio::text(currentSide<0 ? "Observer: near field" : "Observer: far field",x,373,14,cosmic::muted);
+        cosmic::button({x,407,128,40},"V  Motion",showVectors);
+        cosmic::button({x+138,407,128,40},"L  Trails",showTrails,cosmic::warm);
+        cosmic::button({x,457,128,40},"G  Surface",showSurface,cosmic::purple);
+        cosmic::button({x+138,457,128,40},"P  Pause",paused);
+        cosmic::button({x,510,266,40},transit.active ? "TRANSIT ACTIVE" : "T  Travel through",transit.active,farPalette.accent);
+        float progress=transit.active ? (transit.direction*transit.z+14.2f)/28.6f : 0;
+        cosmic::bar(x,567,266,progress,cosmic::motion);
+        studio::text(transit.active ? TextFormat("Journey   %.0f%%",std::clamp(progress,0.0f,1.0f)*100) : "Ready for transit",x,585,14,cosmic::muted);
+        studio::text("ENTRANCE PULSE / EXIT ECHO",x,628,12,cosmic::muted);
+        cosmic::bar(x,650,128,entrancePulse/1.2f,nearPalette.accent);
+        cosmic::bar(x+138,650,128,exitPulse/1.1f,farPalette.accent);
+        studio::text(TextFormat("Arrow size %.2fx   , / . adjust",arrowScale),x,685,14,cosmic::text);
+        studio::text("Cyan: swirl + drift",x,722,13,cosmic::motion);
+        studio::text("Gold / purple: opposing streaks",x,744,13,cosmic::muted);
+        studio::text("Conceptual geometry; not a GR solver",x,775,13,cosmic::muted);
+        studio::text("FLOW THROUGH THE THROAT",28,799,13,cosmic::motion);
+        studio::text("Arrows follow the animated paths. Their lengths are scaled and capped for readability.",266,798,14,cosmic::muted);
+        cosmic::help("Drag: orbit   Wheel: zoom   1-3: views   4 / T: transit   Up/Down: throat   [ / ]: flare   Left/Right: swirl   - / =: speed   D / S: distortion   R: reset");
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    UnloadRenderTexture(scene);
+    studio::unload();
     CloseWindow();
     return 0;
 }

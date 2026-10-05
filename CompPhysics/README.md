@@ -168,6 +168,37 @@ Trail arrowheads follow the chronological direction of the recorded trajectory.
 The equal-mass triangle starts equilateral with the circular speed appropriate to
 the softened model; it is a symmetric orbit, not a claim of perturbation stability.
 
+## Quasar Core and Wormhole Gateway
+
+Launch either refreshed scene from the repository root:
+
+```bash
+./CompPhysics/run quasar_core_viz
+./CompPhysics/run wormhole_gateway_viz
+```
+
+Both scenes have a dedicated viewport, clickable display controls, particle trails,
+and motion arrows calculated from their animated trajectories. Drag inside the
+viewport to orbit; scroll to zoom. `V` toggles arrows; `G` toggles guides (quasar)
+or the translucent surface (wormhole). `,` / `.` adjusts arrow size; `P` pauses;
+`R` resets the experiment. The original parameter controls remain available in
+the bottom help strip.
+
+Quasar: `1`–`4` selects views, `T` toggles trails, and `F` triggers a flare. Gold
+arrows follow the disk's rotation and radial/vertical oscillations; cyan arrows
+follow the outward jet packets. Disk and jet display scales are separate. Jet
+radial contraction now uses elapsed time rather than a per-frame multiplier.
+
+Wormhole: `1`–`3` selects views, `4` / `T` starts a transit, `L` toggles trails,
+and `M` changes the destination palette. Cyan arrows combine axial flow, swirl,
+and the changing tube radius. Gold/purple arrows distinguish energy streaks in
+opposite directions. Transit progress and the entrance/exit pulses have separate
+readouts. The default view shows both mouths and the throat.
+
+Arrows are capped at 2.6 scene units for readability. These are illustrative
+animations in arbitrary scene units: the quasar does not solve GR or MHD, and
+the wormhole is conceptual geometry, not a physical spacetime solution.
+
 ## Run Python Tests
 
 From this folder:
