@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "../common/studio.h"
 
 #include <algorithm>
 #include <array>
@@ -15,6 +16,16 @@ constexpr int kScreenWidth = 1500;
 constexpr int kScreenHeight = 940;
 constexpr float kPi = 3.14159265358979323846f;
 constexpr float kHalfLength = 2.95f;
+constexpr Color kDrag{255, 178, 94, 255};
+constexpr Color kLift{105, 223, 185, 255};
+constexpr Color kResultant{199, 174, 255, 255};
+constexpr Color kText{232, 240, 249, 255};
+constexpr Color kMuted{145, 165, 187, 255};
+
+// Educational coefficient model, independent of the illustrative flow field.
+// Units: metres, seconds, newtons; air density is fixed at 1.225 kg/m^3.
+struct AeroLoads { float q, area, cd, cl, drag, lift; };
+
 
 struct TunnelState {
     Vector3 bodyCenter = {0.0f, 0.60f, 0.0f};
@@ -23,6 +34,17 @@ struct TunnelState {
     float bodyScale = 1.0f;
     float roofBias = 0.0f;
 };
+
+AeroLoads EstimateLoads(const TunnelState& state) {
+    AeroLoads a{};
+    a.q = 0.5f * 1.225f * state.windSpeed * state.windSpeed;
+    a.area = 2.2f * state.bodyScale * state.bodyScale;
+    a.cd = 0.29f + 0.07f * std::fabs(state.roofBias);
+    a.cl = 0.12f + 0.18f * state.roofBias;
+    a.drag = a.q * a.area * a.cd;
+    a.lift = a.q * a.area * a.cl;
+    return a;
+}
 
 struct FlowParticle {
     Vector3 pos{};
@@ -62,14 +84,14 @@ Color LerpColor(Color a, Color b, float t) {
 }
 
 void UpdateOrbitCamera(Camera3D* camera, float* yaw, float* pitch, float* distance) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && GetMouseX() < GetScreenWidth() - 340) {
         Vector2 delta = GetMouseDelta();
         *yaw -= delta.x * 0.0034f;
         *pitch += delta.y * 0.0030f;
         *pitch = std::clamp(*pitch, -1.15f, 1.15f);
     }
 
-    *distance -= GetMouseWheelMove() * 0.85f;
+    if (GetMouseX() < GetScreenWidth() - 340) *distance -= GetMouseWheelMove() * 0.85f;
     *distance = std::clamp(*distance, 8.0f, 30.0f);
 
     float cosPitch = std::cos(*pitch);
@@ -136,7 +158,7 @@ float BodySignedDistanceLocal(Vector3 local, const TunnelState& state) {
     float dx = local.x - xClamped;
 
     if (std::fabs(dx) < 0.0001f) return crossDistance;
-    if (crossDistance < 0.0f) return -std::sqrt(dx * dx + crossDistance * crossDistance);
+    if (crossDistance < 0.0f) return std::fabs(dx);
     return std::sqrt(dx * dx + crossDistance * crossDistance);
 }
 
@@ -258,8 +280,14 @@ void ResetParticle(FlowParticle* particle) {
     particle->lane = Saturate((particle->pos.y - 0.05f) / 2.8f);
 }
 
-void ResetParticles(std::vector<FlowParticle>* particles) {
-    for (FlowParticle& particle : *particles) ResetParticle(&particle);
+void ResetParticles(std::vector<FlowParticle>* particles, const TunnelState& state) {
+    for (FlowParticle& particle : *particles) {
+        ResetParticle(&particle);
+        particle.pos.x = RandomFloat(-12.0f, 12.0f);
+        if (InsideBody(particle.pos, state)) particle.pos.y = TopProfile(particle.pos.x, state) + 0.2f;
+        particle.trail.clear();
+        particle.trail.push_back(particle.pos);
+    }
 }
 
 void UpdateParticles(std::vector<FlowParticle>* particles, const TunnelState& state, const std::vector<WakeBlob>& wake, float dt) {
@@ -355,9 +383,9 @@ Vector3 BodySurfacePoint(float x, float angle, const TunnelState& state) {
     return ToWorld(local, state);
 }
 
-void DrawBody(const TunnelState& state, const std::vector<WakeBlob>& wake) {
-    const int xSegments = 44;
-    const int ringSegments = 28;
+void DrawBody(const TunnelState& state, const std::vector<WakeBlob>& wake, bool pressure) {
+    const int xSegments = 72;
+    const int ringSegments = 40;
 
     for (int ix = 0; ix < xSegments; ++ix) {
         float x0 = Lerp(-kHalfLength, kHalfLength, static_cast<float>(ix) / xSegments);
@@ -371,15 +399,30 @@ void DrawBody(const TunnelState& state, const std::vector<WakeBlob>& wake) {
             Vector3 p01 = BodySurfacePoint(x0, a1, state);
             Vector3 p11 = BodySurfacePoint(x1, a1, state);
 
-            float scoreA = 0.25f * (AeroSurfaceScore(p00, state, wake) + AeroSurfaceScore(p10, state, wake) +
-                                    AeroSurfaceScore(p01, state, wake) + AeroSurfaceScore(p11, state, wake));
-            Color color = AeroSurfaceColor(scoreA);
-            DrawTriangle3D(p00, p10, p11, color);
-            DrawTriangle3D(p00, p11, p01, color);
+            float scoreA = AeroSurfaceScore(BodySurfacePoint(0.5f*(x0+x1), 0.5f*(a0+a1), state), state, wake);
+            Color color = pressure ? AeroSurfaceColor(scoreA) : Color{91, 143, 177, 255};
+            Vector3 normal = SurfaceNormalLocal(ToLocal(Vector3Scale(Vector3Add(p00, p11), 0.5f), state), state);
+            float lighting = 0.48f + 0.52f * std::max(0.0f, Vector3DotProduct(normal, Vector3Normalize({-0.5f, 1.0f, 0.7f})));
+            color.r = static_cast<unsigned char>(color.r * lighting);
+            color.g = static_cast<unsigned char>(color.g * lighting);
+            color.b = static_cast<unsigned char>(color.b * lighting);
+            DrawTriangle3D(p00, p11, p10, color);
+            DrawTriangle3D(p00, p01, p11, color);
         }
     }
 
-    for (int ix = 0; ix <= xSegments; ix += 2) {
+    // Close both end rings so the body remains solid from every camera angle.
+    for (int end = 0; end < 2; ++end) {
+        float x = end ? kHalfLength : -kHalfLength;
+        Vector3 center{state.bodyCenter.x + x, SectionMidY(x, state), state.bodyCenter.z};
+        for (int ir = 0; ir < ringSegments; ++ir) {
+            Vector3 a = BodySurfacePoint(x, 2*kPi*ir/ringSegments, state);
+            Vector3 b = BodySurfacePoint(x, 2*kPi*(ir+1)/ringSegments, state);
+            Color c = pressure ? AeroSurfaceColor(end ? 0.15f : 0.30f) : Color{65,105,135,255};
+            if (end) DrawTriangle3D(center,a,b,c); else DrawTriangle3D(center,b,a,c);
+        }
+    }
+    for (int ix = 0; ix <= xSegments; ix += 8) {
         float x = Lerp(-kHalfLength, kHalfLength, static_cast<float>(ix) / xSegments);
         for (int ir = 0; ir < ringSegments; ir += 2) {
             float a0 = 2.0f * kPi * static_cast<float>(ir) / ringSegments;
@@ -395,9 +438,9 @@ void DrawParticles(const std::vector<FlowParticle>& particles, const TunnelState
         Color base = StreamColor(speedRatio);
         for (size_t i = 1; i < particle.trail.size(); ++i) {
             float alpha = static_cast<float>(i) / static_cast<float>(particle.trail.size());
-            DrawLine3D(particle.trail[i - 1], particle.trail[i], Fade(base, 0.05f + 0.58f * alpha));
+            DrawLine3D(particle.trail[i - 1], particle.trail[i], Fade(base, 0.03f + 0.38f * alpha));
         }
-        DrawSphere(particle.pos, 0.024f, Fade(base, 0.88f));
+        DrawSphereEx(particle.pos, 0.018f, 4, 4, Fade(base, 0.88f));
     }
 }
 
@@ -408,6 +451,7 @@ void DrawWakeRibbons(const std::vector<WakeBlob>& wake, float time) {
         bool hasPrevious = false;
         for (int i = 0; i < 16; ++i) {
             float x = blob.pos.x - static_cast<float>(i) * 0.18f;
+            if (x < 3.1f) break;
             float radius = blob.radius + 0.02f * i;
             float angle = time * 2.5f + static_cast<float>(i) * 0.45f * (blob.strength >= 0.0f ? 1.0f : -1.0f);
             Vector3 point{x, blob.pos.y + std::cos(angle) * radius, blob.pos.z + std::sin(angle) * radius};
@@ -418,19 +462,76 @@ void DrawWakeRibbons(const std::vector<WakeBlob>& wake, float time) {
     }
 }
 
-void DrawMinimalOverlay() {
-    DrawRectangleRounded({18.0f, 16.0f, 360.0f, 54.0f}, 0.16f, 10, Fade(Color{8, 12, 20, 255}, 0.76f));
-    DrawText("Wind Tunnel Aero View", 34, 28, 26, Color{234, 239, 245, 255});
+void DrawForceArrow(Camera3D camera, Vector3 origin, Vector3 force, float scale,
+                    const char* label, Color color, Vector2 offset) {
+    if (Vector3Length(force) < 0.01f) return;
+    Vector3 end = Vector3Add(origin, Vector3Scale(force, scale));
+    Vector3 view = Vector3Subtract(camera.target, camera.position);
+    if (Vector3DotProduct(Vector3Subtract(origin, camera.position), view) <= 0 ||
+        Vector3DotProduct(Vector3Subtract(end, camera.position), view) <= 0) return;
+    Vector2 a = GetWorldToScreen(origin, camera), b = GetWorldToScreen(end, camera);
+    Vector2 direction = Vector2Normalize(Vector2Subtract(b, a));
+    if (Vector2Distance(a, b) < 3) return;
+    Vector2 side{-direction.y, direction.x};
+    DrawLineEx(a, b, 3.5f, color);
+    Vector2 base = Vector2Subtract(b, Vector2Scale(direction, 13));
+    DrawTriangle(b, Vector2Subtract(base, Vector2Scale(side, 6)), Vector2Add(base, Vector2Scale(side, 6)), color);
+    float x = b.x + offset.x, y = b.y + offset.y;
+    float width = studio::textWidth(label, 16) + 18;
+    studio::panel({x - 8, y - 5, width, 28}, Color{13, 22, 34, 235});
+    studio::text(label, x, y, 16, color);
+}
 
-    DrawRectangleRounded({18.0f, static_cast<float>(kScreenHeight - 54), 560.0f, 34.0f}, 0.16f, 10, Fade(Color{8, 12, 20, 255}, 0.72f));
-    DrawText("Mouse drag: orbit   Wheel: zoom   Left/Right: wind   Up/Down: body scale   [ ]: roofline   P: pause   R: reset", 30,
-             kScreenHeight - 45, 18, Color{189, 203, 221, 255});
+void DarkButton(Rectangle r, const char* label, bool selected, Color accent) {
+    DrawRectangleRounded(r, 0.18f, 8, selected ? Color{39, 60, 77, 255} : Color{22, 33, 48, 255});
+    DrawRectangleRoundedLinesEx(r, 0.18f, 8, 1, selected ? accent : Color{52, 67, 85, 255});
+    studio::text(label, r.x + 12, r.y + 11, 16, selected ? accent : kMuted);
+}
+
+void DrawOverlay(const TunnelState& state, const AeroLoads& loads, bool paused,
+                 bool forces, bool net, bool pressure, bool streams, float scale) {
+    studio::text("FLUID DYNAMICS / 01", 28, 24, 13, Color{105, 210, 233, 255});
+    studio::text("Aerodynamics", 27, 46, 34, kText);
+    studio::text("Wind tunnel  /  fixed test body", 29, 91, 17, kMuted);
+    float x = GetScreenWidth() - 320.0f;
+    studio::panel({x, 20, 296, float(GetScreenHeight() - 106)}, Color{13, 22, 34, 248});
+    studio::text("EXPERIMENT", x + 20, 40, 13, kMuted);
+    studio::text(paused ? "PAUSED" : "FLOW ACTIVE", x + 20, 65, 19, paused ? kDrag : kLift);
+    studio::text(TextFormat("%.1f", state.windSpeed), x + 20, 110, 44, kText);
+    studio::text("m/s   freestream", x + 20, 162, 16, kMuted);
+    studio::text(TextFormat("Dynamic pressure   %.0f Pa", loads.q), x + 20, 199, 16, kText);
+    studio::text(TextFormat("Body scale                 %.2fx", state.bodyScale), x + 20, 229, 16, kText);
+    studio::text(TextFormat("Roof adjustment         %+.2f", state.roofBias), x + 20, 259, 16, kText);
+    DrawLine(int(x+20), 297, int(x+276), 297, Color{43, 60, 78, 255});
+    studio::text("AERODYNAMIC LOADS", x + 20, 318, 13, kMuted);
+    studio::text(TextFormat("Drag                 %.1f N", loads.drag), x + 20, 351, 19, kDrag);
+    studio::text(TextFormat("Vertical             %+.1f N", loads.lift), x + 20, 387, 19, kLift);
+    studio::text(TextFormat("Resultant          %.1f N", std::hypot(loads.drag, loads.lift)), x + 20, 423, 19, kResultant);
+    studio::text(TextFormat("Cd %.2f   Cl %+.2f   A %.2f m^2", loads.cd, loads.cl, loads.area), x + 20, 460, 14, kMuted);
+    DarkButton({x+20, 500, 122, 40}, "F  Forces", forces, kDrag);
+    DarkButton({x+154, 500, 122, 40}, "N  Resultant", net, kResultant);
+    DarkButton({x+20, 550, 122, 40}, "C  Surface", pressure, kLift);
+    DarkButton({x+154, 550, 122, 40}, "T  Trails", streams, Color{105,210,233,255});
+    studio::text(TextFormat("Arrow scale: 1 m = %.0f N", 1.0f / scale), x + 20, 613, 16, kText);
+    studio::text("- / =  adjust vector scale", x + 20, 640, 14, kMuted);
+    studio::text("Coefficient-based force estimates", x + 20, 692, 14, kMuted);
+    studio::text("Illustrative flow; not a CFD solver", x + 20, 714, 14, kMuted);
+    studio::text("Mount balances aerodynamic load.", x + 20, 746, 14, kMuted);
+    studio::text("Arrows show forces on the body.", x + 20, 768, 14, kMuted);
+    studio::panel({24, float(GetScreenHeight()- 70), float(GetScreenWidth()-48), 48}, Color{13,22,34,245});
+    studio::fit("Drag: orbit   Wheel: zoom   Left / Right: wind   Up / Down: size   [ / ]: roof   P: pause   R: reset   1: side   2: perspective",
+                {40, float(GetScreenHeight()-55), float(GetScreenWidth()-80), 22}, 16, kMuted);
+    studio::text("SURFACE FLOW SPEED", 28, GetScreenHeight()-145, 12, kMuted);
+    for (int i=0; i<180; ++i) DrawRectangle(28+i, GetScreenHeight()-118, 1, 7, AeroSurfaceColor(i/179.0f));
+    studio::text("slower",28,GetScreenHeight()-104,12,kDrag);
+    studio::text("faster",171,GetScreenHeight()-104,12,Color{105,220,255,255});
 }
 
 }  // namespace
 
 int main() {
-    InitWindow(kScreenWidth, kScreenHeight, "Aerodynamics Wind Tunnel View");
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(kScreenWidth, kScreenHeight, "Aerodynamics | Wind Tunnel Lab");
     SetTargetFPS(60);
 
     Camera3D camera{};
@@ -440,21 +541,32 @@ int main() {
     camera.fovy = 42.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
-    float camYaw = 0.83f;
-    float camPitch = 0.24f;
+    float camYaw = 1.32f;
+    float camPitch = 0.30f;
     float camDistance = 16.8f;
 
     TunnelState state;
-    std::vector<FlowParticle> particles(480);
-    ResetParticles(&particles);
+    std::vector<FlowParticle> particles(320);
+    ResetParticles(&particles, state);
 
     std::vector<WakeBlob> wake;
     float wakeTimer = 0.0f;
     bool paused = false;
+    bool forces = true, net = false, pressure = true, streams = true;
+    float arrowScale = 0.008f;
+    float simulationTime = 0;
 
     while (!WindowShouldClose()) {
-        float dt = GetFrameTime();
-        float time = static_cast<float>(GetTime());
+        float dt = std::min(GetFrameTime(), 1.0f/30.0f);
+        float panelX = GetScreenWidth() - 320.0f;
+        if (IsKeyPressed(KEY_F) || studio::clicked({panelX+20,500,122,40})) forces = !forces;
+        if (IsKeyPressed(KEY_N) || studio::clicked({panelX+154,500,122,40})) net = !net;
+        if (IsKeyPressed(KEY_C) || studio::clicked({panelX+20,550,122,40})) pressure = !pressure;
+        if (IsKeyPressed(KEY_T) || studio::clicked({panelX+154,550,122,40})) streams = !streams;
+        if (IsKeyDown(KEY_MINUS)) arrowScale = std::max(0.001f, arrowScale * std::exp(-dt));
+        if (IsKeyDown(KEY_EQUAL)) arrowScale = std::min(0.02f, arrowScale * std::exp(dt));
+        if (IsKeyPressed(KEY_ONE)) { camYaw=1.5708f; camPitch=0.04f; camDistance=16.8f; }
+        if (IsKeyPressed(KEY_TWO)) { camYaw=1.32f; camPitch=0.30f; camDistance=16.8f; }
 
         if (IsKeyPressed(KEY_P)) paused = !paused;
         if (IsKeyPressed(KEY_R)) {
@@ -463,8 +575,9 @@ int main() {
             state.bodyScale = 1.0f;
             state.roofBias = 0.0f;
             wake.clear();
-            ResetParticles(&particles);
+            ResetParticles(&particles, state);
             wakeTimer = 0.0f;
+            simulationTime=0; arrowScale=0.008f;
         }
 
         if (IsKeyDown(KEY_LEFT)) state.windSpeed = std::max(6.0f, state.windSpeed - 14.0f * dt);
@@ -478,6 +591,7 @@ int main() {
         UpdateOrbitCamera(&camera, &camYaw, &camPitch, &camDistance);
 
         if (!paused) {
+            simulationTime += dt;
             wakeTimer += dt;
             if (wakeTimer >= 0.07f) {
                 SpawnWakeBlobs(&wake, state);
@@ -487,24 +601,41 @@ int main() {
             UpdateParticles(&particles, state, wake, dt);
         }
 
+        AeroLoads loads = EstimateLoads(state);
+        float time = simulationTime;
         BeginDrawing();
-        ClearBackground(Color{4, 8, 14, 255});
+        ClearBackground(Color{7, 13, 23, 255});
+        DrawRectangleGradientV(0,0,GetScreenWidth(),GetScreenHeight(),Color{19,32,49,255},Color{5,10,18,255});
         BeginMode3D(camera);
 
         DrawTunnel(time);
-        DrawGrid(28, 1.0f);
+        for (int i=-14;i<=14;++i) {
+            DrawLine3D({float(i),0.005f,-6},{float(i),0.005f,6},Color{44,62,79,150});
+            if (i>=-6 && i<=6) DrawLine3D({-14,0.005f,float(i)},{14,0.005f,float(i)},Color{44,62,79,150});
+        }
+        DrawCylinder({0,0.3f,0},0.1f,0.14f,0.6f,16,Color{67,84,101,255});
         DrawWindField(time);
-        DrawWakeRibbons(wake, time);
-        DrawBody(state, wake);
-        DrawParticles(particles, state, wake);
+        if (streams) DrawWakeRibbons(wake, time);
+        DrawBody(state, wake, pressure);
+        if (streams) DrawParticles(particles, state, wake);
 
         EndMode3D();
 
-        DrawMinimalOverlay();
-        DrawFPS(kScreenWidth - 96, 18);
+        BeginScissorMode(0, 125, GetScreenWidth()-340, GetScreenHeight()-280);
+        Vector3 origin{state.bodyCenter.x, SectionMidY(0, state), 0};
+        if (forces) {
+            DrawForceArrow(camera, origin, {loads.drag,0,0}, arrowScale, TextFormat("Drag  %.0f N",loads.drag), kDrag, {12,4});
+            DrawForceArrow(camera, origin, {0,loads.lift,0}, arrowScale, TextFormat("Vertical  %+.0f N",loads.lift), kLift, {12,-24});
+        }
+        if (net) DrawForceArrow(camera, origin, {loads.drag,loads.lift,0}, arrowScale,
+                               TextFormat("Resultant  %.0f N",std::hypot(loads.drag,loads.lift)), kResultant, {12,-48});
+        EndScissorMode();
+        DrawOverlay(state, loads, paused, forces, net, pressure, streams, arrowScale);
         EndDrawing();
+        if (studio::smokeFrame(__FILE__)) break;
     }
 
+    studio::unload();
     CloseWindow();
     return 0;
 }

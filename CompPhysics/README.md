@@ -56,10 +56,10 @@ These are good first demos for a computational physics or simulation reviewer:
 | `shallow_water_sandbox_viz_cpp` | `fluids/shallow_water_sandbox_viz.cpp` | Interactive water lab | Conservative shallow-water solver, clickable experiments, free camera translation |
 | `quantum_tunneling_viz_cpp` | `quantum/quantum_tunneling_viz.cpp` | Evolving wavefunction | Crank-Nicolson scattering, phase curves, and probability diagnostics |
 | `damped_forced_oscillator_viz_cpp` | `mechanics/damped_forced_oscillator_viz.cpp` | Resonance experiment | Fixed-step dynamics, response curve, and displacement history |
-| `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Visualizes aerodynamic intuition and force behavior |
+| `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Shaded wind-tunnel body, airflow trails, and scaled aerodynamic force vectors |
 | `hohmann_transfer_viz_cpp` | `orbital_mechanics/hohmann_transfer_viz.cpp` | Add `media/hohmann-transfer.gif` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
 | `launch_window_porkchop_viz_cpp` | `orbital_mechanics/launch_window_porkchop_viz.cpp` | Add `media/launch-window-porkchop.png` | Visualizes departure/arrival trade space for mission planning |
-| `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Add `media/three-body-problem.gif` | Demonstrates nonlinear orbital dynamics |
+| `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Add `media/three-body-problem.gif` | Shaded bodies, motion arrows, pairwise gravity vectors, and directional orbit trails |
 | `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Add `media/lagrange-points.png` | Shows Lagrange-point intuition for mission design |
 | `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Add `media/magnetosphere-solar-wind.gif` | Connects space weather, charged particles, and planetary fields |
 | `earth_weather_globe_viz_cpp` | `meteorology/earth_weather_globe_viz.cpp` | Add `media/earth-weather-globe.png` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
@@ -129,6 +129,44 @@ cmake --build build-native
 ```
 
 If CMake cannot find raylib, install raylib with your platform package manager or point CMake at the raylib package configuration using `CMAKE_PREFIX_PATH`.
+
+## Aerodynamics Wind Tunnel Lab
+
+Run `./CompPhysics/run aerodynamics_viz` from the repository root.
+
+- Drag to orbit; wheel to zoom. `1` selects side view; `2` selects perspective.
+- Left/right changes wind speed; up/down changes body scale; `[` / `]` adjusts the roof.
+- `F` toggles drag and vertical aerodynamic force; `N` toggles their resultant.
+- `C` switches between surface flow-speed colors and shaded blue bodywork; `T` toggles trails and wake ribbons.
+- `-` / `=` adjusts the shared force-arrow scale. `P` pauses flow; `R` resets experiment parameters and particles.
+
+The fixed body experiences drag in the wind direction. Vertical aerodynamic force
+can change sign as the roof parameter changes. The dashboard uses an educational
+coefficient model: `q = 0.5 rho U²`, `D = q A Cd`, and `L = q A Cl`, with
+`rho = 1.225 kg/m³` and `A = 2.2 scale² m²`. Coefficients are illustrative,
+not measured or integrated from the flow field. The resultant combines these two
+aerodynamic loads; the mount balances them. Surface colors represent relative
+flow speed, not pressure. Particle motion is an illustrative flow field, not CFD.
+
+## Three-body Orbital Lab
+
+Run `./CompPhysics/run three_body_problem_viz` from the repository root.
+
+- Drag to orbit; wheel to zoom; `O` selects a near-top view.
+- `1` / `2` / `3` selects Lagrange Triangle, Braided Chaos, or Binary Capture.
+- `Tab` cycles the inspected body; the dashboard's A/B/C buttons also select it.
+- `V` toggles cyan velocity arrows for all bodies. `F` toggles dashed gold gravitational-force arrows for the inspected body. `A` toggles its purple net-acceleration arrow.
+- `T` toggles fading trails and direction arrowheads; `B` toggles the barycenter.
+- `[` / `]` changes arrow size; `-` / `+` changes simulation speed. `P` pauses; `R` resets the current preset.
+
+Arrows use the actual velocity and softened gravity model. The two pairwise forces
+sum to the selected body's mass times its net acceleration. Velocity, force, and
+acceleration have separate display scales, shown on the dashboard, in arbitrary
+simulation units. Their arrow lengths should only be compared within a vector type.
+Arrows longer than 4.5 scene units are capped and their labels receive an asterisk.
+Trail arrowheads follow the chronological direction of the recorded trajectory.
+The equal-mass triangle starts equilateral with the circular speed appropriate to
+the softened model; it is a symmetric orbit, not a claim of perturbation stability.
 
 ## Run Python Tests
 
