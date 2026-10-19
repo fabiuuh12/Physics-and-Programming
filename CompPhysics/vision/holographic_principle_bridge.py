@@ -8,7 +8,7 @@ Controls:
 - Left hand steers view rotation/pitch when available
 
 This writes the same `live_controls.txt` bridge format consumed by the
-C++ raylib app in `CompPhysics/gravity/holographic_principle_viz.cpp`.
+C++ raylib app in `CompPhysics/simulations/gravity/holographic_principle_viz.cpp`.
 """
 
 from __future__ import annotations

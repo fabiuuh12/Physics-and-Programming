@@ -13,7 +13,9 @@ python3 explore.py list optics
 python3 explore.py info projectile_drag_viz
 ```
 
-Use `python` on Windows. The [catalog](CATALOG.md) links directly to source files and separates programs from supporting modules. Supporting modules and headers are used by other programs; they are not standalone apps.
+Use `python` on Windows. Physics sources are under `CompPhysics/simulations/`; general utilities are under `CyberTools/`.
+
+The [catalog](CATALOG.md) links directly to source files and separates programs from supporting modules. Supporting modules and headers are used by other programs; they are not standalone apps.
 
 ## 2. Set up C++ demos
 

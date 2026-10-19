@@ -27,6 +27,8 @@ C++ programs are configured and built automatically through CMake before they ru
 | --- | --- |
 | Install dependencies and run my first demo | [Getting started](docs/GETTING_STARTED.md) |
 | Browse every demo, script, and supporting Python module | [Program catalog](docs/CATALOG.md) |
+| Browse physics subjects | [Simulation folders](CompPhysics/simulations/README.md) |
+| Browse security and file utilities | [CyberTools](CyberTools/README.md) |
 | Understand the folder structure | [Repository map](docs/STRUCTURE.md) |
 | Learn physics-demo controls and model assumptions | [Physics guide](CompPhysics/README.md) |
 | Understand the portfolio's scope | [Portfolio notes](CompPhysics/PORTFOLIO.md) |

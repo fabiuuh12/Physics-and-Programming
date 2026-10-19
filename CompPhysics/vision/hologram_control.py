@@ -41,7 +41,7 @@ WINDOW_NAME = "Hologram Control"
 MODULE_DIR = Path(__file__).resolve().parent
 MODEL_CANDIDATES: Tuple[Path, ...] = (
     MODULE_DIR / "models" / "hand_landmarker.task",
-    MODULE_DIR.parent / "DefensiveSys" / "models" / "hand_landmarker.task",
+    MODULE_DIR.parent / "simulations" / "defensive_systems" / "models" / "hand_landmarker.task",
 )
 MODEL_PATH = next((p for p in MODEL_CANDIDATES if p.exists()), MODEL_CANDIDATES[0])
 CAPTURE_W = 1280

@@ -25,12 +25,12 @@ class Entry:
 
     @property
     def name(self):
-        return self.path.relative_to(PROJECT).as_posix()
+        return self.path.relative_to(PROJECT if self.path.is_relative_to(PROJECT) else ROOT).as_posix()
 
     @property
     def category(self):
-        parts = self.path.relative_to(PROJECT).parts
-        return '/'.join(parts[:2]) if parts[0] == 'CyberTools' else parts[0] if len(parts) > 1 else 'general'
+        parts = Path(self.name).parts
+        return '/'.join(parts[:2]) if parts[0] in {'CyberTools', 'simulations'} else parts[0] if len(parts) > 1 else 'general'
 
     @property
     def title(self):
@@ -42,8 +42,8 @@ def catalog():
     cmake = (PROJECT / 'CMakeLists.txt').read_text()
     for target, source in re.findall(r'add_executable\(\s*(\S+)\s+"([^"]+)"\s*\)', cmake):
         entries.append(Entry(PROJECT / source, 'C++ demo', target))
-    for path in PROJECT.rglob('*.py'):
-        parts = path.relative_to(PROJECT).parts
+    for path in [*PROJECT.rglob('*.py'), *(ROOT / 'CyberTools').rglob('*.py')]:
+        parts = path.relative_to(ROOT).parts
         if any(p.startswith(('.', 'build')) or p in {'third_party', '__pycache__', 'tests'} for p in parts):
             continue
         with warnings.catch_warnings():
@@ -61,7 +61,7 @@ def catalog():
 
 def select(entries, query):
     normalized = query.replace('\\', '/').removeprefix('./').removeprefix('CompPhysics/')
-    exact = [e for e in entries if normalized in {e.name, e.path.name, e.path.stem, e.target, e.target.removesuffix('_cpp') if e.target else ''}]
+    exact = [e for e in entries if normalized in {e.name, e.name.removeprefix('simulations/'), e.name.replace('simulations/defensive_systems/', 'DefensiveSys/'), e.path.name, e.path.stem, e.target, e.target.removesuffix('_cpp') if e.target else ''}]
     matches = exact or [e for e in entries if normalized.lower() in (e.name + ' ' + e.title).lower()]
     if len(matches) != 1:
         choices = '\n'.join('  ' + e.name for e in matches)
@@ -75,7 +75,7 @@ def display(entries):
 
 
 def describe(entry):
-    print(f'{entry.title}\nType: {entry.kind}\nTopic: {entry.category}\nSource: CompPhysics/{entry.name}')
+    print(f'{entry.title}\nType: {entry.kind}\nTopic: {entry.category}\nSource: {entry.path.relative_to(ROOT).as_posix()}')
     if entry.target:
         print(f'CMake target: {entry.target}\nRequires: CMake, a C++17 compiler, raylib, and a graphical desktop.')
     elif entry.kind == 'Python module':

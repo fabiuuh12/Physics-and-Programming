@@ -20,7 +20,7 @@ def main():
         lines.extend(['', f'## {group}', '', '| Source | Type |', '| --- | --- |'])
         for entry in entries:
             if entry.category == group:
-                link = quote('../CompPhysics/' + entry.name, safe='/')
+                link = quote('../' + entry.path.relative_to(ROOT).as_posix(), safe='/')
                 lines.append(f'| [{entry.path.name}]({link}) | {entry.kind} |')
     (ROOT / 'docs' / 'CATALOG.md').write_text('\n'.join(lines) + '\n')
 

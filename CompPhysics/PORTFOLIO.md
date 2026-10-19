@@ -19,12 +19,12 @@ This project is best presented as a scientific visualization and simulation port
 1. Start with `README.md` for scope, build steps, and recommended demos.
 2. Review `CMakeLists.txt` to see the C++ target inventory.
 3. Open one computational physics-focused source file:
-   - `mechanics/aerodynamics_viz.cpp`
-   - `gravity/three_body_problem_viz.cpp`
-   - `gravity/gravity_lagrange_viz.cpp`
-   - `waves/helical_wave_lab_viz.cpp`
-   - `electromagnetism/magnetosphere_solar_wind_viz.cpp`
-   - `plasma/tokamak_confinement_viz.cpp`
+   - `simulations/mechanics/aerodynamics_viz.cpp`
+   - `simulations/gravity/three_body_problem_viz.cpp`
+   - `simulations/gravity/gravity_lagrange_viz.cpp`
+   - `simulations/waves/helical_wave_lab_viz.cpp`
+   - `simulations/electromagnetism/magnetosphere_solar_wind_viz.cpp`
+   - `simulations/plasma/tokamak_confinement_viz.cpp`
 4. Run one built target from `build-native/` or rebuild it from source.
 5. Run `python3 -m pytest` to verify the Python numerical helper tests.
 

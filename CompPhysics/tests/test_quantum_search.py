@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from quantum_search import (
+from simulations.quantum.quantum_search import (
     classical_success_probs,
     grover_theta,
     optimal_grover_iterations,

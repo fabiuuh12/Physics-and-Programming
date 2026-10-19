@@ -27,24 +27,30 @@ physics context and controls for selected demos.
 
 ## Folder Map
 
+All subject-specific demos now live in [`simulations/`](simulations/README.md).
+[CyberTools](../CyberTools/README.md) is a separate collection at the repository root.
+Camera bridges and shared libraries remain in the support folders below.
+
 | Folder | Purpose |
 | --- | --- |
-| `astronomy/` | Stellar, galactic, exoplanet, pulsar, solar-wind, and mission visualizations |
-| `orbital_mechanics/` | Transfer orbits, launch windows, delta-v intuition, and mission-design trade spaces |
-| `gravity/` | Orbital mechanics, black holes, lensing, gravitational waves, and spacetime demos |
-| `mechanics/` | Classical mechanics, oscillators, drag, aerodynamics, and interactive hand labs |
-| `electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
-| `meteorology/` | Earth weather globe, atmospheric layers, wind, pressure, and storm-system visualizations |
-| `fluids/` | Shallow-water sandbox, channel flow, and vortex visualization |
-| `waves/` | Helical waves, interference, standing-wave structure, and propagation intuition |
-| `plasma/` | Tokamak confinement visualization |
-| `relativity/` | Time dilation, Doppler effects, and Penrose diagram visualization |
-| `quantum/` | Quantum visualization demos and Grover-search visualization |
-| `particle_physics/` | Higgs-field, accelerator, entanglement, and Feynman diagram demos |
-| `thermodynamics/` | Thermal laws, entropy, and pseudo-thermal camera demos |
-| `optics/` | Python optics scenes and hand-driven optical demonstrations |
+| `simulations/astronomy/` | Stellar, galactic, exoplanet, pulsar, solar-wind, and mission visualizations |
+| `simulations/orbital_mechanics/` | Transfer orbits, launch windows, delta-v intuition, and mission-design trade spaces |
+| `simulations/gravity/` | Orbital mechanics, black holes, lensing, gravitational waves, and spacetime demos |
+| `simulations/mechanics/` | Classical mechanics, oscillators, drag, aerodynamics, and interactive hand labs |
+| `simulations/electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
+| `simulations/meteorology/` | Earth weather globe, atmospheric layers, wind, pressure, and storm-system visualizations |
+| `simulations/fluids/` | Shallow-water sandbox, channel flow, and vortex visualization |
+| `simulations/waves/` | Helical waves, interference, standing-wave structure, and propagation intuition |
+| `simulations/plasma/` | Tokamak confinement visualization |
+| `simulations/relativity/` | Time dilation, Doppler effects, and Penrose diagram visualization |
+| `simulations/quantum/` | Quantum visualization demos and Grover-search visualization |
+| `simulations/particle_physics/` | Higgs-field, accelerator, entanglement, and Feynman diagram demos |
+| `simulations/thermodynamics/` | Thermal laws, entropy, and pseudo-thermal camera demos |
+| `optics/` | Shared Python optics scenes used by the vision runners |
 | `vision/` | Hand-tracking bridges and shared controls for interactive demos |
-| `mathematics/` | Equation animation tooling and supporting math documents |
+| `simulations/defensive_systems/` | Defensive simulation prototypes and their Python bridge |
+| `simulations/dimensions/` | Higher-dimensional geometry visualization |
+| `simulations/mathematics/` | Equation animation tooling and supporting math documents |
 | `tests/` | Python and C++ numerical regression checks, plus optional graphics checks |
 | `third_party/` | Vendored raylib headers/source used by local builds |
 
@@ -54,21 +60,21 @@ These are good first demos for a computational physics or simulation reviewer:
 
 | Target | Source | Preview | Why it is relevant |
 | --- | --- | --- | --- |
-| `engine_airflow_viz_cpp` | `fluids/engine_airflow_viz.cpp` | 3D engine airflow lab | Explore isolated turbo, twin-screw supercharger and cylinder cutaways |
-| `shallow_water_sandbox_viz_cpp` | `fluids/shallow_water_sandbox_viz.cpp` | Interactive water lab | Conservative shallow-water solver, clickable experiments, free camera translation |
-| `quantum_tunneling_viz_cpp` | `quantum/quantum_tunneling_viz.cpp` | Evolving wavefunction | Crank-Nicolson scattering, phase curves, and probability diagnostics |
-| `damped_forced_oscillator_viz_cpp` | `mechanics/damped_forced_oscillator_viz.cpp` | Resonance experiment | Fixed-step dynamics, response curve, and displacement history |
-| `aerodynamics_viz_cpp` | `mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Shaded wind-tunnel body, airflow trails, and scaled aerodynamic force vectors |
-| `hohmann_transfer_viz_cpp` | `orbital_mechanics/hohmann_transfer_viz.cpp` | Add `media/hohmann-transfer.gif` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
-| `launch_window_porkchop_viz_cpp` | `orbital_mechanics/launch_window_porkchop_viz.cpp` | Add `media/launch-window-porkchop.png` | Visualizes departure/arrival trade space for mission planning |
-| `three_body_problem_viz_cpp` | `gravity/three_body_problem_viz.cpp` | Add `media/three-body-problem.gif` | Shaded bodies, motion arrows, pairwise gravity vectors, and directional orbit trails |
-| `gravity_lagrange_viz_cpp` | `gravity/gravity_lagrange_viz.cpp` | Add `media/lagrange-points.png` | Shows Lagrange-point intuition for mission design |
-| `magnetosphere_solar_wind_viz_cpp` | `electromagnetism/magnetosphere_solar_wind_viz.cpp` | Add `media/magnetosphere-solar-wind.gif` | Connects space weather, charged particles, and planetary fields |
-| `earth_weather_globe_viz_cpp` | `meteorology/earth_weather_globe_viz.cpp` | Add `media/earth-weather-globe.png` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
-| `helical_wave_lab_viz_cpp` | `waves/helical_wave_lab_viz.cpp` | Add `media/helical-wave-lab.gif` | Shows circular polarization, interference braids, standing helices, and plasma-like torsion |
-| `tokamak_confinement_viz_cpp` | `plasma/tokamak_confinement_viz.cpp` | Add `media/tokamak-confinement.gif` | Shows field-guided plasma confinement concepts |
-| `gravitational_lensing_playground_viz_cpp` | `gravity/gravitational_lensing_playground_viz.cpp` | Add `media/gravitational-lensing.gif` | Communicates spacetime curvature through interactive optics-like behavior |
-| `orbital_construction_hand_lab_viz_cpp` | `astronomy/orbital_construction_hand_lab_viz.cpp` | Add `media/orbital-hand-lab.gif` | Combines orbital visualization with live hand-control input |
+| `engine_airflow_viz_cpp` | `simulations/fluids/engine_airflow_viz.cpp` | 3D engine airflow lab | Explore isolated turbo, twin-screw supercharger and cylinder cutaways |
+| `shallow_water_sandbox_viz_cpp` | `simulations/fluids/shallow_water_sandbox_viz.cpp` | Interactive water lab | Conservative shallow-water solver, clickable experiments, free camera translation |
+| `quantum_tunneling_viz_cpp` | `simulations/quantum/quantum_tunneling_viz.cpp` | Evolving wavefunction | Crank-Nicolson scattering, phase curves, and probability diagnostics |
+| `damped_forced_oscillator_viz_cpp` | `simulations/mechanics/damped_forced_oscillator_viz.cpp` | Resonance experiment | Fixed-step dynamics, response curve, and displacement history |
+| `aerodynamics_viz_cpp` | `simulations/mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Shaded wind-tunnel body, airflow trails, and scaled aerodynamic force vectors |
+| `hohmann_transfer_viz_cpp` | `simulations/orbital_mechanics/hohmann_transfer_viz.cpp` | Add `media/hohmann-transfer.gif` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
+| `launch_window_porkchop_viz_cpp` | `simulations/orbital_mechanics/launch_window_porkchop_viz.cpp` | Add `media/launch-window-porkchop.png` | Visualizes departure/arrival trade space for mission planning |
+| `three_body_problem_viz_cpp` | `simulations/gravity/three_body_problem_viz.cpp` | Add `media/three-body-problem.gif` | Shaded bodies, motion arrows, pairwise gravity vectors, and directional orbit trails |
+| `gravity_lagrange_viz_cpp` | `simulations/gravity/gravity_lagrange_viz.cpp` | Add `media/lagrange-points.png` | Shows Lagrange-point intuition for mission design |
+| `magnetosphere_solar_wind_viz_cpp` | `simulations/electromagnetism/magnetosphere_solar_wind_viz.cpp` | Add `media/magnetosphere-solar-wind.gif` | Connects space weather, charged particles, and planetary fields |
+| `earth_weather_globe_viz_cpp` | `simulations/meteorology/earth_weather_globe_viz.cpp` | Add `media/earth-weather-globe.png` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
+| `helical_wave_lab_viz_cpp` | `simulations/waves/helical_wave_lab_viz.cpp` | Add `media/helical-wave-lab.gif` | Shows circular polarization, interference braids, standing helices, and plasma-like torsion |
+| `tokamak_confinement_viz_cpp` | `simulations/plasma/tokamak_confinement_viz.cpp` | Add `media/tokamak-confinement.gif` | Shows field-guided plasma confinement concepts |
+| `gravitational_lensing_playground_viz_cpp` | `simulations/gravity/gravitational_lensing_playground_viz.cpp` | Add `media/gravitational-lensing.gif` | Communicates spacetime curvature through interactive optics-like behavior |
+| `orbital_construction_hand_lab_viz_cpp` | `simulations/astronomy/orbital_construction_hand_lab_viz.cpp` | Add `media/orbital-hand-lab.gif` | Combines orbital visualization with live hand-control input |
 
 Store demo screenshots and GIFs in `media/` so the portfolio value is visible directly on GitHub.
 

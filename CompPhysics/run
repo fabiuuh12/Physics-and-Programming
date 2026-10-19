@@ -21,7 +21,7 @@ usage() {
         "" \
         "Examples:" \
         "  ./CompPhysics/run dual_black_white_hole_viz" \
-        "  ./CompPhysics/run gravity/dual_black_white_hole_viz.cpp" \
+        "  ./CompPhysics/run simulations/gravity/dual_black_white_hole_viz.cpp" \
         "  ./CompPhysics/run hydrogen_orbital_explorer_viz_cpp"
 }
 
@@ -146,7 +146,7 @@ while IFS='|' read -r target source; do
     filename="${source##*/}"
     stem="${filename%.cpp}"
     if [[ "$query" == "$target" || "$query" == "${target%_cpp}" || "$query" == "$source" ||
-          "$query" == "$filename" || "$query" == "$stem" ]]; then
+          "$query" == "${source#simulations/}" || "$query" == "$filename" || "$query" == "$stem" ]]; then
         match_count=$((match_count + 1))
         selected_target="$target"
         selected_source="$source"

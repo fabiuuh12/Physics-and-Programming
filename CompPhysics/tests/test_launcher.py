@@ -46,3 +46,21 @@ def test_cpp_dispatch_builds_selected_target_and_dry_run_is_inert(monkeypatch):
     module = launcher.select(launcher.catalog(), 'optics/hand_optics_scenes.py')
     with pytest.raises(ValueError, match='supporting module'):
         launcher.run_entry(module, [])
+
+
+def test_reorganized_sources_and_legacy_launcher_names():
+    entries = launcher.catalog()
+    demo = launcher.select(entries, 'gravity/three_body_problem_viz.cpp')
+    assert demo.path == ROOT / 'CompPhysics/simulations/gravity/three_body_problem_viz.cpp'
+    assert demo.category == 'simulations/gravity'
+    assert launcher.select(entries, 'simulations/gravity/three_body_problem_viz.cpp') == demo
+    defense = launcher.select(entries, 'DefensiveSys/hand_turret_sim.py')
+    assert defense.path.parent.name == 'defensive_systems'
+    tool = launcher.select(entries, 'CompPhysics/CyberTools/network/Certificate Expiry Checker.py')
+    assert tool.path == ROOT / 'CyberTools/network/Certificate Expiry Checker.py'
+    assert tool.category == 'CyberTools/network'
+    assert launcher.select(entries, 'quantum_search.py').path.parent == ROOT / 'CompPhysics/simulations/quantum'
+    # Every authored standalone C++ source remains registered after the moves.
+    expected = set((ROOT / 'CompPhysics/simulations').rglob('*.cpp'))
+    expected.update((ROOT / 'CompPhysics/vision').glob('*.cpp'))
+    assert {entry.path for entry in entries if entry.target} == expected
