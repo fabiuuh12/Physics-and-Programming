@@ -33,3 +33,7 @@ compile_commands.json
 # Local convenience binaries
 bin/
 apps/
+
+# All generated files belong here; keep the directory guide in Git.
+/output/*
+!/output/README.md

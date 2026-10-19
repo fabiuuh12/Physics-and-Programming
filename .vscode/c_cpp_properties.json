@@ -3,7 +3,7 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/AstroPhysics/third_party/raylib/include",
+                "${workspaceFolder}/CompPhysics/vendor/raylib/include",
                 "${workspaceFolder}/**"
             ],
             "defines": [],

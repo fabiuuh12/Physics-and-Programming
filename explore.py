@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import os
 from dataclasses import dataclass
 from pathlib import Path
 import re
@@ -14,7 +15,8 @@ import warnings
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT / 'CompPhysics'
-BUILD = PROJECT / 'build-launcher'
+SOURCE = PROJECT / 'src'
+BUILD = PROJECT / 'output' / 'build'
 
 
 @dataclass(frozen=True)
@@ -25,12 +27,12 @@ class Entry:
 
     @property
     def name(self):
-        return self.path.relative_to(PROJECT if self.path.is_relative_to(PROJECT) else ROOT).as_posix()
+        return self.path.relative_to(SOURCE).as_posix()
 
     @property
     def category(self):
         parts = Path(self.name).parts
-        return '/'.join(parts[:2]) if parts[0] in {'CyberTools', 'simulations'} else parts[0] if len(parts) > 1 else 'general'
+        return '/'.join(parts[:2]) if parts[0] in {'cybertools', 'simulations'} else parts[0] if len(parts) > 1 else 'general'
 
     @property
     def title(self):
@@ -42,7 +44,7 @@ def catalog():
     cmake = (PROJECT / 'CMakeLists.txt').read_text()
     for target, source in re.findall(r'add_executable\(\s*(\S+)\s+"([^"]+)"\s*\)', cmake):
         entries.append(Entry(PROJECT / source, 'C++ demo', target))
-    for path in [*PROJECT.rglob('*.py'), *(ROOT / 'CyberTools').rglob('*.py')]:
+    for path in SOURCE.rglob('*.py'):
         parts = path.relative_to(ROOT).parts
         if any(p.startswith(('.', 'build')) or p in {'third_party', '__pycache__', 'tests'} for p in parts):
             continue
@@ -60,7 +62,8 @@ def catalog():
 
 
 def select(entries, query):
-    normalized = query.replace('\\', '/').removeprefix('./').removeprefix('CompPhysics/')
+    normalized = query.replace('\\', '/').removeprefix('./').removeprefix('CompPhysics/').removeprefix('src/')
+    normalized = normalized.replace('CyberTools/', 'cybertools/')
     exact = [e for e in entries if normalized in {e.name, e.name.removeprefix('simulations/'), e.name.replace('simulations/defensive_systems/', 'DefensiveSys/'), e.path.name, e.path.stem, e.target, e.target.removesuffix('_cpp') if e.target else ''}]
     matches = exact or [e for e in entries if normalized.lower() in (e.name + ' ' + e.title).lower()]
     if len(matches) != 1:
@@ -100,14 +103,18 @@ def run_entry(entry, args, dry_run=False):
     for command in commands:
         print('+ ' + subprocess.list2cmdline(command), flush=True)
         if not dry_run:
-            subprocess.run(command, cwd=ROOT, check=True)
+            cache = PROJECT / 'output' / 'cache'
+            (cache / 'matplotlib').mkdir(parents=True, exist_ok=True)
+            env = dict(os.environ, COMPPHYSICS_ROOT=str(PROJECT),
+                       PYTHONPYCACHEPREFIX=str(cache / 'python'), MPLCONFIGDIR=str(cache / 'matplotlib'))
+            subprocess.run(command, cwd=ROOT, check=True, env=env)
 
 
 def doctor():
     print(f'Python: {sys.version.split()[0]} ({sys.executable})')
     for name in ('cmake', 'clang++', 'g++', 'cl'):
         print(f'{name}: {shutil.which(name) or "not found"}')
-    print('\nC++ demos need CMake, one C++17 compiler, raylib and a desktop.\nPython packages: install CompPhysics/requirements.txt in a virtual environment.\nSee docs/GETTING_STARTED.md for setup and troubleshooting.\nThis check reports available commands; it does not verify raylib or camera access.')
+    print('\nC++ demos need CMake, one C++17 compiler, raylib and a desktop.\nPython packages: install CompPhysics/config/requirements.txt in a virtual environment.\nSee CompPhysics/docs/GETTING_STARTED.md for setup and troubleshooting.\nThis check reports available commands; it does not verify raylib or camera access.')
 
 
 def main(argv=None):
@@ -151,7 +158,7 @@ def main(argv=None):
             run_entry(entry, [])
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f'Error: {error}', file=sys.stderr)
-        print('Setup help: docs/GETTING_STARTED.md', file=sys.stderr)
+        print('Setup help: CompPhysics/docs/GETTING_STARTED.md', file=sys.stderr)
         return 1
     return 0
 

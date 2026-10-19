@@ -19,10 +19,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install test dependencies
-        run: python -m pip install -r CompPhysics/requirements-dev.txt
+        run: python -m pip install -r CompPhysics/config/requirements-dev.txt
 
       - name: Run tests
-        run: PYTHONPATH=CompPhysics python -m pytest CompPhysics/tests -q
+        run: python CompPhysics/scripts/check.py -q
 
   macos-cmake:
     name: macOS CMake build
@@ -36,7 +36,7 @@ jobs:
         run: brew install raylib
 
       - name: Configure CMake
-        run: cmake -S CompPhysics -B CompPhysics/build-ci -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S CompPhysics -B CompPhysics/output/build-ci -DCMAKE_BUILD_TYPE=Release
 
       - name: Build representative target
-        run: cmake --build CompPhysics/build-ci --config Release --target aerodynamics_viz_cpp
+        run: cmake --build CompPhysics/output/build-ci --config Release --target aerodynamics_viz_cpp

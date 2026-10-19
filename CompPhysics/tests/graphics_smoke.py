@@ -1,7 +1,7 @@
 """Opt-in graphics checks for the refreshed C++ demos (requires a desktop).
 
-Build first with ./CompPhysics/run --build-all, then run this script.
-Hidden windows execute real draw loops and export PNG previews into /tmp.
+Build first with ./CompPhysics/scripts/run --build-all, then run this script.
+Hidden windows execute real draw loops and export PNG previews into output/reports.
 """
 import argparse
 import json
@@ -18,15 +18,17 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     rows = re.findall(r'add_executable\((\S+) "([^"]+)"\)', (root / "CMakeLists.txt").read_text())
+    report_dir = root / "output" / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
     results = []
     for target, source in rows:
         source_path = root / source
         uses_studio = any(header in source_path.read_text() for header in ('common/studio.h', 'common/cosmic_studio.h'))
         if args.filter not in target or not uses_studio:
             continue
-        executable = root / "build-native" / target
+        executable = root / "output" / "native" / target
         is_water = source_path.stem == "shallow_water_sandbox_viz"
-        preview = Path("/tmp/shallow_water_sandbox.png") if is_water else Path("/tmp") / f"{source_path.stem}_preview.png"
+        preview = (report_dir / "shallow_water_sandbox.png") if is_water else report_dir / f"{source_path.stem}_preview.png"
         if preview.exists():
             preview.unlink()
         command = [str(executable)] + (["--smoke-test"] if is_water else [])
@@ -37,11 +39,11 @@ def main():
             output = run.stdout + run.stderr
         except subprocess.TimeoutExpired:
             ok, output = False, "Graphics process timed out"
-        log = Path("/tmp") / f"{source_path.stem}_graphics.log"
+        log = report_dir / f"{source_path.stem}_graphics.log"
         log.write_text(output)
         results.append({"target": target, "passed": ok, "preview": str(preview), "log": str(log)})
         print(f"{'PASS' if ok else 'FAIL'} {target}", flush=True)
-    report = Path("/tmp/compphysics-graphics-results.json")
+    report = report_dir / "compphysics-graphics-results.json"
     report.write_text(json.dumps(results, indent=2))
     print(f"{sum(row['passed'] for row in results)}/{len(results)} passed; {report}")
     return 0 if results and all(row["passed"] for row in results) else 1

@@ -1,0 +1,4 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/CompPhysics",
+    "cmake.buildDirectory": "${workspaceFolder}/CompPhysics/output/build"
+}

@@ -1,146 +1,43 @@
-# Computational Physics Simulation Portfolio
+# Physics and Programming Collection
 
-This folder is a portfolio of interactive computational physics simulations covering orbital mechanics, gravitational fields, electromagnetic fields, fluids, waves, plasma behavior, optics, thermodynamics, and numerical/visual intuition for quantum systems.
-
-The strongest presentation value is in the C++/raylib visual simulations. They show comfort with compiled systems, real-time rendering loops, vector math, physical models, camera controls, and clear interactive UI overlays.
-
-## Highlights
-
-Start with the [getting-started guide](../docs/GETTING_STARTED.md) for setup and the
-[program catalog](../docs/CATALOG.md) to browse every demo. The shared launcher
-`python3 explore.py` runs from the repository root. This page provides additional
-physics context and controls for selected demos.
-
-- **Orbital and gravitational dynamics:** two-body orbits, three-body motion, Lagrange points, gravitational lensing, microlensing, spacetime visualizations, black hole accretion, and gravitational wave interferometer intuition.
-- **Field and continuum physics:** magnetospheres, solar wind, Maxwell waves, Poynting vector energy flow, plasma confinement, and fluid vortex/channel flow.
-- **Mechanics and controls intuition:** projectile drag, aerodynamics, angular momentum, harmonic oscillators, chaotic pendulums, and hand-tracked interactive labs.
-- **Scientific communication:** each visualization is designed to make an abstract model inspectable through motion, geometry, labels, and live controls.
-- **Build discipline:** CMake-based C++ targets, isolated Python demos, vendored third-party dependencies, and a pytest suite covering Grover-search math and rendering-independent C++ models.
-
-## Technical Stack
-
-- C++17
-- CMake 3.20+
-- raylib for real-time 2D/3D visualization
-- Python 3 for hand-tracking bridges, optics demos, math utilities, and tests
-- pytest and NumPy for Python-side numerical checks
-
-## Folder Map
-
-All subject-specific demos now live in [`simulations/`](simulations/README.md).
-[CyberTools](../CyberTools/README.md) is a separate collection at the repository root.
-Camera bridges and shared libraries remain in the support folders below.
+Physics simulations, camera experiments, mathematics tools, and CyberTools all live together here. The folder layout separates project code, reusable resources, dependencies, configuration, documentation and generated outputs.
 
 | Folder | Purpose |
 | --- | --- |
-| `simulations/astronomy/` | Stellar, galactic, exoplanet, pulsar, solar-wind, and mission visualizations |
-| `simulations/orbital_mechanics/` | Transfer orbits, launch windows, delta-v intuition, and mission-design trade spaces |
-| `simulations/gravity/` | Orbital mechanics, black holes, lensing, gravitational waves, and spacetime demos |
-| `simulations/mechanics/` | Classical mechanics, oscillators, drag, aerodynamics, and interactive hand labs |
-| `simulations/electromagnetism/` | Electric fields, Maxwell waves, magnetospheres, and EM energy flow |
-| `simulations/meteorology/` | Earth weather globe, atmospheric layers, wind, pressure, and storm-system visualizations |
-| `simulations/fluids/` | Shallow-water sandbox, channel flow, and vortex visualization |
-| `simulations/waves/` | Helical waves, interference, standing-wave structure, and propagation intuition |
-| `simulations/plasma/` | Tokamak confinement visualization |
-| `simulations/relativity/` | Time dilation, Doppler effects, and Penrose diagram visualization |
-| `simulations/quantum/` | Quantum visualization demos and Grover-search visualization |
-| `simulations/particle_physics/` | Higgs-field, accelerator, entanglement, and Feynman diagram demos |
-| `simulations/thermodynamics/` | Thermal laws, entropy, and pseudo-thermal camera demos |
-| `optics/` | Shared Python optics scenes used by the vision runners |
-| `vision/` | Hand-tracking bridges and shared controls for interactive demos |
-| `simulations/defensive_systems/` | Defensive simulation prototypes and their Python bridge |
-| `simulations/dimensions/` | Higher-dimensional geometry visualization |
-| `simulations/mathematics/` | Equation animation tooling and supporting math documents |
-| `tests/` | Python and C++ numerical regression checks, plus optional graphics checks |
-| `third_party/` | Vendored raylib headers/source used by local builds |
+| [src](src/README.md) | All project-authored code: simulations, CyberTools, vision, optics and shared helpers |
+| [resources](resources/README.md) | Bundled fonts, camera models and curated demo media |
+| [config](config/README.md) | Python dependency lists |
+| [scripts](scripts/README.md) | Build/run launchers and catalog maintenance |
+| [docs](docs/STRUCTURE.md) | Setup guides, folder map, portfolio notes and reference documents |
+| [tests](tests/) | Numerical regression and optional graphics checks |
+| [vendor](vendor/) | External raylib sources and headers |
+| [output](output/README.md) | Builds, binaries, shortcuts, caches, runtime data and reports |
 
-## Recommended Demos
-
-These are good first demos for a computational physics or simulation reviewer:
-
-| Target | Source | Preview | Why it is relevant |
-| --- | --- | --- | --- |
-| `engine_airflow_viz_cpp` | `simulations/fluids/engine_airflow_viz.cpp` | 3D engine airflow lab | Explore isolated turbo, twin-screw supercharger and cylinder cutaways |
-| `shallow_water_sandbox_viz_cpp` | `simulations/fluids/shallow_water_sandbox_viz.cpp` | Interactive water lab | Conservative shallow-water solver, clickable experiments, free camera translation |
-| `quantum_tunneling_viz_cpp` | `simulations/quantum/quantum_tunneling_viz.cpp` | Evolving wavefunction | Crank-Nicolson scattering, phase curves, and probability diagnostics |
-| `damped_forced_oscillator_viz_cpp` | `simulations/mechanics/damped_forced_oscillator_viz.cpp` | Resonance experiment | Fixed-step dynamics, response curve, and displacement history |
-| `aerodynamics_viz_cpp` | `simulations/mechanics/aerodynamics_viz.cpp` | Add `media/aerodynamics.gif` | Shaded wind-tunnel body, airflow trails, and scaled aerodynamic force vectors |
-| `hohmann_transfer_viz_cpp` | `simulations/orbital_mechanics/hohmann_transfer_viz.cpp` | Add `media/hohmann-transfer.gif` | Shows transfer-orbit geometry, phase angle, and delta-v budget |
-| `launch_window_porkchop_viz_cpp` | `simulations/orbital_mechanics/launch_window_porkchop_viz.cpp` | Add `media/launch-window-porkchop.png` | Visualizes departure/arrival trade space for mission planning |
-| `three_body_problem_viz_cpp` | `simulations/gravity/three_body_problem_viz.cpp` | Add `media/three-body-problem.gif` | Shaded bodies, motion arrows, pairwise gravity vectors, and directional orbit trails |
-| `gravity_lagrange_viz_cpp` | `simulations/gravity/gravity_lagrange_viz.cpp` | Add `media/lagrange-points.png` | Shows Lagrange-point intuition for mission design |
-| `magnetosphere_solar_wind_viz_cpp` | `simulations/electromagnetism/magnetosphere_solar_wind_viz.cpp` | Add `media/magnetosphere-solar-wind.gif` | Connects space weather, charged particles, and planetary fields |
-| `earth_weather_globe_viz_cpp` | `simulations/meteorology/earth_weather_globe_viz.cpp` | Add `media/earth-weather-globe.png` | Shows meteorology-style Earth layers with pressure, temperature, winds, clouds, and storms |
-| `helical_wave_lab_viz_cpp` | `simulations/waves/helical_wave_lab_viz.cpp` | Add `media/helical-wave-lab.gif` | Shows circular polarization, interference braids, standing helices, and plasma-like torsion |
-| `tokamak_confinement_viz_cpp` | `simulations/plasma/tokamak_confinement_viz.cpp` | Add `media/tokamak-confinement.gif` | Shows field-guided plasma confinement concepts |
-| `gravitational_lensing_playground_viz_cpp` | `simulations/gravity/gravitational_lensing_playground_viz.cpp` | Add `media/gravitational-lensing.gif` | Communicates spacetime curvature through interactive optics-like behavior |
-| `orbital_construction_hand_lab_viz_cpp` | `simulations/astronomy/orbital_construction_hand_lab_viz.cpp` | Add `media/orbital-hand-lab.gif` | Combines orbital visualization with live hand-control input |
-
-Store demo screenshots and GIFs in `media/` so the portfolio value is visible directly on GitHub.
-
-## macOS Setup
+From the repository root:
 
 ```bash
-brew install cmake raylib python
-python3 -m pip install -r requirements.txt -r requirements-dev.txt
+python3 explore.py
+python3 explore.py list cybertools
+python3 explore.py run three_body_problem_viz
 ```
 
-## Build C++ Visualizations
+Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program catalog](docs/CATALOG.md) for every file, and the [folder map](docs/STRUCTURE.md) for the complete structure.
 
-### Quick launcher (macOS/Linux)
+## Good first physics demos
 
-From the repository root, the project launcher finds a visualization, rebuilds it only when its source or raylib changes, and then runs it:
+| Demo | Explore |
+| --- | --- |
+| `projectile_drag_viz` | Compare trajectories with and without drag |
+| `damped_forced_oscillator_viz` | Damping, forcing and resonance |
+| `three_body_problem_viz` | Orbits and gravitational forces |
+| `quantum_tunneling_viz` | Wavepacket evolution and scattering |
+| `hohmann_transfer_viz` | Transfer geometry and orbital maneuvers |
 
-```bash
-./CompPhysics/run dual_black_white_hole_viz
-./CompPhysics/run hydrogen_orbital_explorer_viz
-./CompPhysics/run shallow_water_sandbox_viz
-```
-
-Useful launcher commands:
-
-```bash
-./CompPhysics/run --list
-./CompPhysics/run --rebuild dual_black_white_hole_viz
-./CompPhysics/run --build-all
-```
-
-For normal shell tab completion, generate filesystem-backed launch names once:
-
-```bash
-./CompPhysics/run --install-launchers
-./CompPhysics/apps/dual<TAB>
-```
-
-These launch names use ordinary path completion and retain the launcher's automatic rebuild behavior.
-
-Compiled programs stay in `CompPhysics/build-native/`; source folders remain free of generated binaries.
-
-The launcher builds with `-O2` and also rebuilds when shared headers or its own
-build recipe change. Refreshed demos load the bundled, OFL-licensed Inter font;
-no font download is needed at runtime.
-
-### CMake
-
-From this folder:
-
-```bash
-cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
-cmake --build build-native --target aerodynamics_viz_cpp
-./build-native/aerodynamics_viz_cpp
-```
-
-Build all configured C++ targets:
-
-```bash
-cmake --build build-native
-```
-
-If CMake cannot find raylib, install raylib with your platform package manager or point CMake at the raylib package configuration using `CMAKE_PREFIX_PATH`.
+These are educational models. Their assumptions and visual scales vary by program. Selected demos are documented below; other demos show controls in their windows or source files.
 
 ## Aerodynamics Wind Tunnel Lab
 
-Run `./CompPhysics/run aerodynamics_viz` from the repository root.
+Run `./CompPhysics/scripts/run aerodynamics_viz` from the repository root.
 
 - Drag to orbit; wheel to zoom. `1` selects side view; `2` selects perspective.
 - Left/right changes wind speed; up/down changes body scale; `[` / `]` adjusts the roof.
@@ -158,7 +55,7 @@ flow speed, not pressure. Particle motion is an illustrative flow field, not CFD
 
 ## Three-body Orbital Lab
 
-Run `./CompPhysics/run three_body_problem_viz` from the repository root.
+Run `./CompPhysics/scripts/run three_body_problem_viz` from the repository root.
 
 - Drag to orbit; wheel to zoom; `O` selects a near-top view.
 - `1` / `2` / `3` selects Lagrange Triangle, Braided Chaos, or Binary Capture.
@@ -181,8 +78,8 @@ the softened model; it is a symmetric orbit, not a claim of perturbation stabili
 Launch either refreshed scene from the repository root:
 
 ```bash
-./CompPhysics/run quasar_core_viz
-./CompPhysics/run wormhole_gateway_viz
+./CompPhysics/scripts/run quasar_core_viz
+./CompPhysics/scripts/run wormhole_gateway_viz
 ```
 
 Both scenes have a dedicated viewport, clickable display controls, particle trails,
@@ -206,18 +103,3 @@ readouts. The default view shows both mouths and the throat.
 Arrows are capped at 2.6 scene units for readability. These are illustrative
 animations in arbitrary scene units: the quasar does not solve GR or MHD, and
 the wormhole is conceptual geometry, not a physical spacetime solution.
-
-## Run Python Tests
-
-From this folder:
-
-```bash
-python3 -m pip install -r requirements-dev.txt
-python3 -m pytest
-```
-
-## Notes For Reviewers
-
-- Files under `build/`, `build-native/`, `build-cmake/`, and `bin/` are local generated outputs or convenience binaries, not the primary source of truth.
-- The primary code to review is in the domain folders listed above and in `CMakeLists.txt`.
-- Some interactive demos use webcam/hand-tracking bridges; they can be reviewed independently from the C++ visualizations.

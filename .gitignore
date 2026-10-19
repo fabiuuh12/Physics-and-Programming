@@ -12,7 +12,6 @@ venv/
 
 # C/C++ and CMake build outputs
 build/
-CompPhysics/build*/
 build-vcpkg/
 build-vcpkg-*/
 cmake-build-*/
@@ -57,5 +56,3 @@ CMakeUserPresets.json
 # Local secrets/env
 .env
 .env.*
-
-# Docs-only touch commit to replace old folder commit message.

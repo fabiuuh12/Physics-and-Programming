@@ -1,5 +1,6 @@
-#include "../common/physics_models.h"
-#include "../common/quantum_solver.h"
+#include "../src/common/physics_models.h"
+#include "../src/common/project_paths.h"
+#include "../src/common/quantum_solver.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -7,6 +8,7 @@ void require(bool condition,const char* message) {
     if (!condition) { std::fprintf(stderr,"FAIL: %s\n",message); std::exit(1); }
 }
 int main() {
+    require(std::filesystem::exists(project_paths::root()/"resources/fonts/Inter-Regular.ttf"),"shared resource root resolves the bundled font");
     physics::Flight vacuum{0,0,12,10};
     auto flight=vacuum;
     for (int i=0;i<240;++i) flight=physics::projectileStep(flight,0,1.0/240);
