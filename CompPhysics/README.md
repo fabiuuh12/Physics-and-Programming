@@ -6,14 +6,16 @@ The strongest presentation value is in the C++/raylib visual simulations. They s
 
 ## Highlights
 
-See [Upgrade notes](UPGRADE_NOTES.md) for the simulation refresh, numerical
-improvements, controls, validation commands, and per-demo change inventory.
+Start with the [getting-started guide](../docs/GETTING_STARTED.md) for setup and the
+[program catalog](../docs/CATALOG.md) to browse every demo. The shared launcher
+`python3 explore.py` runs from the repository root. This page provides additional
+physics context and controls for selected demos.
 
 - **Orbital and gravitational dynamics:** two-body orbits, three-body motion, Lagrange points, gravitational lensing, microlensing, spacetime visualizations, black hole accretion, and gravitational wave interferometer intuition.
 - **Field and continuum physics:** magnetospheres, solar wind, Maxwell waves, Poynting vector energy flow, plasma confinement, and fluid vortex/channel flow.
 - **Mechanics and controls intuition:** projectile drag, aerodynamics, angular momentum, harmonic oscillators, chaotic pendulums, and hand-tracked interactive labs.
 - **Scientific communication:** each visualization is designed to make an abstract model inspectable through motion, geometry, labels, and live controls.
-- **Build discipline:** CMake-based C++ targets, isolated Python demos, vendored third-party dependencies, and a focused pytest suite for the Grover-search math helper.
+- **Build discipline:** CMake-based C++ targets, isolated Python demos, vendored third-party dependencies, and a pytest suite covering Grover-search math and rendering-independent C++ models.
 
 ## Technical Stack
 
@@ -43,7 +45,7 @@ improvements, controls, validation commands, and per-demo change inventory.
 | `optics/` | Python optics scenes and hand-driven optical demonstrations |
 | `vision/` | Hand-tracking bridges and shared controls for interactive demos |
 | `mathematics/` | Equation animation tooling and supporting math documents |
-| `tests/` | Python tests for numerical helper functions |
+| `tests/` | Python and C++ numerical regression checks, plus optional graphics checks |
 | `third_party/` | Vendored raylib headers/source used by local builds |
 
 ## Recommended Demos

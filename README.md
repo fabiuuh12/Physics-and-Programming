@@ -1,168 +1,53 @@
-# Physics-and-Programming
+# Physics and Programming
 
-Mixed repository of computational physics simulations and practical cybersecurity tooling.
+Interactive physics demonstrations in C++ and Python, plus a collection of Python security and file utilities. The physics demos are educational explorations; their assumptions and visual scales vary by program.
 
-## Current Repo Snapshot
+## Start here
 
-- `CompPhysics/`: C++ Raylib visualizers plus Python vision/interaction bridges.
-- `CompPhysics/CyberTools/`: standalone Python security and analysis scripts.
-- C++ visualizers: many standalone `.cpp` simulation programs in `CompPhysics/` (plus vendored third-party sources).
-- CyberTools scripts: 24 Python utilities across auth/network/forensics/web/file/integrity/osint.
+From this folder, open the numbered program menu:
 
-## Repository Layout
+```bash
+python3 explore.py
+```
 
-- `CompPhysics/astronomy`, `gravity`, `mechanics`, `quantum`, `nuclear`, `particle_physics`, `relativity`, `thermodynamics`, `electromagnetism`, `fluids`, `waves`, `dimensions`
-- `CompPhysics/vision`
-- `CompPhysics/DefensiveSys`
-- `CompPhysics/mathematics`
-- `CompPhysics/tests`
-- `CompPhysics/mathematics/docs`
-- `CompPhysics/third_party` (vendored Raylib source/headers)
-- `CompPhysics/CyberTools/auth`, `file_ops`, `forensics`, `integrity_hashing`, `network`, `osint`, `web`
+On Windows, use `python` instead of `python3`. The launcher itself needs only Python 3.10+. Running a program may require additional setup: see the [getting-started guide](docs/GETTING_STARTED.md).
 
-## CompPhysics (C++ and Vision)
+```bash
+python3 explore.py list gravity
+python3 explore.py info three_body_problem_viz
+python3 explore.py run three_body_problem_viz
+python3 explore.py doctor
+```
 
-- Build system: `CompPhysics/CMakeLists.txt`
-- Model: one executable target per simulation `.cpp`
-- Example C++ targets:
-- `solar_system_spacetime_viz_cpp`
-- `quantum_search_cpp`
-- `gravitational_lensing_viz_cpp`
-- `defensive_sys_3d_cpp`
-- `vision_two_hands_scene_cpp`
+C++ programs are configured and built automatically through CMake before they run. Python scripts use the same Python environment as the launcher. Program arguments go after the program name.
 
-Vision and bridge scripts in `CompPhysics/vision`:
+## Find your way
 
-- `hand_planet_overlay.py` (hand-tracked atom/neutron/star/blackhole interaction scene)
-- `floating_hand_avatar.py`
-- `hologram_control.py` (webcam multi-hologram controller with fist cycling plus one-hand/two-hand gestures)
-- `webcam_finger_tracker.py`
-- `two_hand_bridge.py` (UDP hand bridge)
-- `two_hands_scene.cpp` (C++ visual scene receiver)
+| I want to… | Go here |
+| --- | --- |
+| Install dependencies and run my first demo | [Getting started](docs/GETTING_STARTED.md) |
+| Browse every demo, script, and supporting Python module | [Program catalog](docs/CATALOG.md) |
+| Understand the folder structure | [Repository map](docs/STRUCTURE.md) |
+| Learn physics-demo controls and model assumptions | [Physics guide](CompPhysics/README.md) |
+| Understand the portfolio's scope | [Portfolio notes](CompPhysics/PORTFOLIO.md) |
 
-Defensive simulation bridge:
+## Try these first
 
-- `CompPhysics/DefensiveSys/hand_turret_sim.py`
-- `CompPhysics/DefensiveSys/defensive_sys_3d.cpp`
-
-## Featured Demos
-
-| Demo | Topic | Target |
+| Demo | What to explore | Run |
 | --- | --- | --- |
-| Aerodynamics | Mechanics and fluid intuition | `aerodynamics_viz_cpp` |
-| Hohmann Transfer | Orbital mechanics | `hohmann_transfer_viz_cpp` |
-| Launch Window Porkchop | Mission design trade space | `launch_window_porkchop_viz_cpp` |
-| Three Body Problem | Nonlinear orbital dynamics | `three_body_problem_viz_cpp` |
-| Gravitational Lensing Playground | Relativity and optics intuition | `gravitational_lensing_playground_viz_cpp` |
-| Helical Wave Laboratory | Waves, interference, and polarization | `helical_wave_lab_viz_cpp` |
-| Tokamak Confinement | Plasma physics | `tokamak_confinement_viz_cpp` |
+| Projectile drag | Compare trajectories with and without air resistance | `python3 explore.py run projectile_drag_viz` |
+| Forced oscillator | Damping, driving and resonance | `python3 explore.py run damped_forced_oscillator_viz` |
+| Three-body problem | Orbital motion and gravitational forces | `python3 explore.py run three_body_problem_viz` |
+| Quantum tunneling | Wavepacket evolution and scattering | `python3 explore.py run quantum_tunneling_viz` |
+| Hohmann transfer | Transfer geometry and orbital maneuvers | `python3 explore.py run hohmann_transfer_viz` |
 
-Add screenshots or GIFs under `media/` when capturing demos locally, then link them from this table.
+Each graphical demo displays its own controls. Webcam and hand-controlled programs may require a companion bridge; check their topic documentation before starting.
 
-## CyberTools
-
-Python security utilities grouped by domain:
-
-- `auth`: password/JWT/logon helpers
-- `network`: DNS/subdomain/port/certificate checks
-- `web`: URL heuristics, headers audit, local HTTP server
-- `forensics`: IOC extraction, log/IP summaries, suspicious name checks
-- `file_ops`: bulk rename, duplicate finder, JSON->CSV, extension audit
-- `integrity_hashing`: inventory/check/decode helpers
-- `osint`: consolidated OSINT helper script
-
-## Prerequisites
-
-- CMake 3.20+
-- C++17 compiler (MSVC, clang, or gcc)
-- Raylib available to CMake (`find_package(raylib CONFIG REQUIRED)`)
-- Python 3.10+
-
-macOS setup:
+## Check the numerical models
 
 ```bash
-brew install cmake raylib python
-python3 -m pip install -r CompPhysics/requirements.txt -r CompPhysics/requirements-dev.txt
+python3 -m pip install -r CompPhysics/requirements-dev.txt
+python3 -m pytest CompPhysics/tests -q
 ```
 
-Python packages used across the repo:
-
-- `numpy`
-- `opencv-python`
-- `mediapipe`
-- `pytest`
-- `requests`
-
-Install Python deps:
-
-```bash
-python3 -m pip install -r CompPhysics/requirements.txt -r CompPhysics/requirements-dev.txt
-```
-
-## Build C++ Programs
-
-From repo root:
-
-```bash
-cd CompPhysics
-cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
-cmake --build build-native --config Release
-```
-
-macOS quick demo:
-
-```bash
-cd CompPhysics
-cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
-cmake --build build-native --target aerodynamics_viz_cpp
-./build-native/aerodynamics_viz_cpp
-```
-
-Build one target:
-
-```bash
-cmake --build build-native --config Release --target solar_system_spacetime_viz_cpp
-```
-
-Run (macOS/Linux example):
-
-```bash
-./CompPhysics/build-native/solar_system_spacetime_viz_cpp
-```
-
-Run (Windows example):
-
-```powershell
-.\CompPhysics\build-native\Release\solar_system_spacetime_viz_cpp.exe
-```
-
-## Run Python Programs
-
-Examples from repo root:
-
-```bash
-python3 CompPhysics/vision/hand_planet_overlay.py
-python3 CompPhysics/vision/floating_hand_avatar.py
-python3 CompPhysics/vision/hologram_control.py
-python3 CompPhysics/vision/two_hand_bridge.py
-python3 CompPhysics/DefensiveSys/hand_turret_sim.py
-python3 "CompPhysics/CyberTools/network/Certificate Expiry Checker.py" --host example.com
-```
-
-## Tests
-
-Current automated tests:
-
-- `CompPhysics/tests/test_quantum_search.py`
-
-Run:
-
-```bash
-PYTHONPATH=CompPhysics pytest CompPhysics/tests -q
-```
-
-## Notes
-
-- Many C++ programs open real-time interactive windows.
-- Some script filenames include spaces/apostrophes; quote paths in shell commands.
-- `CompPhysics/build*` and `__pycache__` directories are generated artifacts.
+The suite covers Python quantum-search calculations and rendering-independent C++ numerical checks. The C++ checks require a C++17 compiler and skip when none is available. These checks do not validate every visualization.

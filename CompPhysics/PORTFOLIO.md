@@ -29,8 +29,8 @@ This project is best presented as a scientific visualization and simulation port
 5. Run `python3 -m pytest` to verify the Python numerical helper tests.
 
 The tests also compile and execute the rendering-independent C++ model checks
-when a C++17 compiler is available. See [UPGRADE_NOTES.md](UPGRADE_NOTES.md) for
-the refreshed demos and graphics validation workflow.
+when a C++17 compiler is available. See the [getting-started guide](../docs/GETTING_STARTED.md) for setup and
+validation commands.
 
 ## Best Talking Points
 
@@ -43,6 +43,6 @@ the refreshed demos and graphics validation workflow.
 
 - Add screenshots or short videos for the recommended demos.
 - Add one-page technical notes for the highest-value computational physics simulations.
-- Convert repeated CMake target declarations into a smaller helper function.
-- Expand tests beyond Grover-search math into orbital and field-model invariants.
-- Add CI for formatting, CMake configuration, and Python tests.
+- Simplify repeated CMake declarations while preserving launcher discovery.
+- Extend existing numerical tests with orbital and field-model invariants.
+- Extend existing CI with formatting and broader C++ target coverage.
