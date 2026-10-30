@@ -33,7 +33,20 @@ at the bottom to adjust strength; it holds while the lens is locked. The bottom
 status shows when the lens is following, locked, paused, or using mouse control.
 The smaller camera preview can be hidden with `I`.
 
+The window opens at a size that fits the usable display, reserving room for the
+macOS title bar and screen edges. On macOS its aspect ratio is maintained during
+resizing to avoid an empty strip beside the scene. Press `F` to fit it again
+after moving displays or resizing. Buttons, text, and sliders are drawn at the
+display's pixel density (2× on Retina) while the camera/lens simulation stays at
+its original resolution. Mouse coordinates are mapped back to the same logical
+layout, including when the window is resized.
+
+Use `--ui-scale 1`, `--ui-scale 2`, or `--ui-scale 3` to override the UI density.
+The display size is read locally; this needs no screen-recording permission.
+
 Click **Controls** at the top right, or press `?`, for the shortcut panel.
+Click **Physics** or press `E` to show equations and live inputs/outputs. The two
+panels share the same space and can be closed with their × button or Esc.
 Click its close button or press **Esc** to dismiss it. The scene has no permanent
 FPS counter or numerical dashboard. Text uses the bundled Inter typeface.
 
@@ -42,8 +55,10 @@ FPS counter or numerical dashboard. Text uses the bundled Inter typeface.
 | Input | Action |
 | --- | --- |
 | Controls button / `?` | Show or hide shortcut panel |
+| Physics button / `E` | Equations and live model inputs/outputs |
 | Camera / Space buttons | Switch background |
 | Lens size slider | Adjust lens strength while unlocked |
+| `F` | Fit window to usable screen area |
 | Right thumb/index midpoint | Lens position |
 | Right thumb/index separation, normalized by palm width | Lens strength |
 | Left thumb/index pinch | Lock lens position and size |
@@ -96,6 +111,29 @@ is a display effect, not a calculation of stellar luminosity or illumination of
 surrounding matter. Camera mode keeps the original source colors and has no
 added bloom. Left-hand locking still holds only the lens, so you can move the
 star independently while the lens is locked.
+
+### Live physics panel
+
+**Physics** shows the vector lens equation `beta = theta - R² theta / |theta|²`,
+where `R` is the Einstein radius. Distances are simulation pixels; the mass
+readout is relative to the default 115 px lens, not a measured astronomical mass.
+
+In space mode, inputs are `R`, relative mass `(R/115)²`, and the star's source
+offset `|beta|`. Outputs update every frame as the lens or star moves:
+
+- Signed image offsets along the source/lens axis: `theta± = (beta ± sqrt(beta² + 4R²))/2`.
+- Ideal point-source magnification: `mu = (u²+2)/(u sqrt(u²+4))`, with `u = |beta|/R`.
+
+At exact alignment, the panel reports an Einstein ring and unbounded **ideal
+point-source** gain. The rendered star has finite size, an optional occulting
+mask, clipping at the camera boundary, and display bloom; this ideal gain is not
+measured from the displayed brightness.
+
+In camera mode, move the pointer over the scene while Physics is open. A
+crosshair selects an image-plane sample. The panel reports its offset, the
+mapped source coordinate and deflection using the same formula as the renderer.
+The singular central point is explicitly marked. `--show-physics` opens this
+panel at startup; the normal view remains uncluttered.
 
 ### Model and visual meaning
 

@@ -75,7 +75,7 @@ def test_full_render_includes_unwarped_inset_and_ui():
     assert result.shape == (648, 960, 3)
     # Sample the inset away from its border and label.
     import cv2
-    expected = cv2.resize(frame, (190, 107))
+    expected = cv2.resize(frame, (190, 107), interpolation=cv2.INTER_CUBIC)
     np.testing.assert_array_equal(result[56+413+12:56+413+35, 32:55], expected[12:35, 12:35])
 
 
@@ -207,3 +207,105 @@ def test_lensed_star_bloom_brightens_ring_surroundings_without_filling_black_cen
     assert glowing.astype(float).sum() > lensed.astype(float).sum()
     assert glowing[120, 160].max() < 5
     np.testing.assert_array_equal(lensed, before)
+
+
+@pytest.mark.parametrize('width,height', [(1710, 1074), (1366, 720), (800, 600), (1920, 1080)])
+def test_window_fits_usable_display_including_title_bar(width, height):
+    from vision.lensing_camera import DisplayArea, fitted_size
+    w, h = fitted_size(960, 648, DisplayArea(width, height, scale=2))
+    assert w+64 <= width and h+80 <= height
+    assert w/h == pytest.approx(960/648, abs=0.003)
+
+
+def test_retina_ui_is_rasterized_at_double_density():
+    from vision.lensing_camera import ui_layout
+    import cv2
+    frame = synthetic_scene(960, 540, 0)
+    control = LensControl(np.array([480., 270.]))
+    lens = PointLens(960, 540).apply(frame, control.center, control.radius)
+    low = compose(frame, lens, control, False, True, False, 0)
+    high = compose(frame, lens, control, False, True, False, 0, render_scale=2)
+    assert high.shape == (1296, 1920, 3)
+    # UI is drawn with larger glyphs/shapes, not an enlargement of low-res UI.
+    assert not np.array_equal(high[:112], cv2.resize(low[:56], (1920, 112), interpolation=cv2.INTER_CUBIC))
+    assert ui_layout(960, 540)['camera'] == (392, 12, 478, 44)
+
+
+def test_retina_clicks_reach_tabs_slider_and_viewport(monkeypatch):
+    from vision import lensing_camera as app
+    import cv2
+    callback = None
+    captures, fitted, events = [], [], []
+    step = 0
+    original_compose = app.compose
+
+    def compose_capture(*args, **kwargs):
+        captures.append((args[2].center.copy(), args[2].radius, args[7], args[8], kwargs.get('physics_open', False)))
+        return original_compose(*args, **kwargs)
+
+    def install(window, cb):
+        nonlocal callback
+        callback = cb
+
+    def click(x, y):
+        # HighGUI callbacks use framebuffer pixels, including on resized windows.
+        callback(cv2.EVENT_LBUTTONDOWN, x*2, y*2, 0, None)
+        callback(cv2.EVENT_LBUTTONUP, x*2, y*2, 0, None)
+
+    def wait(delay):
+        nonlocal step
+        actions = [lambda: click(430, 28), lambda: click(520, 28),
+                   lambda: click(930, 623), lambda: click(885, 28),
+                   lambda: click(918, 90), lambda: click(640, 296),
+                   lambda: click(770, 28), lambda: click(885, 28)]
+        if step == len(actions):
+            return ord('q')
+        actions[step]()
+        step += 1
+        return -1
+
+    monkeypatch.setattr(app, 'display_area', lambda: app.DisplayArea(1710, 1074, 2))
+    monkeypatch.setattr(app, 'fit_window', lambda w, h, screen: fitted.append((w, h, len(events))))
+    monkeypatch.setattr(app, 'compose', compose_capture)
+    monkeypatch.setattr(cv2, 'namedWindow', lambda *args: None)
+    monkeypatch.setattr(cv2, 'setMouseCallback', install)
+    monkeypatch.setattr(cv2, 'imshow', lambda *args: events.append('image'))
+    monkeypatch.setattr(cv2, 'waitKey', wait)
+    monkeypatch.setattr(cv2, 'getWindowProperty', lambda *args: 1)
+    monkeypatch.setattr(cv2, 'destroyAllWindows', lambda: None)
+    assert app.main(['--demo', '--background', 'space']) == 0
+    assert fitted == [(960, 648, 1)]  # Fit AFTER first imshow, in logical units.
+    assert captures[1][2] == 'camera' and captures[2][2] == 'space'
+    assert captures[3][1] > 220
+    assert captures[4][3] is True and captures[5][3] is False
+    np.testing.assert_array_equal(captures[6][0], [640, 240])
+    assert captures[7][4] is True
+    assert captures[8][3] is True and captures[8][4] is False
+
+
+def test_live_physics_values_match_analytic_images_and_magnification():
+    from vision.lensing_camera import lens_values
+    center = np.array([100., 100.])
+    values = lens_values(center, 20, source=np.array([130., 100.]))
+    assert values['beta'] == pytest.approx(30)
+    assert values['outer'] == pytest.approx(40)
+    assert values['inner'] == pytest.approx(-10)
+    assert values['gain'] == pytest.approx(17/15)
+    stronger = lens_values(center, 40, source=np.array([130., 100.]))
+    assert stronger['outer']-stronger['inner'] > values['outer']-values['inner']
+    assert stronger['gain'] > values['gain']
+    assert stronger['mass_ratio'] == pytest.approx(4*values['mass_ratio'])
+    aligned = lens_values(center, 40, source=center)
+    assert aligned['gain'] is None
+    assert aligned['outer'] == 40 and aligned['inner'] == -40
+
+
+def test_live_camera_probe_matches_the_actual_remap():
+    from vision.lensing_camera import lens_values
+    center, probe = np.array([100., 100.]), np.array([140., 100.])
+    values = lens_values(center, 20, probe=probe)
+    mx, my, _ = PointLens(201, 201).maps(center, 20)
+    np.testing.assert_allclose(values['sample'], [mx[100, 140], my[100, 140]])
+    assert values['theta'] == 40 and values['beta'] == 30 and values['deflection'] == 10
+    singular = lens_values(center, 20, probe=center)
+    assert singular['sample'] is singular['deflection'] is None

@@ -13,11 +13,17 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import lru_cache, partial
+import json
 import math
 import os
 from pathlib import Path
+import subprocess
+import sys
 import time
+
+# Keep dynamically imported camera helpers from creating caches beside source.
+sys.dont_write_bytecode = True
 
 import cv2
 import numpy as np
@@ -271,6 +277,85 @@ def star_bloom(image):
 
 
 
+@dataclass(frozen=True)
+class DisplayArea:
+    width: int = 1280
+    height: int = 800
+    scale: int = 1
+    x: int = 0
+
+
+def display_area():
+    """Read the usable desktop in logical points, separately from Retina pixels."""
+    if sys.platform == "darwin":
+        script = ('ObjC.import("AppKit"); var s = $.NSScreen.mainScreen; '
+                  'var f = s.visibleFrame; JSON.stringify({x:f.origin.x, '
+                  'width:f.size.width,height:f.size.height,scale:s.backingScaleFactor});')
+        try:
+            result = subprocess.run(["osascript", "-l", "JavaScript", "-e", script],
+                                    capture_output=True, text=True, timeout=4, check=True)
+            data = json.loads(result.stdout)
+            return DisplayArea(int(data["width"]), int(data["height"]),
+                               int(np.clip(round(data["scale"]), 1, 3)), int(data["x"]))
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+            return DisplayArea(scale=2)
+    try:
+        import tkinter
+        root = tkinter.Tk()
+        root.withdraw()
+        area = DisplayArea(root.winfo_screenwidth(), root.winfo_screenheight())
+        root.destroy()
+        return area
+    except Exception:
+        return DisplayArea()
+
+
+def fitted_size(width, height, screen, preferred_width=960):
+    """Reserve room for the title bar and screen edges; preserve image aspect."""
+    factor = min(preferred_width/width, max(1, screen.width-64)/width,
+                 max(1, screen.height-80)/height)
+    return max(1, round(width*factor)), max(1, round(height*factor))
+
+
+def constrain_macos_window(width, height, screen):
+    """Set public NSWindow resize constraints on this process's OpenCV window."""
+    if sys.platform != "darwin":
+        return
+    try:
+        import ctypes
+
+        class Size(ctypes.Structure):
+            _fields_ = [("width", ctypes.c_double), ("height", ctypes.c_double)]
+
+        objc = ctypes.CDLL("/usr/lib/libobjc.A.dylib")
+        objc.objc_getClass.argtypes = [ctypes.c_char_p]
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.sel_registerName.argtypes = [ctypes.c_char_p]
+        objc.sel_registerName.restype = ctypes.c_void_p
+        send = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(
+            ("objc_msgSend", objc))
+        send_size = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, Size)(
+            ("objc_msgSend", objc))
+        app = send(objc.objc_getClass(b"NSApplication"), objc.sel_registerName(b"sharedApplication"))
+        window = send(app, objc.sel_registerName(b"keyWindow"))
+        if window:
+            send_size(window, objc.sel_registerName(b"setContentAspectRatio:"), Size(width, height))
+            max_width, max_height = fitted_size(width, height, screen, screen.width)
+            send_size(window, objc.sel_registerName(b"setContentMaxSize:"), Size(max_width, max_height))
+    except (OSError, AttributeError, TypeError):
+        pass
+
+
+def fit_window(width, height, screen):
+    w, h = fitted_size(width, height, screen)
+    cv2.resizeWindow(WINDOW, w, h)
+    # Cocoa's moveWindow uses an offset from the top of the usable display.
+    cv2.moveWindow(WINDOW, screen.x+max(16, (screen.width-w)//2),
+                   max(16, (screen.height-h-28)//2))
+    constrain_macos_window(width, height, screen)
+    print(f"Window: {w}x{h} points; usable display: {screen.width}x{screen.height}; display scale: {screen.scale}x")
+
+
 @lru_cache(maxsize=256)
 def text_mask(message, size):
     font = ImageFont.truetype(str(FONT_PATH), size)
@@ -280,10 +365,10 @@ def text_mask(message, size):
     return np.asarray(mask, dtype=np.float32)[..., None]/255
 
 
-def ui_text(image, message, xy, size=14, color=(225, 226, 230)):
+def ui_text(image, message, xy, size=14, color=(225, 226, 230), scale=1):
     """Cached Inter glyph masks; xy is the top-left, not a text baseline."""
-    alpha = text_mask(message, size)
-    x, y = xy
+    alpha = text_mask(message, round(size*scale))
+    x, y = (round(value*scale) for value in xy)
     h, w = alpha.shape[:2]
     x0, y0 = max(0, x), max(0, y)
     x1, y1 = min(image.shape[1], x+w), min(image.shape[0], y+h)
@@ -294,8 +379,9 @@ def ui_text(image, message, xy, size=14, color=(225, 226, 230)):
     roi[:] = roi*(1-alpha)+np.asarray(color)*alpha
 
 
-def rounded_rect(image, box, fill, radius=8):
-    x0, y0, x1, y1 = box
+def rounded_rect(image, box, fill, radius=8, scale=1):
+    x0, y0, x1, y1 = (round(value*scale) for value in box)
+    radius = round(radius*scale)
     cv2.rectangle(image, (x0+radius, y0), (x1-radius, y1), fill, -1)
     cv2.rectangle(image, (x0, y0+radius), (x1, y1-radius), fill, -1)
     for x in (x0+radius, x1-radius):
@@ -309,6 +395,7 @@ def ui_layout(width, height):
         "camera": (middle-88, 12, middle-2, 44),
         "space": (middle+2, 12, middle+88, 44),
         "controls": (width-126, 12, width-18, 44),
+        "physics": (width-230, 12, width-138, 44),
         "slider": (width-196, HEADER_H+height+18, width-28, HEADER_H+height+38),
         "help": (width-378, HEADER_H+14, width-18, HEADER_H+min(height-14, 504)),
         "close": (width-54, HEADER_H+24, width-28, HEADER_H+50),
@@ -319,12 +406,14 @@ def inside(box, x, y):
     return box[0] <= x <= box[2] and box[1] <= y <= box[3]
 
 
-def draw_controls(canvas, box):
+def draw_controls(canvas, box, scale=1):
+    label = partial(ui_text, scale=scale)
+    panel = partial(rounded_rect, scale=scale)
     x0, y0, x1, y1 = box
-    rounded_rect(canvas, box, (35, 33, 31), 12)
-    ui_text(canvas, "Controls", (x0+20, y0+17), 18)
-    ui_text(canvas, "×", (x1-33, y0+15), 21, (165, 167, 173))
-    ui_text(canvas, "HANDS", (x0+20, y0+56), 10, (132, 135, 142))
+    panel(canvas, box, (35, 33, 31), 12)
+    label(canvas, "Controls", (x0+20, y0+17), 18)
+    label(canvas, "×", (x1-33, y0+15), 21, (165, 167, 173))
+    label(canvas, "HANDS", (x0+20, y0+56), 10, (132, 135, 142))
     rows = [
         ("Right hand", "Move and resize"),
         ("Left pinch", "Hold the lens"),
@@ -332,10 +421,10 @@ def draw_controls(canvas, box):
     ]
     y = y0+79
     for key, action in rows:
-        ui_text(canvas, key, (x0+20, y), 13, (188, 191, 197))
-        ui_text(canvas, action, (x0+164, y), 13)
+        label(canvas, key, (x0+20, y), 13, (188, 191, 197))
+        label(canvas, action, (x0+164, y), 13)
         y += 25
-    ui_text(canvas, "MOUSE & KEYBOARD", (x0+20, y+11), 10, (132, 135, 142))
+    label(canvas, "MOUSE & KEYBOARD", (x0+20, y+11), 10, (132, 135, 142))
     y += 36
     rows = [
         ("Drag", "Move lens"), ("Right-drag", "Move star in space"),
@@ -343,53 +432,130 @@ def draw_controls(canvas, box):
         ("Space", "Pause camera"), ("L", "Hold / release lens"),
         ("H", "Hand / mouse control"), ("I", "Camera preview"),
         ("G / B / T", "Guide / mask / star"), ("R", "Reset lens"),
-        ("Q", "Quit"),
+        ("E", "Physics panel"), ("F", "Fit window to screen"), ("Q", "Quit"),
     ]
     for key, action in rows:
         if y+17 > y1-14:
             break
-        ui_text(canvas, key, (x0+20, y), 12, (156, 160, 167))
-        ui_text(canvas, action, (x0+164, y), 13)
-        y += 24
+        label(canvas, key, (x0+20, y), 12, (156, 160, 167))
+        label(canvas, action, (x0+164, y), 13)
+        y += 22
+
+
+
+def lens_values(center, radius, source=None, probe=None):
+    """Analytic readouts in simulation pixels, before display bloom/masking."""
+    values = {"radius": radius, "mass_ratio": (radius/115)**2}
+    if source is not None:
+        offset = np.asarray(source, dtype=float)-center
+        beta = float(np.linalg.norm(offset))
+        root = math.hypot(beta, 2*radius)
+        u = beta/radius
+        values.update(beta=beta, outer=(beta+root)/2, inner=(beta-root)/2,
+                      gain=None if beta < 1e-8 else (u*u+2)/(u*math.hypot(u, 2)))
+    else:
+        theta = np.asarray(probe, dtype=float)-center
+        r2 = float(theta@theta)
+        values["theta"] = math.sqrt(r2)
+        if r2 < 0.01:
+            values.update(beta=None, deflection=None, sample=None)
+        else:
+            beta = theta-radius*radius*theta/r2
+            values.update(beta=float(np.linalg.norm(beta)),
+                          deflection=radius*radius/math.sqrt(r2), sample=beta+center)
+    return values
+
+
+def draw_physics(canvas, box, control, source, probe, scale=1):
+    label = partial(ui_text, scale=scale)
+    panel = partial(rounded_rect, scale=scale)
+    x0, y0, x1, y1 = box
+    panel(canvas, box, (35, 33, 31), 12)
+    label(canvas, "Physics", (x0+20, y0+17), 18)
+    label(canvas, "×", (x1-33, y0+15), 21, (165, 167, 173))
+    label(canvas, "Point-mass lens · live values", (x0+20, y0+53), 12, (152, 158, 168))
+    label(canvas, "β = θ − (R² / |θ|²) θ", (x0+20, y0+82), 19)
+    label(canvas, "θ: image position    β: source position", (x0+20, y0+112), 11, (145, 151, 161))
+    values = lens_values(control.center, control.radius, source, probe)
+
+    def row(name, value, y):
+        label(canvas, name, (x0+20, y0+y), 12, (157, 163, 174))
+        label(canvas, value, (x0+184, y0+y), 13)
+
+    label(canvas, "INPUTS", (x0+20, y0+149), 10, (132, 135, 142))
+    row("Einstein radius R", f"{values['radius']:.1f} px", 172)
+    row("Relative mass", f"{values['mass_ratio']:.2f}×", 197)
+    if source is not None:
+        row("Source offset |β|", f"{values['beta']:.1f} px", 222)
+        label(canvas, "θ± = (β ± sqrt(β² + 4R²)) / 2", (x0+20, y0+261), 14)
+        label(canvas, "OUTPUTS", (x0+20, y0+300), 10, (132, 135, 142))
+        aligned = values['beta'] < 1e-8
+        row("Outer image θ+", "Einstein ring" if aligned else f"{values['outer']:+.1f} px", 323)
+        row("Ring radius" if aligned else "Inner image θ−",
+            f"{values['radius']:.1f} px" if aligned else f"{values['inner']:+.1f} px", 348)
+        row("Point-source gain", "Unbounded (ideal)" if values['gain'] is None else f"{values['gain']:.3f}×", 373)
+        label(canvas, "μ = (u² + 2) / [u sqrt(u² + 4)]", (x0+20, y0+409), 14)
+        label(canvas, "u = |β| / R · distances from the lens", (x0+20, y0+435), 11, (145, 151, 161))
+        label(canvas, "Ideal point source; displayed star has a finite size.", (x0+20, y0+458), 10, (132, 139, 149))
+    else:
+        row("Probe offset |θ|", f"{values['theta']:.1f} px", 222)
+        label(canvas, "OUTPUTS", (x0+20, y0+270), 10, (132, 135, 142))
+        row("Source offset |β|", "Singular center" if values['beta'] is None else f"{values['beta']:.1f} px", 295)
+        row("Deflection", "—" if values['deflection'] is None else f"{values['deflection']:.1f} px", 320)
+        sample = values['sample']
+        row("Source sample x, y", "—" if sample is None else f"{sample[0]:.0f}, {sample[1]:.0f} px", 345)
+        label(canvas, "Move the pointer over the scene to probe a ray.", (x0+20, y0+397), 11, (145, 151, 161))
+        label(canvas, "The crosshair is an image pixel; the equation", (x0+20, y0+425), 11, (132, 139, 149))
+        label(canvas, "gives its sample in the original camera image.", (x0+20, y0+444), 11, (132, 139, 149))
+    return values
 
 
 def compose(frame, lensed, control, guide, inset, frozen, now,
-            background="camera", help_open=False):
+            background="camera", help_open=False, render_scale=1,
+            physics_open=False, star_position=None, probe_position=None):
     h, w = frame.shape[:2]
-    view = lensed.copy()
-    center = tuple(np.rint(control.center).astype(int))
+    scale = render_scale
+    label = partial(ui_text, scale=scale)
+    panel = partial(rounded_rect, scale=scale)
+    point = lambda xy: tuple(round(float(value)*scale) for value in xy)
+    view = cv2.resize(lensed, (w*scale, h*scale), interpolation=cv2.INTER_CUBIC) if scale != 1 else lensed.copy()
+    center = point(control.center)
+    if probe_position is None:
+        probe_position = np.array([w*0.75, h*0.5])
     if guide:
-        cv2.circle(view, center, round(control.radius), (120, 127, 136), 1, cv2.LINE_AA)
+        cv2.circle(view, center, round(control.radius*scale), (120, 127, 136), scale, cv2.LINE_AA)
     if control.hand_enabled and control.points is not None and now-control.last_hand < 0.35:
         for p in control.points:
-            cv2.circle(view, tuple(np.rint(p).astype(int)), 3, (210, 217, 220), -1, cv2.LINE_AA)
+            cv2.circle(view, point(p), 3*scale, (210, 217, 220), -1, cv2.LINE_AA)
     if inset:
         iw = min(190, w//5)
         ih = round(h*iw/w)
-        original = cv2.resize(frame, (iw, ih))
+        original = cv2.resize(frame, (iw*scale, ih*scale), interpolation=cv2.INTER_CUBIC)
         x, y = 20, h-ih-20
         # Rounded, quiet camera preview with a small label over a dark strip.
-        mask = np.zeros((ih, iw, 3), np.uint8)
-        rounded_rect(mask, (0, 0, iw-1, ih-1), (255, 255, 255), 8)
+        mask = np.zeros((ih*scale, iw*scale, 3), np.uint8)
+        panel(mask, (0, 0, iw-1, ih-1), (255, 255, 255), 8)
         alpha = mask.astype(np.float32)/255
-        roi = view[y:y+ih, x:x+iw]
+        roi = view[y*scale:(y+ih)*scale, x*scale:(x+iw)*scale]
         roi[:] = roi*(1-alpha)+original*alpha
-        roi[ih-25:ih-3, 5:iw-5] = (roi[ih-25:ih-3, 5:iw-5]*0.5).astype(np.uint8)
-        ui_text(view, "Camera" if background == "space" else "Original", (x+10, y+ih-23), 11)
-    header = np.full((HEADER_H, w, 3), (23, 22, 21), np.uint8)
-    footer = np.full((FOOTER_H, w, 3), (23, 22, 21), np.uint8)
-    ui_text(header, "Lensing", (20, 16), 21)
+        roi[(ih-25)*scale:(ih-3)*scale, 5*scale:(iw-5)*scale] = (roi[(ih-25)*scale:(ih-3)*scale, 5*scale:(iw-5)*scale]*0.5).astype(np.uint8)
+        label(view, "Camera" if background == "space" else "Original", (x+10, y+ih-23), 11)
+    header = np.full((HEADER_H*scale, w*scale, 3), (23, 22, 21), np.uint8)
+    footer = np.full((FOOTER_H*scale, w*scale, 3), (23, 22, 21), np.uint8)
+    label(header, "Lensing", (20, 16), 21)
     layout = ui_layout(w, h)
-    rounded_rect(header, (w//2-92, 9, w//2+92, 47), (32, 30, 29), 9)
+    panel(header, (w//2-92, 9, w//2+92, 47), (32, 30, 29), 9)
     for mode in ("camera", "space"):
         box = layout[mode]
         active = mode == background
         if active:
-            rounded_rect(header, box, (62, 59, 56), 7)
-        ui_text(header, mode.capitalize(), (box[0]+15, 22), 13,
+            panel(header, box, (62, 59, 56), 7)
+        label(header, mode.capitalize(), (box[0]+15, 22), 13,
                 (235, 236, 239) if active else (153, 157, 164))
-    rounded_rect(header, layout["controls"], (39, 37, 35), 7)
-    ui_text(header, "Controls  ?", (w-113, 22), 13, (184, 188, 194))
+    panel(header, layout["physics"], (62, 59, 56) if physics_open else (39, 37, 35), 7)
+    label(header, "Physics", (w-217, 22), 13, (225, 226, 230))
+    panel(header, layout["controls"], (39, 37, 35), 7)
+    label(header, "Controls  ?", (w-113, 22), 13, (184, 188, 194))
     if control.locked:
         state, hint = "Locked", "Double-pinch left to resume"
         if now-control.unlock_first <= 0.8:
@@ -401,20 +567,29 @@ def compose(frame, lensed, control, guide, inset, frozen, now,
         hint = "Left pinch to hold" if state == "Following hand" else "Show your right hand"
     else:
         state, hint = "Mouse control", "Drag to move"
-    cv2.circle(footer, (25, 27), 3, (158, 178, 158) if state == "Following hand" else (136, 143, 153), -1, cv2.LINE_AA)
-    ui_text(footer, state, (37, 21), 13)
-    ui_text(footer, hint, (180, 22), 12, (133, 139, 149))
-    ui_text(footer, "Lens size", (w-274, 22), 12, (155, 160, 170))
+    cv2.circle(footer, point((25, 27)), 3*scale, (158, 178, 158) if state == "Following hand" else (136, 143, 153), -1, cv2.LINE_AA)
+    label(footer, state, (37, 21), 13)
+    label(footer, hint, (180, 22), 12, (133, 139, 149))
+    label(footer, "Lens size", (w-274, 22), 12, (155, 160, 170))
     slider = layout["slider"]
     x0, x1 = slider[0], slider[2]
-    cv2.line(footer, (x0, 27), (x1, 27), (62, 63, 68), 3, cv2.LINE_AA)
+    cv2.line(footer, point((x0, 27)), point((x1, 27)), (62, 63, 68), 3*scale, cv2.LINE_AA)
     fraction = float(np.clip((control.radius-20)/210, 0, 1))
     knob = round(x0+fraction*(x1-x0))
-    cv2.line(footer, (x0, 27), (knob, 27), (137, 142, 152), 3, cv2.LINE_AA)
-    cv2.circle(footer, (knob, 27), 5, (169, 173, 180) if control.locked else (230, 231, 234), -1, cv2.LINE_AA)
+    cv2.line(footer, point((x0, 27)), point((knob, 27)), (137, 142, 152), 3*scale, cv2.LINE_AA)
+    cv2.circle(footer, point((knob, 27)), 5*scale, (169, 173, 180) if control.locked else (230, 231, 234), -1, cv2.LINE_AA)
     canvas = np.vstack((header, view, footer))
     if help_open:
-        draw_controls(canvas, layout["help"])
+        draw_controls(canvas, layout["help"], scale)
+    elif physics_open:
+        source = star_position if background == "space" else None
+        if background == "space" and source is None:
+            source = control.center
+        if background == "camera":
+            px, py = point(probe_position)
+            py += HEADER_H*scale
+            cv2.drawMarker(canvas, (px, py), (200, 206, 214), cv2.MARKER_CROSS, 12*scale, scale, cv2.LINE_AA)
+        draw_physics(canvas, layout["help"], control, source, probe_position, scale)
     return canvas
 
 
@@ -428,9 +603,14 @@ def main(argv=None):
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--snapshot", type=Path)
     parser.add_argument("--show-controls", action="store_true", help="show the controls panel")
+    parser.add_argument("--show-physics", action="store_true", help="show equations and live model values")
+    parser.add_argument("--ui-scale", type=int, choices=(1, 2, 3), help="UI pixel density; automatic on Retina displays")
     args = parser.parse_args(argv)
     if args.headless and (not args.demo or args.frames < 1):
         parser.error("--headless requires --demo and a positive --frames")
+    screen = DisplayArea() if args.headless else display_area()
+    render_scale = args.ui_scale or screen.scale
+    window_fitted = False
     cap = detector = None
     if not args.demo:
         cap = cv2.VideoCapture(args.camera)
@@ -454,7 +634,9 @@ def main(argv=None):
     view = None
     shape = None
     dragging = star_dragging = slider_dragging = False
-    help_open = args.show_controls
+    physics_open = args.show_physics
+    help_open = args.show_controls and not physics_open
+    probe_position = np.array([720., 270.])
     guide, inset, shadow, frozen = False, True, True, False
     index = 0
     last_detection = time.perf_counter()
@@ -470,26 +652,41 @@ def main(argv=None):
         star_dragging = False
 
     def mouse(event, x, y, flags, userdata):
-        nonlocal dragging, star_dragging, slider_dragging, mouse_time, help_open
+        nonlocal dragging, star_dragging, slider_dragging, mouse_time, help_open, physics_open
+        # HighGUI reports image pixels even when the window is scaled.
+        # Scroll callbacks on Cocoa report deltas rather than image positions.
+        if event not in (cv2.EVENT_MOUSEWHEEL, cv2.EVENT_MOUSEHWHEEL):
+            x, y = x/render_scale, y/render_scale
         if event == cv2.EVENT_LBUTTONUP:
             dragging = slider_dragging = False
         if event == cv2.EVENT_RBUTTONUP:
             star_dragging = False
         if shape is None:
             return
+        if event == cv2.EVENT_MOUSEWHEEL:
+            if not control.locked:
+                delta = (flags >> 16) if (flags >> 16) else y
+                control.radius = float(np.clip(control.radius*(1.08 if delta > 0 else 1/1.08), 20, 230))
+                mouse_time = time.perf_counter()
+            return
         layout = ui_layout(shape[1], shape[0])
         if event == cv2.EVENT_LBUTTONDOWN:
             if inside(layout["controls"], x, y):
                 help_open = not help_open
+                physics_open = False
+                return
+            if inside(layout["physics"], x, y):
+                physics_open = not physics_open
+                help_open = False
                 return
             for mode in ("camera", "space"):
                 if inside(layout[mode], x, y):
                     switch_background(mode)
                     return
-            if help_open and inside(layout["close"], x, y):
-                help_open = False
+            if (help_open or physics_open) and inside(layout["close"], x, y):
+                help_open = physics_open = False
                 return
-        if help_open and inside(layout["help"], x, y):
+        if (help_open or physics_open) and inside(layout["help"], x, y):
             return
         if not control.locked:
             if event == cv2.EVENT_LBUTTONDOWN and inside(layout["slider"], x, y):
@@ -501,6 +698,8 @@ def main(argv=None):
                 return
         if not (0 <= y-HEADER_H < shape[0]):
             return
+        if physics_open and event == cv2.EVENT_MOUSEMOVE:
+            probe_position[:] = [x, y-HEADER_H]
         if background == "space":
             if event == cv2.EVENT_RBUTTONDOWN:
                 star_dragging = True
@@ -514,12 +713,10 @@ def main(argv=None):
             control.center[:] = np.clip([x, y-HEADER_H], [0, 0], [shape[1]-1, shape[0]-1])
             mouse_time = time.perf_counter()
             control.points = None
-        if event == cv2.EVENT_MOUSEWHEEL:
-            control.radius = float(np.clip(control.radius*(1.08 if flags > 0 else 1/1.08), 20, 230))
 
     try:
         if not args.headless:
-            cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE)
+            cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
             cv2.setMouseCallback(WINDOW, mouse)
         while True:
             now = time.perf_counter()
@@ -537,6 +734,7 @@ def main(argv=None):
                 lens = PointLens(shape[1], shape[0])
                 sky = SpaceScene(shape[1], shape[0])
                 star_position[:] = [shape[1]/2, shape[0]/2]
+                probe_position[:] = [shape[1]*0.75, shape[0]*0.5]
                 control.center[:] = [shape[1]/2, shape[0]/2]
                 control.radius = min(115, shape[0]*0.3)
             if detector is not None and control.hand_enabled and not frozen:
@@ -556,16 +754,21 @@ def main(argv=None):
             lensed = lens.apply(source, control.center, control.radius, shadow)
             if background == "space":
                 lensed = star_bloom(lensed)
-            view = compose(frame, lensed, control, guide, inset, frozen, now, background, help_open)
+            view = compose(frame, lensed, control, guide, inset, frozen, now, background, help_open, render_scale,
+                           physics_open=physics_open, star_position=star_position, probe_position=probe_position)
             index += 1
             if args.headless:
                 if index >= args.frames:
                     break
                 continue
             cv2.imshow(WINDOW, view)
+            if not window_fitted:
+                # The first imshow can override a preceding resize on Cocoa.
+                fit_window(view.shape[1]/render_scale, view.shape[0]/render_scale, screen)
+                window_fitted = True
             key = cv2.waitKey(15 if args.demo else 1) & 0xFF
-            if key == 27 and help_open:
-                help_open = False
+            if key == 27 and (help_open or physics_open):
+                help_open = physics_open = False
                 continue
             if key in (27, ord("q")) or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -574,6 +777,12 @@ def main(argv=None):
                     control.radius = float(np.clip(control.radius*(1.08 if key in (43, 61) else 1/1.08), 20, 230))
             elif key in (ord("?"), ord("/")):
                 help_open = not help_open
+                physics_open = False
+            elif key == ord("e"):
+                physics_open = not physics_open
+                help_open = False
+            elif key == ord("f"):
+                fit_window(view.shape[1]/render_scale, view.shape[0]/render_scale, display_area())
             elif key == ord("s"):
                 switch_background("space" if background == "camera" else "camera")
             elif key == ord("a") and background == "space":
