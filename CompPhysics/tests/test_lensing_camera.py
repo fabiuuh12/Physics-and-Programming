@@ -240,7 +240,7 @@ def test_retina_clicks_reach_tabs_slider_and_viewport(monkeypatch):
     original_compose = app.compose
 
     def compose_capture(*args, **kwargs):
-        captures.append((args[2].center.copy(), args[2].radius, args[7], args[8], kwargs.get('physics_open', False)))
+        captures.append((args[2].center.copy(), args[2].radius, args[7], args[8]))
         return original_compose(*args, **kwargs)
 
     def install(window, cb):
@@ -256,8 +256,7 @@ def test_retina_clicks_reach_tabs_slider_and_viewport(monkeypatch):
         nonlocal step
         actions = [lambda: click(430, 28), lambda: click(520, 28),
                    lambda: click(930, 623), lambda: click(885, 28),
-                   lambda: click(918, 90), lambda: click(640, 296),
-                   lambda: click(770, 28), lambda: click(885, 28)]
+                   lambda: click(918, 90), lambda: click(640, 296)]
         if step == len(actions):
             return ord('q')
         actions[step]()
@@ -279,33 +278,3 @@ def test_retina_clicks_reach_tabs_slider_and_viewport(monkeypatch):
     assert captures[3][1] > 220
     assert captures[4][3] is True and captures[5][3] is False
     np.testing.assert_array_equal(captures[6][0], [640, 240])
-    assert captures[7][4] is True
-    assert captures[8][3] is True and captures[8][4] is False
-
-
-def test_live_physics_values_match_analytic_images_and_magnification():
-    from vision.lensing_camera import lens_values
-    center = np.array([100., 100.])
-    values = lens_values(center, 20, source=np.array([130., 100.]))
-    assert values['beta'] == pytest.approx(30)
-    assert values['outer'] == pytest.approx(40)
-    assert values['inner'] == pytest.approx(-10)
-    assert values['gain'] == pytest.approx(17/15)
-    stronger = lens_values(center, 40, source=np.array([130., 100.]))
-    assert stronger['outer']-stronger['inner'] > values['outer']-values['inner']
-    assert stronger['gain'] > values['gain']
-    assert stronger['mass_ratio'] == pytest.approx(4*values['mass_ratio'])
-    aligned = lens_values(center, 40, source=center)
-    assert aligned['gain'] is None
-    assert aligned['outer'] == 40 and aligned['inner'] == -40
-
-
-def test_live_camera_probe_matches_the_actual_remap():
-    from vision.lensing_camera import lens_values
-    center, probe = np.array([100., 100.]), np.array([140., 100.])
-    values = lens_values(center, 20, probe=probe)
-    mx, my, _ = PointLens(201, 201).maps(center, 20)
-    np.testing.assert_allclose(values['sample'], [mx[100, 140], my[100, 140]])
-    assert values['theta'] == 40 and values['beta'] == 30 and values['deflection'] == 10
-    singular = lens_values(center, 20, probe=center)
-    assert singular['sample'] is singular['deflection'] is None

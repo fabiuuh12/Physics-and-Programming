@@ -395,7 +395,6 @@ def ui_layout(width, height):
         "camera": (middle-88, 12, middle-2, 44),
         "space": (middle+2, 12, middle+88, 44),
         "controls": (width-126, 12, width-18, 44),
-        "physics": (width-230, 12, width-138, 44),
         "slider": (width-196, HEADER_H+height+18, width-28, HEADER_H+height+38),
         "help": (width-378, HEADER_H+14, width-18, HEADER_H+min(height-14, 504)),
         "close": (width-54, HEADER_H+24, width-28, HEADER_H+50),
@@ -432,7 +431,7 @@ def draw_controls(canvas, box, scale=1):
         ("Space", "Pause camera"), ("L", "Hold / release lens"),
         ("H", "Hand / mouse control"), ("I", "Camera preview"),
         ("G / B / T", "Guide / mask / star"), ("R", "Reset lens"),
-        ("E", "Physics panel"), ("F", "Fit window to screen"), ("Q", "Quit"),
+        ("F", "Fit window to screen"), ("Q", "Quit"),
     ]
     for key, action in rows:
         if y+17 > y1-14:
@@ -443,76 +442,8 @@ def draw_controls(canvas, box, scale=1):
 
 
 
-def lens_values(center, radius, source=None, probe=None):
-    """Analytic readouts in simulation pixels, before display bloom/masking."""
-    values = {"radius": radius, "mass_ratio": (radius/115)**2}
-    if source is not None:
-        offset = np.asarray(source, dtype=float)-center
-        beta = float(np.linalg.norm(offset))
-        root = math.hypot(beta, 2*radius)
-        u = beta/radius
-        values.update(beta=beta, outer=(beta+root)/2, inner=(beta-root)/2,
-                      gain=None if beta < 1e-8 else (u*u+2)/(u*math.hypot(u, 2)))
-    else:
-        theta = np.asarray(probe, dtype=float)-center
-        r2 = float(theta@theta)
-        values["theta"] = math.sqrt(r2)
-        if r2 < 0.01:
-            values.update(beta=None, deflection=None, sample=None)
-        else:
-            beta = theta-radius*radius*theta/r2
-            values.update(beta=float(np.linalg.norm(beta)),
-                          deflection=radius*radius/math.sqrt(r2), sample=beta+center)
-    return values
-
-
-def draw_physics(canvas, box, control, source, probe, scale=1):
-    label = partial(ui_text, scale=scale)
-    panel = partial(rounded_rect, scale=scale)
-    x0, y0, x1, y1 = box
-    panel(canvas, box, (35, 33, 31), 12)
-    label(canvas, "Physics", (x0+20, y0+17), 18)
-    label(canvas, "×", (x1-33, y0+15), 21, (165, 167, 173))
-    label(canvas, "Point-mass lens · live values", (x0+20, y0+53), 12, (152, 158, 168))
-    label(canvas, "β = θ − (R² / |θ|²) θ", (x0+20, y0+82), 19)
-    label(canvas, "θ: image position    β: source position", (x0+20, y0+112), 11, (145, 151, 161))
-    values = lens_values(control.center, control.radius, source, probe)
-
-    def row(name, value, y):
-        label(canvas, name, (x0+20, y0+y), 12, (157, 163, 174))
-        label(canvas, value, (x0+184, y0+y), 13)
-
-    label(canvas, "INPUTS", (x0+20, y0+149), 10, (132, 135, 142))
-    row("Einstein radius R", f"{values['radius']:.1f} px", 172)
-    row("Relative mass", f"{values['mass_ratio']:.2f}×", 197)
-    if source is not None:
-        row("Source offset |β|", f"{values['beta']:.1f} px", 222)
-        label(canvas, "θ± = (β ± sqrt(β² + 4R²)) / 2", (x0+20, y0+261), 14)
-        label(canvas, "OUTPUTS", (x0+20, y0+300), 10, (132, 135, 142))
-        aligned = values['beta'] < 1e-8
-        row("Outer image θ+", "Einstein ring" if aligned else f"{values['outer']:+.1f} px", 323)
-        row("Ring radius" if aligned else "Inner image θ−",
-            f"{values['radius']:.1f} px" if aligned else f"{values['inner']:+.1f} px", 348)
-        row("Point-source gain", "Unbounded (ideal)" if values['gain'] is None else f"{values['gain']:.3f}×", 373)
-        label(canvas, "μ = (u² + 2) / [u sqrt(u² + 4)]", (x0+20, y0+409), 14)
-        label(canvas, "u = |β| / R · distances from the lens", (x0+20, y0+435), 11, (145, 151, 161))
-        label(canvas, "Ideal point source; displayed star has a finite size.", (x0+20, y0+458), 10, (132, 139, 149))
-    else:
-        row("Probe offset |θ|", f"{values['theta']:.1f} px", 222)
-        label(canvas, "OUTPUTS", (x0+20, y0+270), 10, (132, 135, 142))
-        row("Source offset |β|", "Singular center" if values['beta'] is None else f"{values['beta']:.1f} px", 295)
-        row("Deflection", "—" if values['deflection'] is None else f"{values['deflection']:.1f} px", 320)
-        sample = values['sample']
-        row("Source sample x, y", "—" if sample is None else f"{sample[0]:.0f}, {sample[1]:.0f} px", 345)
-        label(canvas, "Move the pointer over the scene to probe a ray.", (x0+20, y0+397), 11, (145, 151, 161))
-        label(canvas, "The crosshair is an image pixel; the equation", (x0+20, y0+425), 11, (132, 139, 149))
-        label(canvas, "gives its sample in the original camera image.", (x0+20, y0+444), 11, (132, 139, 149))
-    return values
-
-
 def compose(frame, lensed, control, guide, inset, frozen, now,
-            background="camera", help_open=False, render_scale=1,
-            physics_open=False, star_position=None, probe_position=None):
+            background="camera", help_open=False, render_scale=1):
     h, w = frame.shape[:2]
     scale = render_scale
     label = partial(ui_text, scale=scale)
@@ -520,8 +451,6 @@ def compose(frame, lensed, control, guide, inset, frozen, now,
     point = lambda xy: tuple(round(float(value)*scale) for value in xy)
     view = cv2.resize(lensed, (w*scale, h*scale), interpolation=cv2.INTER_CUBIC) if scale != 1 else lensed.copy()
     center = point(control.center)
-    if probe_position is None:
-        probe_position = np.array([w*0.75, h*0.5])
     if guide:
         cv2.circle(view, center, round(control.radius*scale), (120, 127, 136), scale, cv2.LINE_AA)
     if control.hand_enabled and control.points is not None and now-control.last_hand < 0.35:
@@ -552,8 +481,6 @@ def compose(frame, lensed, control, guide, inset, frozen, now,
             panel(header, box, (62, 59, 56), 7)
         label(header, mode.capitalize(), (box[0]+15, 22), 13,
                 (235, 236, 239) if active else (153, 157, 164))
-    panel(header, layout["physics"], (62, 59, 56) if physics_open else (39, 37, 35), 7)
-    label(header, "Physics", (w-217, 22), 13, (225, 226, 230))
     panel(header, layout["controls"], (39, 37, 35), 7)
     label(header, "Controls  ?", (w-113, 22), 13, (184, 188, 194))
     if control.locked:
@@ -581,15 +508,6 @@ def compose(frame, lensed, control, guide, inset, frozen, now,
     canvas = np.vstack((header, view, footer))
     if help_open:
         draw_controls(canvas, layout["help"], scale)
-    elif physics_open:
-        source = star_position if background == "space" else None
-        if background == "space" and source is None:
-            source = control.center
-        if background == "camera":
-            px, py = point(probe_position)
-            py += HEADER_H*scale
-            cv2.drawMarker(canvas, (px, py), (200, 206, 214), cv2.MARKER_CROSS, 12*scale, scale, cv2.LINE_AA)
-        draw_physics(canvas, layout["help"], control, source, probe_position, scale)
     return canvas
 
 
@@ -603,7 +521,6 @@ def main(argv=None):
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--snapshot", type=Path)
     parser.add_argument("--show-controls", action="store_true", help="show the controls panel")
-    parser.add_argument("--show-physics", action="store_true", help="show equations and live model values")
     parser.add_argument("--ui-scale", type=int, choices=(1, 2, 3), help="UI pixel density; automatic on Retina displays")
     args = parser.parse_args(argv)
     if args.headless and (not args.demo or args.frames < 1):
@@ -634,9 +551,7 @@ def main(argv=None):
     view = None
     shape = None
     dragging = star_dragging = slider_dragging = False
-    physics_open = args.show_physics
-    help_open = args.show_controls and not physics_open
-    probe_position = np.array([720., 270.])
+    help_open = args.show_controls
     guide, inset, shadow, frozen = False, True, True, False
     index = 0
     last_detection = time.perf_counter()
@@ -652,7 +567,7 @@ def main(argv=None):
         star_dragging = False
 
     def mouse(event, x, y, flags, userdata):
-        nonlocal dragging, star_dragging, slider_dragging, mouse_time, help_open, physics_open
+        nonlocal dragging, star_dragging, slider_dragging, mouse_time, help_open
         # HighGUI reports image pixels even when the window is scaled.
         # Scroll callbacks on Cocoa report deltas rather than image positions.
         if event not in (cv2.EVENT_MOUSEWHEEL, cv2.EVENT_MOUSEHWHEEL):
@@ -673,20 +588,15 @@ def main(argv=None):
         if event == cv2.EVENT_LBUTTONDOWN:
             if inside(layout["controls"], x, y):
                 help_open = not help_open
-                physics_open = False
-                return
-            if inside(layout["physics"], x, y):
-                physics_open = not physics_open
-                help_open = False
                 return
             for mode in ("camera", "space"):
                 if inside(layout[mode], x, y):
                     switch_background(mode)
                     return
-            if (help_open or physics_open) and inside(layout["close"], x, y):
-                help_open = physics_open = False
+            if help_open and inside(layout["close"], x, y):
+                help_open = False
                 return
-        if (help_open or physics_open) and inside(layout["help"], x, y):
+        if help_open and inside(layout["help"], x, y):
             return
         if not control.locked:
             if event == cv2.EVENT_LBUTTONDOWN and inside(layout["slider"], x, y):
@@ -698,8 +608,6 @@ def main(argv=None):
                 return
         if not (0 <= y-HEADER_H < shape[0]):
             return
-        if physics_open and event == cv2.EVENT_MOUSEMOVE:
-            probe_position[:] = [x, y-HEADER_H]
         if background == "space":
             if event == cv2.EVENT_RBUTTONDOWN:
                 star_dragging = True
@@ -734,7 +642,6 @@ def main(argv=None):
                 lens = PointLens(shape[1], shape[0])
                 sky = SpaceScene(shape[1], shape[0])
                 star_position[:] = [shape[1]/2, shape[0]/2]
-                probe_position[:] = [shape[1]*0.75, shape[0]*0.5]
                 control.center[:] = [shape[1]/2, shape[0]/2]
                 control.radius = min(115, shape[0]*0.3)
             if detector is not None and control.hand_enabled and not frozen:
@@ -754,8 +661,7 @@ def main(argv=None):
             lensed = lens.apply(source, control.center, control.radius, shadow)
             if background == "space":
                 lensed = star_bloom(lensed)
-            view = compose(frame, lensed, control, guide, inset, frozen, now, background, help_open, render_scale,
-                           physics_open=physics_open, star_position=star_position, probe_position=probe_position)
+            view = compose(frame, lensed, control, guide, inset, frozen, now, background, help_open, render_scale)
             index += 1
             if args.headless:
                 if index >= args.frames:
@@ -767,8 +673,8 @@ def main(argv=None):
                 fit_window(view.shape[1]/render_scale, view.shape[0]/render_scale, screen)
                 window_fitted = True
             key = cv2.waitKey(15 if args.demo else 1) & 0xFF
-            if key == 27 and (help_open or physics_open):
-                help_open = physics_open = False
+            if key == 27 and help_open:
+                help_open = False
                 continue
             if key in (27, ord("q")) or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -777,10 +683,6 @@ def main(argv=None):
                     control.radius = float(np.clip(control.radius*(1.08 if key in (43, 61) else 1/1.08), 20, 230))
             elif key in (ord("?"), ord("/")):
                 help_open = not help_open
-                physics_open = False
-            elif key == ord("e"):
-                physics_open = not physics_open
-                help_open = False
             elif key == ord("f"):
                 fit_window(view.shape[1]/render_scale, view.shape[0]/render_scale, display_area())
             elif key == ord("s"):
