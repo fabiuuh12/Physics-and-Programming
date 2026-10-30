@@ -72,7 +72,7 @@ def test_full_render_includes_unwarped_inset_and_ui():
     control = LensControl(np.array([480., 270.]))
     result = compose(frame, lens.apply(frame, control.center, control.radius),
                      control, True, True, True, False, 30, 'TEST', 0)
-    assert result.shape == (798, 960, 3)
+    assert result.shape == (712, 960, 3)
     # Sample the inset away from its border and label.
     import cv2
     expected = cv2.resize(frame, (240, 135))
@@ -183,90 +183,27 @@ def test_detector_labels_are_swapped_before_assigning_physical_hand_roles(tasks)
     assert roles['right'] is physical_right
 
 
-def two_pinches(left=0.35, right=0.65):
-    return {'left': gesture(True, center=left), 'right': gesture(True, center=right)}
 
-
-def test_two_hand_stretch_changes_wavelength_and_inverse_frequency_not_lens():
-    from vision.lensing_camera import frequency_thz
-    control = LensControl(np.array([480., 270.]))
-    before = control.center.copy(), control.radius
-    control.update_hands(two_pinches(), 960, 540, 1, 0.2)
-    assert control.wave_active and not control.locked
-    assert control.wavelength_nm == pytest.approx(550)
-    control.update_hands(two_pinches(0.2, 0.8), 960, 540, 1.2, 0.2)
-    assert 550 < control.wavelength_nm <= 750
-    assert frequency_thz(control.wavelength_nm) < frequency_thz(550)
-    control.update_hands(two_pinches(0.45, 0.55), 960, 540, 1.4, 0.2)
-    assert 380 <= control.wavelength_nm < 550
-    assert frequency_thz(control.wavelength_nm) > frequency_thz(550)
-    np.testing.assert_array_equal(control.center, before[0])
-    assert control.radius == before[1]
-
-
-def test_wavelength_mode_release_does_not_trigger_lock_or_resize():
-    control = LensControl(np.array([480., 270.]))
-    control.update_hands(two_pinches(), 960, 540, 1, 0.1)
-    control.update_hands({'left': gesture(False), 'right': gesture(True)}, 960, 540, 1.1, 0.1)
-    assert not control.wave_active and control.wave_releasing
-    assert control.radius == 115 and not control.locked
-    control.update_hands({'left': gesture(False), 'right': gesture(False)}, 960, 540, 1.2, 0.1)
-    assert not control.wave_releasing and not control.locked
-    assert control.radius == 115
-    assert control.update_hands({'right': gesture(center=0.8)}, 960, 540, 1.3, 0.1)
-    assert control.center[0] > 480
-
-
-def test_spectrum_preserves_existing_lock_and_handles_slightly_staggered_start():
-    control = LensControl(np.array([480., 270.]))
-    control.set_locked(True)
-    control.update_hands(two_pinches(), 960, 540, 1, 0.1)
-    assert control.wave_active and control.locked
-    control.update_hands({}, 960, 540, 1.2, 0.1)
-    assert control.locked and not control.wave_active
-    # Left arriving a frame ahead of right should not accidentally lock us.
-    control = LensControl(np.array([480., 270.]))
-    control.update_hands({'left': gesture(True)}, 960, 540, 1, 0.1)
-    assert control.locked
-    control.update_hands(two_pinches(), 960, 540, 1.05, 0.05)
-    assert control.wave_active and not control.locked
-
-
-def test_hand_loss_holds_wavelength_and_does_not_generate_a_lock_tap():
-    control = LensControl(np.array([480., 270.]))
-    control.update_hands(two_pinches(), 960, 540, 1, 0.1)
-    control.update_hands(two_pinches(0.2, 0.8), 960, 540, 1.1, 0.1)
-    wavelength = control.wavelength_nm
-    control.update_hands({'left': gesture(True)}, 960, 540, 1.2, 0.1)
-    assert control.wavelength_nm == wavelength
-    assert control.wave_releasing and not control.locked
-    control.update_hands({'left': gesture(True)}, 960, 540, 1.3, 0.1)
-    assert not control.locked
-
-
-def test_reentering_wavelength_mode_anchors_to_retained_wavelength():
-    control = LensControl(np.array([480., 270.]), wavelength_nm=650)
-    control.update_hands(two_pinches(), 960, 540, 1, 0.1)
-    assert control.wavelength_nm == pytest.approx(650)
-    control.update_hands({}, 960, 540, 1.1, 0.1)
-    control.update_hands(two_pinches(0.2, 0.8), 960, 540, 1.2, 0.1)
-    assert control.wavelength_nm == pytest.approx(650)
-
-
-def test_visible_colors_frequency_and_space_source_are_consistent():
-    from vision.lensing_camera import SpaceScene, frequency_thz, tint_source, wavelength_color
-    assert frequency_thz(500) == pytest.approx(599.584916)
-    blue, red = wavelength_color(440), wavelength_color(650)
-    assert blue[0] > blue[2] and red[2] > red[0]
+def test_source_star_has_white_core_broad_halo_and_can_move_or_hide():
+    from vision.lensing_camera import SpaceScene
     sky = SpaceScene(320, 240)
     original = sky.base.copy()
-    at_left = sky.render((80, 120), 650)
-    at_right = sky.render((240, 120), 440)
-    assert at_left[120, 80, 2] > original[120, 80, 2]
-    assert at_right[120, 240, 0] > original[120, 240, 0]
+    bright = sky.render((80, 120))
+    assert bright[120, 80].min() >= 245
+    assert bright[120, 120].sum() > original[120, 120].sum() + 20
+    moved = sky.render((240, 120))
+    assert moved[120, 240].min() >= 245
+    np.testing.assert_array_equal(sky.render((80, 120), star_visible=False), original)
     np.testing.assert_array_equal(sky.base, original)
-    frame = np.full((30, 40, 3), 200, np.uint8)
-    tinted = tint_source(frame, 650)
-    assert tinted.shape == frame.shape and tinted.dtype == frame.dtype
-    assert tinted[0, 0, 2] > tinted[0, 0, 0]
-    np.testing.assert_array_equal(frame, np.full((30, 40, 3), 200, np.uint8))
+
+
+def test_lensed_star_bloom_brightens_ring_surroundings_without_filling_black_center():
+    from vision.lensing_camera import SpaceScene, star_bloom
+    sky = SpaceScene(320, 240)
+    lensed = PointLens(320, 240).apply(sky.render((160, 120)), (160, 120), 45)
+    before = lensed.copy()
+    glowing = star_bloom(lensed)
+    assert glowing.dtype == np.uint8 and glowing.shape == lensed.shape
+    assert glowing.astype(float).sum() > lensed.astype(float).sum()
+    assert glowing[120, 160].max() < 5
+    np.testing.assert_array_equal(lensed, before)

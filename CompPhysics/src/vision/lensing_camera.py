@@ -5,9 +5,8 @@ Mouse drag also moves the lens. +/- changes strength; H switches hand control;
 Left pinch locks; two new left pinches resume right-hand control; L toggles lock.
 G toggles the Einstein-radius guide; B toggles a stylized black center;
 I toggles original inset; Space freezes the image; R resets; Q quits.
-Both pinches + move hands apart/together: stretch/compress source wavelength.
-S: camera/space; A: align source star; right-click: move star; C: color tint;
-[/]: wavelength. Use --demo for a camera-free scene, --no-hands for mouse only.
+S: camera/space; A: align the bright source star; right-click: move star;
+T: show/hide star. Use --demo for a camera-free scene, --no-hands for mouse only.
 """
 from __future__ import annotations
 
@@ -69,77 +68,9 @@ class LensControl:
     locked: bool = False
     left_pinched: bool = False
     unlock_first: float = -math.inf
-    wavelength_nm: float = 550.0
-    wave_active: bool = False
-    wave_releasing: bool = False
-    wave_anchor_distance: float = 1.0
-    wave_anchor_nm: float = 550.0
-    wave_points: tuple | None = None
-    wave_left_closed: bool = False
-    wave_right_closed: bool = False
-    gesture_lock_time: float = -math.inf
-
-    def end_wave(self):
-        self.wave_active = False
-        self.wave_releasing = True
-        self.wave_points = None
-        self.unlock_first = -math.inf
-
-    def update_wave(self, hands, width, height, now, dt):
-        geometries = {}
-        for side in ("left", "right"):
-            landmarks = hands.get(side)
-            if landmarks is None:
-                continue
-            p = np.asarray(landmarks, dtype=float)
-            if p.shape != (21, 3) or not np.isfinite(p).all():
-                continue
-            palm = np.linalg.norm((p[5, :2]-p[17, :2]) * [width, height])
-            if palm < 10:
-                continue
-            tips = p[[4, 8], :2] * [width, height]
-            geometries[side] = (tips.mean(axis=0), np.linalg.norm(tips[0]-tips[1])/palm)
-        # Missing data never becomes another pinch edge in the lock gesture.
-        for side in ("left", "right"):
-            name = f"wave_{side}_closed"
-            if side in geometries:
-                setattr(self, name, geometries[side][1] < (0.55 if getattr(self, name) else 0.35))
-        both = (len(geometries) == 2 and self.wave_left_closed and self.wave_right_closed)
-        if both:
-            a, b = geometries["left"][0], geometries["right"][0]
-            distance = max(40.0, float(np.linalg.norm(a-b)))
-            if not self.wave_active:
-                # If left closed a frame before right, treat that as preparation
-                # for this two-hand gesture, not an unintended permanent lock.
-                if self.locked and now-self.gesture_lock_time < 0.35:
-                    self.set_locked(False)
-                self.wave_anchor_distance = distance
-                self.wave_anchor_nm = self.wavelength_nm
-            target = np.clip(self.wave_anchor_nm*distance/self.wave_anchor_distance, 380, 750)
-            alpha = 1-math.exp(-max(0.0, min(dt, 0.2))/0.07)
-            self.wavelength_nm += alpha*(target-self.wavelength_nm)
-            self.wave_active, self.wave_releasing = True, False
-            self.wave_points = (a, b)
-            self.points = None
-            self.left_pinched = True
-            self.unlock_first = -math.inf
-            return True
-        if self.wave_active:
-            self.end_wave()
-        if self.wave_releasing:
-            # Consume the release so exiting wavelength mode cannot lock/unlock
-            # or shrink the lens with a still-closed right hand.
-            if "left" in geometries:
-                self.left_pinched = self.wave_left_closed
-            closed_visible = any(getattr(self, f"wave_{side}_closed") for side in geometries)
-            if not closed_visible:
-                self.wave_releasing = False
-            return True
-        return False
 
     def set_locked(self, locked):
         self.locked = locked
-        self.gesture_lock_time = -math.inf
         self.unlock_first = -math.inf
         self.points = None
         self.last_hand = -math.inf
@@ -168,16 +99,12 @@ class LensControl:
             return
         if not self.locked:
             self.set_locked(True)
-            self.gesture_lock_time = now
         elif now - self.unlock_first <= 0.8:
             self.set_locked(False)
         else:
             self.unlock_first = now
 
     def update_hands(self, hands, width, height, now, dt, allow_follow=True):
-        # Two-hand wavelength control takes priority over one-hand controls.
-        if self.update_wave(hands, width, height, now, dt):
-            return False
         # Process the stop gesture BEFORE right-hand smoothing on this frame.
         self.update_left(hands.get("left"), width, height, now)
         right = hands.get("right")
@@ -186,7 +113,7 @@ class LensControl:
         return False
 
     def follow(self, landmarks, width, height, now, dt):
-        if self.locked or self.wave_active or self.wave_releasing:
+        if self.locked:
             return False
         points = np.asarray(landmarks, dtype=float)
         if points.shape != (21, 3) or not np.isfinite(points).all():
@@ -288,26 +215,6 @@ def synthetic_scene(width, height, t):
 
 
 
-def wavelength_color(wavelength_nm):
-    """Approximate visible-spectrum sRGB colors, returned in OpenCV BGR order."""
-    wavelengths = [380, 440, 490, 510, 560, 590, 650, 750]
-    rgb = np.array([[150, 0, 255], [40, 40, 255], [0, 220, 255], [0, 255, 70],
-                    [180, 255, 0], [255, 190, 0], [255, 30, 0], [180, 0, 0]])
-    return tuple(int(np.interp(wavelength_nm, wavelengths, rgb[:, c])) for c in (2, 1, 0))
-
-
-def frequency_thz(wavelength_nm):
-    return 299792.458 / wavelength_nm
-
-
-def tint_source(frame, wavelength_nm):
-    """Illustrative monochromatic treatment, not webcam spectroscopy."""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
-    color = np.asarray(wavelength_color(wavelength_nm), np.float32)/255
-    tinted = gray[..., None]*color[None, None, :]
-    return np.clip(0.25*frame+0.75*tinted, 0, 255).astype(np.uint8)
-
-
 class SpaceScene:
     """Cached procedural starfield; source star moves independently of the lens."""
 
@@ -327,38 +234,35 @@ class SpaceScene:
             cv2.ellipse(self.base, p, (18+i*4, 5+i), -25+i*18, 0, 360, (80, 65, 55), 1, cv2.LINE_AA)
             cv2.circle(self.base, p, 2, (175, 155, 140), -1, cv2.LINE_AA)
 
-    def render(self, star_position, wavelength_nm, star_visible=True):
+    def render(self, star_position, star_visible=True):
         image = self.base.copy()
         if star_visible:
             x, y = np.rint(star_position).astype(int)
             h, w = image.shape[:2]
-            x0, x1 = max(0, x-28), min(w, x+29)
-            y0, y1 = max(0, y-28), min(h, y+29)
+            x0, x1 = max(0, x-100), min(w, x+101)
+            y0, y1 = max(0, y-100), min(h, y+101)
             if x0 < x1 and y0 < y1:
                 yy, xx = np.indices((y1-y0, x1-x0), dtype=np.float32)
                 r2 = (xx+x0-x)**2+(yy+y0-y)**2
-                profile = 255*np.exp(-r2/10)+85*np.exp(-r2/130)
-                color = np.asarray(wavelength_color(wavelength_nm), dtype=np.float32)/255
+                # White-hot center with a broad warm halo. The halo is a
+                # display treatment, not illumination of unrelated objects.
+                core = 950*np.exp(-r2/24)
+                halo = 210*np.exp(-r2/260)+45*np.exp(-r2/2500)
                 patch = image[y0:y1, x0:x1].astype(np.float32)
-                patch += profile[..., None]*color[None, None, :]
+                patch += core[..., None]*np.array([0.96, 0.99, 1.0], np.float32)
+                patch += halo[..., None]*np.array([0.45, 0.78, 1.0], np.float32)
                 image[y0:y1, x0:x1] = np.clip(patch, 0, 255).astype(np.uint8)
         return image
 
 
-def draw_wave_panel(footer, control, now):
-    w = footer.shape[1]
-    color = wavelength_color(control.wavelength_nm)
-    text(footer, f"Wavelength {control.wavelength_nm:.0f} nm  |  Frequency {frequency_thz(control.wavelength_nm):.1f} THz  |  Both pinches: stretch/compress", (20, 70), color, 0.48)
-    xs = np.arange(20, w-20)
-    ys = 110+17*np.sin(2*np.pi*((xs-20)/(control.wavelength_nm*0.16)-now*550/control.wavelength_nm))
-    cv2.polylines(footer, [np.column_stack((xs, ys)).astype(np.int32)], False, color, 2, cv2.LINE_AA)
-    text(footer, "Spatial wave sketch / slowed animation", (20, 92), (130, 145, 160), 0.34)
-    # Small spectrum ruler with an indicator for the current selection.
-    for x in range(20, w-20, 2):
-        wavelength = 380+(x-20)/(w-40)*370
-        cv2.line(footer, (x, 142), (x, 150), wavelength_color(wavelength), 2)
-    marker = int(20+(control.wavelength_nm-380)/370*(w-40))
-    cv2.line(footer, (marker, 137), (marker, 155), (240, 240, 240), 2)
+def star_bloom(image):
+    """Soft screen glow from bright lensed pixels, used only in space mode."""
+    bright = np.maximum(image.astype(np.float32)-150, 0)
+    small = cv2.resize(bright, None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA)
+    glow = (1.5*cv2.GaussianBlur(small, (0, 0), 1.0)
+            + 1.0*cv2.GaussianBlur(small, (0, 0), 4.0))
+    glow = cv2.resize(glow, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_LINEAR)
+    return np.clip(image.astype(np.float32)+glow, 0, 255).astype(np.uint8)
 
 
 def compose(frame, lensed, control, guide, inset, shadow, frozen, fps, status, now, background="camera"):
@@ -376,12 +280,6 @@ def compose(frame, lensed, control, guide, inset, shadow, frozen, fps, status, n
         for p in (a, b):
             cv2.circle(view, p, 5, CYAN, -1, cv2.LINE_AA)
         cv2.line(view, tuple(np.int32((np.array(a)+b)/2)), center, CYAN, 1, cv2.LINE_AA)
-    if control.wave_active and control.wave_points is not None:
-        a, b = (tuple(np.rint(p).astype(int)) for p in control.wave_points)
-        color = wavelength_color(control.wavelength_nm)
-        cv2.line(view, a, b, color, 2, cv2.LINE_AA)
-        for p in (a, b):
-            cv2.circle(view, p, 7, color, -1, cv2.LINE_AA)
     if inset:
         iw = w//4
         ih = round(h*iw/w)
@@ -393,14 +291,13 @@ def compose(frame, lensed, control, guide, inset, shadow, frozen, fps, status, n
         text(view, "CAMERA" if background == "space" else "ORIGINAL", (x+8, y+ih-9), size=0.42)
     header = np.full((54, w, 3), INK, np.uint8)
     text(header, "L E N S I N G   C A M E R A", (20, 34), CYAN, 0.7)
-    state = "WAVELENGTH" if control.wave_active else "LOCKED" if control.locked else "FROZEN" if frozen else background.upper()
+    state = "LOCKED" if control.locked else "FROZEN" if frozen else background.upper()
     text(header, f"{fps:.0f} FPS / {state}", (w-230, 33), size=0.48)
-    footer = np.full((204, w, 3), INK, np.uint8)
+    footer = np.full((118, w, 3), INK, np.uint8)
     text(footer, status, (20, 24), CYAN)
     text(footer, f"Einstein radius {control.radius:.0f} px | Relative mass {(control.radius/115)**2:.2f}x | Center mask {'on (stylized)' if shadow else 'off'}", (20, 49), size=0.48)
-    draw_wave_panel(footer, control, now)
-    text(footer, "S: camera/space | Right-click: star | A: align star | C: tint | [/]: wavelength | +/-: lens", (20, 176), size=0.44)
-    text(footer, "Left pinch: lock | Left double pinch: resume | L: lock | H: hands | Space: freeze | Q: quit", (20, 197), (150, 165, 180), 0.43)
+    text(footer, "S: camera/space | Right-drag: star | A: align | T: star | +/-: lens | G: guide | B: mask", (20, 74), size=0.44)
+    text(footer, "Left pinch: lock | Left double pinch: resume | L: lock | H: hands | Space: freeze | R: reset | Q: quit", (20, 99), (150, 165, 180), 0.42)
     return np.vstack((header, view, footer))
 
 
@@ -410,16 +307,12 @@ def main(argv=None):
     parser.add_argument("--no-hands", action="store_true")
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--background", choices=("camera", "space"), default="camera")
-    parser.add_argument("--wavelength", type=float, default=550, help="visible wavelength, 380-750 nm")
-    parser.add_argument("--tint", action="store_true", help="illustrative source color treatment")
     parser.add_argument("--headless", action="store_true", help="demo only, no windows")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--snapshot", type=Path)
     args = parser.parse_args(argv)
     if args.headless and (not args.demo or args.frames < 1):
         parser.error("--headless requires --demo and a positive --frames")
-    if not np.isfinite(args.wavelength) or not 380 <= args.wavelength <= 750:
-        parser.error("--wavelength must be between 380 and 750 nm")
     cap = detector = None
     if not args.demo:
         cap = cv2.VideoCapture(args.camera)
@@ -428,8 +321,7 @@ def main(argv=None):
             parser.exit(1, "Cannot open camera. Allow Terminal in macOS Privacy & Security > Camera, or try --camera 1.\n")
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
-    control = LensControl(np.array([480., 270.]), hand_enabled=not (args.no_hands or args.demo),
-                          wavelength_nm=args.wavelength)
+    control = LensControl(np.array([480., 270.]), hand_enabled=not (args.no_hands or args.demo))
     hand_status = "Mouse control: drag anywhere in the camera view; +/- changes strength"
     if control.hand_enabled:
         try:
@@ -440,7 +332,7 @@ def main(argv=None):
     lens = sky = None
     star_position = np.array([480., 270.])
     space_seen = args.background == "space"
-    background, colorize, star_visible = args.background, args.tint, True
+    background, star_visible = args.background, True
     frame = None
     view = None
     shape = None
@@ -465,7 +357,7 @@ def main(argv=None):
                 star_dragging = True
             if star_dragging and event in (cv2.EVENT_MOUSEMOVE, cv2.EVENT_RBUTTONDOWN):
                 star_position[:] = np.clip([x, y-54], [0, 0], [shape[1]-1, shape[0]-1])
-        if control.locked or control.wave_active or control.wave_releasing:
+        if control.locked:
             return
         if event == cv2.EVENT_LBUTTONDOWN:
             dragging = True
@@ -512,16 +404,9 @@ def main(argv=None):
                     hands = {}
                 elapsed = now-last_detection
                 last_detection = now
-                was_wave_active = control.wave_active
                 control.update_hands(hands, shape[1], shape[0], now, elapsed,
                                      allow_follow=not dragging and now-mouse_time > 1.5)
-                if control.wave_active and not was_wave_active:
-                    colorize = True
-            if control.wave_active:
-                hand_status = "WAVELENGTH / hands apart = longer + redder / hands together = shorter + bluer"
-            elif control.wave_releasing:
-                hand_status = "Wavelength held / release BOTH pinches to return to lens controls"
-            elif control.locked:
+            if control.locked:
                 pending = now-control.unlock_first <= 0.8
                 hand_status = ("LOCKED / one more left pinch to resume" if pending else
                                "LOCKED / position + size held / double-pinch LEFT hand to resume (or L)")
@@ -534,10 +419,10 @@ def main(argv=None):
                 hand_status = "MOUSE CONTROL / drag the lens; +/- changes strength"
             if args.demo and not control.locked:
                 hand_status = "DEMO / S switches space background / right-click places star / A aligns for a ring"
-            source = sky.render(star_position, control.wavelength_nm, star_visible) if background == "space" else frame
-            if colorize:
-                source = tint_source(source, control.wavelength_nm)
+            source = sky.render(star_position, star_visible) if background == "space" else frame
             lensed = lens.apply(source, control.center, control.radius, shadow)
+            if background == "space":
+                lensed = star_bloom(lensed)
             view = compose(frame, lensed, control, guide, inset, shadow, frozen, fps, hand_status, now, background)
             index += 1
             if args.headless:
@@ -549,7 +434,7 @@ def main(argv=None):
             if key in (27, ord("q")) or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
             if key in (ord("+"), ord("="), ord("-"), ord("_")):
-                if not control.locked and not control.wave_active and not control.wave_releasing:
+                if not control.locked:
                     control.radius = float(np.clip(control.radius*(1.08 if key in (43, 61) else 1/1.08), 20, 230))
             elif key == ord("s"):
                 background = "space" if background == "camera" else "camera"
@@ -561,16 +446,9 @@ def main(argv=None):
                 star_position[:] = control.center
             elif key == ord("t"):
                 star_visible = not star_visible
-            elif key == ord("c"):
-                colorize = not colorize
-            elif key in (ord("["), ord("]")):
-                control.wavelength_nm = float(np.clip(control.wavelength_nm+(10 if key == ord("]") else -10), 380, 750))
-                colorize = True
             elif key == ord("l"):
                 control.set_locked(not control.locked)
             elif key == ord("h"):
-                control.end_wave()
-                control.wave_releasing = False
                 control.hand_enabled = not control.hand_enabled
                 control.points = None
                 control.last_hand = -math.inf
@@ -587,16 +465,10 @@ def main(argv=None):
             elif key == ord("i"):
                 inset = not inset
             elif key == ord(" "):
-                control.end_wave()
-                control.wave_releasing = False
                 frozen = not frozen
                 control.points = None
                 control.last_hand = -math.inf
             elif key == ord("r"):
-                control.end_wave()
-                control.wave_releasing = False
-                control.wavelength_nm = 550
-                colorize = False
                 control.set_locked(False)
                 control.center[:] = [shape[1]/2, shape[0]/2]
                 control.radius = min(115, shape[0]*0.3)
