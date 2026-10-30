@@ -2,6 +2,7 @@
 """Live gravitational lensing camera: move your hand, spread your pinch.
 
 Mouse drag also moves the lens. +/- changes strength; H switches hand control;
+Left pinch locks; two new left pinches resume right-hand control; L toggles lock.
 G toggles the Einstein-radius guide; B toggles a stylized black center;
 I toggles original inset; Space freezes the image; R resets; Q quits.
 Use --demo for a camera-free animated scene, --no-hands for mouse only.
@@ -63,8 +64,56 @@ class LensControl:
     hand_enabled: bool = True
     last_hand: float = -math.inf
     points: tuple | None = None
+    locked: bool = False
+    left_pinched: bool = False
+    unlock_first: float = -math.inf
+
+    def set_locked(self, locked):
+        self.locked = locked
+        self.unlock_first = -math.inf
+        self.points = None
+        self.last_hand = -math.inf
+
+    def update_left(self, landmarks, width, height, now):
+        """Pinch edges, with hysteresis. Locking pinch never counts toward unlock.
+
+        Missing/invalid observations preserve the latch: hiding a held pinch
+        cannot produce a new tap. An observed release is required between taps.
+        """
+        if now - self.unlock_first > 0.8:
+            self.unlock_first = -math.inf
+        if landmarks is None:
+            return
+        points = np.asarray(landmarks, dtype=float)
+        if points.shape != (21, 3) or not np.isfinite(points).all():
+            return
+        palm = np.linalg.norm((points[5, :2] - points[17, :2]) * [width, height])
+        if palm < 10:
+            return
+        ratio = np.linalg.norm((points[4, :2] - points[8, :2]) * [width, height]) / palm
+        pinched = ratio < (0.55 if self.left_pinched else 0.35)
+        pressed = pinched and not self.left_pinched
+        self.left_pinched = pinched
+        if not pressed:
+            return
+        if not self.locked:
+            self.set_locked(True)
+        elif now - self.unlock_first <= 0.8:
+            self.set_locked(False)
+        else:
+            self.unlock_first = now
+
+    def update_hands(self, hands, width, height, now, dt, allow_follow=True):
+        # Process the stop gesture BEFORE right-hand smoothing on this frame.
+        self.update_left(hands.get("left"), width, height, now)
+        right = hands.get("right")
+        if right is not None and allow_follow:
+            return self.follow(right, width, height, now, dt)
+        return False
 
     def follow(self, landmarks, width, height, now, dt):
+        if self.locked:
+            return False
         points = np.asarray(landmarks, dtype=float)
         if points.shape != (21, 3) or not np.isfinite(points).all():
             return False
@@ -102,7 +151,7 @@ class HandInput:
         if hasattr(mp, "solutions"):
             self.tasks = False
             self.detector = mp.solutions.hands.Hands(
-                max_num_hands=1, model_complexity=0,
+                max_num_hands=2, model_complexity=0,
                 min_detection_confidence=0.55, min_tracking_confidence=0.5)
         else:
             if not MODEL_PATH.is_file():
@@ -111,7 +160,7 @@ class HandInput:
             options = mp.tasks.vision.HandLandmarkerOptions(
                 base_options=mp.tasks.BaseOptions(model_asset_path=str(MODEL_PATH),
                                                   delegate=mp.tasks.BaseOptions.Delegate.CPU),
-                running_mode=mp.tasks.vision.RunningMode.VIDEO, num_hands=1,
+                running_mode=mp.tasks.vision.RunningMode.VIDEO, num_hands=2,
                 min_hand_detection_confidence=0.5, min_tracking_confidence=0.5)
             self.detector = mp.tasks.vision.HandLandmarker.create_from_options(options)
 
@@ -125,9 +174,13 @@ class HandInput:
             hands = self.bridge._extract_task_hands(result, mirror=False)
         else:
             hands = self.bridge._extract_solution_hands(self.detector.process(rgb), mirror=False)
-        if not hands:
-            return None
-        return max(hands, key=lambda hand: hand.score).landmarks
+        # Input is already mirrored; MediaPipe's selfie handedness labels apply.
+        selected = {}
+        for side in ("left", "right"):
+            hand = self.bridge._pick_best_by_label(hands, side)
+            if hand is not None:
+                selected[side] = hand.landmarks
+        return selected
 
     def close(self):
         self.detector.close()
@@ -184,12 +237,12 @@ def compose(frame, lensed, control, guide, inset, shadow, frozen, fps, status, n
         text(view, "ORIGINAL", (x+8, y+ih-9), size=0.42)
     header = np.full((54, w, 3), INK, np.uint8)
     text(header, "L E N S I N G   C A M E R A", (20, 34), CYAN, 0.7)
-    text(header, f"{fps:.0f} FPS" + (" / FROZEN" if frozen else " / LIVE"), (w-195, 33), size=0.48)
+    text(header, f"{fps:.0f} FPS" + (" / LOCKED" if control.locked else " / FROZEN" if frozen else " / LIVE"), (w-195, 33), size=0.48)
     footer = np.full((118, w, 3), INK, np.uint8)
     text(footer, status, (20, 24), CYAN)
     text(footer, f"Einstein radius {control.radius:.0f} px | Relative mass {(control.radius/115)**2:.2f}x | Center mask {'on (stylized)' if shadow else 'off'}", (20, 49), size=0.48)
     text(footer, "Drag: move lens | +/-: strength | H: hand/mouse | G: guide | B: mask | I: inset", (20, 74), size=0.47)
-    text(footer, "Space: freeze | R: reset | Q: quit | Thin-lens simulation applied to camera pixels", (20, 99), (150, 165, 180), 0.46)
+    text(footer, "Left pinch: lock | Left double pinch: resume | L: lock | Space: freeze | R: reset | Q: quit", (20, 99), (150, 165, 180), 0.46)
     return np.vstack((header, view, footer))
 
 
@@ -230,13 +283,13 @@ def main(argv=None):
     last_time = time.perf_counter()
     last_detection = last_time
     mouse_time = -math.inf
-    landmarks = None
+    hands = {}
 
     def mouse(event, x, y, flags, userdata):
         nonlocal dragging, mouse_time
         if event == cv2.EVENT_LBUTTONUP:
             dragging = False
-        if shape is None or not (0 <= y-54 < shape[0]):
+        if control.locked or shape is None or not (0 <= y-54 < shape[0]):
             return
         if event == cv2.EVENT_LBUTTONDOWN:
             dragging = True
@@ -271,27 +324,30 @@ def main(argv=None):
                 control.center[:] = [shape[1]/2, shape[0]/2]
                 control.radius = min(115, shape[0]*0.3)
             if detector is not None and control.hand_enabled and not frozen:
-                if index % 2 == 0:
-                    try:
-                        landmarks = detector.detect(frame)
-                    except Exception as exc:
-                        print(f"Hand detector stopped; mouse controls remain available: {exc}")
-                        detector.close()
-                        detector = None
-                        control.hand_enabled = False
-                        landmarks = None
-                    elapsed = now-last_detection
-                    last_detection = now
-                    if landmarks is not None and not dragging and now-mouse_time > 1.5:
-                        control.follow(landmarks, shape[1], shape[0], now, elapsed)
-            if control.hand_enabled:
+                try:
+                    hands = detector.detect(frame)
+                except Exception as exc:
+                    print(f"Hand detector stopped; mouse controls remain available: {exc}")
+                    detector.close()
+                    detector = None
+                    control.hand_enabled = False
+                    hands = {}
+                elapsed = now-last_detection
+                last_detection = now
+                control.update_hands(hands, shape[1], shape[0], now, elapsed,
+                                     allow_follow=not dragging and now-mouse_time > 1.5)
+            if control.locked:
+                pending = now-control.unlock_first <= 0.8
+                hand_status = ("LOCKED / one more left pinch to resume" if pending else
+                               "LOCKED / position + size held / double-pinch LEFT hand to resume (or L)")
+            elif control.hand_enabled:
                 if now-control.last_hand < 0.35:
-                    hand_status = "HAND TRACKED / move pinch midpoint; spread thumb + index to strengthen lens"
+                    hand_status = "FOLLOWING RIGHT HAND / left pinch locks position + size"
                 else:
-                    hand_status = "Show thumb + index to the camera / lens holds on hand loss / mouse drag also works"
+                    hand_status = "Show RIGHT thumb + index to steer / LEFT pinch locks / mouse drag also works"
             else:
                 hand_status = "MOUSE CONTROL / drag the lens; +/- changes strength"
-            if args.demo:
+            if args.demo and not control.locked:
                 hand_status = "SYNTHETIC SKY / drag the lens across a planet to see arcs and multiple images"
             lensed = lens.apply(frame, control.center, control.radius, shadow)
             view = compose(frame, lensed, control, guide, inset, shadow, frozen, fps, hand_status, now)
@@ -305,7 +361,10 @@ def main(argv=None):
             if key in (27, ord("q")) or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
             if key in (ord("+"), ord("="), ord("-"), ord("_")):
-                control.radius = float(np.clip(control.radius*(1.08 if key in (43, 61) else 1/1.08), 20, 230))
+                if not control.locked:
+                    control.radius = float(np.clip(control.radius*(1.08 if key in (43, 61) else 1/1.08), 20, 230))
+            elif key == ord("l"):
+                control.set_locked(not control.locked)
             elif key == ord("h"):
                 control.hand_enabled = not control.hand_enabled
                 control.points = None
@@ -327,6 +386,7 @@ def main(argv=None):
                 control.points = None
                 control.last_hand = -math.inf
             elif key == ord("r"):
+                control.set_locked(False)
                 control.center[:] = [shape[1]/2, shape[0]/2]
                 control.radius = min(115, shape[0]*0.3)
                 control.points = None

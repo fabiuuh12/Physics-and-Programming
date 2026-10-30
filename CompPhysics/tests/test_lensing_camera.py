@@ -83,3 +83,79 @@ def test_full_render_includes_unwarped_inset_and_ui():
 def test_bad_lens_parameters_are_rejected(center, radius):
     with pytest.raises(ValueError):
         PointLens(20, 20).maps(center, radius)
+
+
+def gesture(pinched=False, center=0.5, ratio=None):
+    points = np.zeros((21, 3))
+    points[5, :2], points[17, :2] = [0.4, 0.6], [0.6, 0.6]
+    gap = 0.2 * (ratio if ratio is not None else 0.1 if pinched else 1.0)
+    points[4, :2], points[8, :2] = [center-gap/2, 0.4], [center+gap/2, 0.4]
+    return points
+
+
+def test_left_pinch_stops_right_motion_on_the_same_frame():
+    control = LensControl(np.array([480., 270.]))
+    before = control.center.copy(), control.radius
+    assert not control.update_hands({'left': gesture(True), 'right': gesture(center=0.8)},
+                                    960, 540, 1, 0.1)
+    assert control.locked
+    np.testing.assert_array_equal(control.center, before[0])
+    assert control.radius == before[1]
+    for t in [1.1, 1.2, 2.0]:
+        control.update_hands({'left': gesture(True), 'right': gesture(center=0.2)},
+                             960, 540, t, 0.1)
+        assert control.locked
+        np.testing.assert_array_equal(control.center, before[0])
+        assert control.radius == before[1]
+
+
+def test_unlock_needs_two_new_pinches_with_observed_releases():
+    control = LensControl(np.array([480., 270.]))
+    control.update_left(gesture(True), 960, 540, 1)  # locking pinch
+    control.update_left(gesture(False), 960, 540, 1.1)
+    control.update_left(gesture(True), 960, 540, 1.2)  # first NEW pinch
+    assert control.locked
+    control.update_left(gesture(True), 960, 540, 1.3)  # holding isn't another tap
+    assert control.locked
+    control.update_left(gesture(False), 960, 540, 1.4)
+    assert control.update_hands({'left': gesture(True), 'right': gesture(center=0.8)},
+                                960, 540, 1.5, 0.1)
+    assert not control.locked
+    assert control.center[0] > 480
+    assert control.radius != 115
+    # The held second pinch must not immediately lock again.
+    control.update_hands({'left': gesture(True)}, 960, 540, 1.6, 0.1)
+    assert not control.locked
+
+
+def test_slow_pinches_do_not_unlock_and_hand_loss_is_not_a_release():
+    control = LensControl(np.array([480., 270.]))
+    control.update_left(gesture(True), 960, 540, 1)
+    control.update_left(gesture(False), 960, 540, 1.1)
+    control.update_left(gesture(True), 960, 540, 1.2)
+    control.update_left(None, 960, 540, 1.3)
+    control.update_left(gesture(True), 960, 540, 1.4)
+    assert control.locked
+    control.update_left(gesture(False), 960, 540, 1.5)
+    control.update_left(gesture(True), 960, 540, 2.2)  # too late; new first tap
+    assert control.locked
+    control.update_left(gesture(False), 960, 540, 2.3)
+    control.update_left(gesture(True), 960, 540, 2.4)
+    assert not control.locked
+
+
+def test_left_never_steers_and_right_never_locks():
+    control = LensControl(np.array([480., 270.]))
+    assert not control.update_hands({'left': gesture(center=0.8)}, 960, 540, 1, 0.1)
+    np.testing.assert_array_equal(control.center, [480, 270])
+    assert control.update_hands({'right': gesture(True, center=0.8)}, 960, 540, 2, 0.1)
+    assert not control.locked
+    assert control.center[0] > 480
+
+
+def test_pinch_hysteresis_ignores_boundary_jitter():
+    control = LensControl(np.array([480., 270.]))
+    control.update_left(gesture(ratio=0.34), 960, 540, 1)
+    for i, ratio in enumerate([0.36, 0.50, 0.34, 0.45]):
+        control.update_left(gesture(ratio=ratio), 960, 540, 1.1+i*0.1)
+    assert control.locked and control.unlock_first == -np.inf
