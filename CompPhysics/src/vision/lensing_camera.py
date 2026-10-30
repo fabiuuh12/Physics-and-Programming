@@ -174,10 +174,12 @@ class HandInput:
             hands = self.bridge._extract_task_hands(result, mirror=False)
         else:
             hands = self.bridge._extract_solution_hands(self.detector.process(rgb), mirror=False)
-        # Input is already mirrored; MediaPipe's selfie handedness labels apply.
+        # Swap detector labels once here to match the user's physical hands
+        # in this mirrored camera pipeline; downstream roles stay anatomical.
         selected = {}
         for side in ("left", "right"):
-            hand = self.bridge._pick_best_by_label(hands, side)
+            detector_side = "right" if side == "left" else "left"
+            hand = self.bridge._pick_best_by_label(hands, detector_side)
             if hand is not None:
                 selected[side] = hand.landmarks
         return selected

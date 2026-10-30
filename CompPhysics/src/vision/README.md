@@ -47,7 +47,8 @@ python3 CompPhysics/src/vision/lensing_camera.py --no-hands
 With hand control enabled and the lens unlocked, gestures set strength again
 on the next detection.
 The lens holds its position and strength when the right hand disappears. Both
-hands are detected, using anatomical handedness in the mirrored webcam view.
+hands are detected; detector labels are swapped at the input boundary to match
+your physical right/left hands in this mirrored camera setup.
 The left hand never steers the lens; the right hand never triggers the lock.
 Holding a pinch counts once, and an observed release is required before another
 pinch counts. Losing the left hand does not count as releasing it. A pinch is

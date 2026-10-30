@@ -159,3 +159,25 @@ def test_pinch_hysteresis_ignores_boundary_jitter():
     for i, ratio in enumerate([0.36, 0.50, 0.34, 0.45]):
         control.update_left(gesture(ratio=ratio), 960, 540, 1.1+i*0.1)
     assert control.locked and control.unlock_first == -np.inf
+
+
+@pytest.mark.parametrize('tasks', [False, True])
+def test_detector_labels_are_swapped_before_assigning_physical_hand_roles(tasks):
+    from types import SimpleNamespace
+    from vision.lensing_camera import HandInput
+    physical_left, physical_right = gesture(True), gesture(center=0.8)
+    observations = [SimpleNamespace(label='Right', landmarks=physical_left),
+                    SimpleNamespace(label='Left', landmarks=physical_right)]
+    adapter = HandInput.__new__(HandInput)
+    adapter.tasks, adapter.timestamp = tasks, 0
+    adapter.mp = SimpleNamespace(Image=lambda **kwargs: None,
+                                 ImageFormat=SimpleNamespace(SRGB=0))
+    adapter.detector = SimpleNamespace(process=lambda frame: None,
+                                       detect_for_video=lambda image, timestamp: None)
+    adapter.bridge = SimpleNamespace(
+        _extract_task_hands=lambda result, mirror: observations,
+        _extract_solution_hands=lambda result, mirror: observations,
+        _pick_best_by_label=lambda hands, side: next(h for h in hands if h.label.lower() == side))
+    roles = adapter.detect(np.zeros((540, 960, 3), np.uint8))
+    assert roles['left'] is physical_left
+    assert roles['right'] is physical_right
