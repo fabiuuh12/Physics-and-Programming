@@ -13,6 +13,11 @@ to lock position and size immediately. Release, then make **two new quick left
 pinches** (within 0.8 seconds, releasing between them) to resume following the
 right hand. The locking pinch does not count toward unlocking. A smaller inset
 shows the original image.
+
+**Pinch with both hands and hold**, then move your hands apart to stretch the
+source wavelength toward red, or together to compress it toward violet.
+The lens position and radius hold during this gesture. Release both pinches
+to return to lens controls; the chosen wavelength stays selected.
 No target selection, mass entry or calibration is needed.
 
 Uses existing dependencies: OpenCV, NumPy, MediaPipe and the bundled
@@ -29,11 +34,18 @@ python3 CompPhysics/src/vision/lensing_camera.py --no-hands
 
 | Input | Action |
 | --- | --- |
+| Both thumb/index pinches held; vary distance between hands | Stretch/compress source wavelength |
 | Right thumb/index midpoint | Lens position |
 | Right thumb/index separation, normalized by palm width | Lens strength |
 | Left thumb/index pinch | Lock lens position and size |
 | Two new left pinches within 0.8 s | Unlock and resume right-hand control |
 | `L` | Toggle lock manually |
+| `S` | Switch camera / procedural space background (camera still tracks hands) |
+| Right-click / right-drag in space | Place/move the source star in the source plane |
+| `A` in space | Align source star with lens for an Einstein ring |
+| `T` | Toggle source star visibility |
+| `C` | Toggle illustrative source-color treatment |
+| `[` / `]` | Decrease/increase wavelength by 10 nm |
 | Mouse drag | Move lens; temporarily overrides gestures |
 | `+` / `-`, or mouse wheel | Increase/decrease Einstein radius |
 | `H` | Switch hand control on/off; disable to keep manual strength |
@@ -50,6 +62,8 @@ The lens holds its position and strength when the right hand disappears. Both
 hands are detected; detector labels are swapped at the input boundary to match
 your physical right/left hands in this mirrored camera setup.
 The left hand never steers the lens; the right hand never triggers the lock.
+Left-only lock/unlock gestures require the right pinch to be open: both pinches
+closed together control wavelength instead.
 Holding a pinch counts once, and an observed release is required before another
 pinch counts. Losing the left hand does not count as releasing it. A pinch is
 recognized on the next camera detection and takes priority over right-hand
@@ -62,6 +76,32 @@ first unlocking pinch has been received. The webcam itself keeps running.
 unfreeze it before using gestures again. Gesture indicators disappear after
 0.35 seconds without a valid observation. Keep your thumbs and index fingers
 visible. No camera recordings are written automatically.
+
+### Two-hand wavelength gesture
+
+Two simultaneous pinches take priority over the one-hand lens controls. Their
+starting separation anchors the selected wavelength; subsequent separation
+scales it proportionally, smoothed over 0.07 seconds and clamped to 380–750 nm.
+The readout gives frequency using `f = c / lambda` (THz), alongside a spatial
+wave sketch and spectrum ruler. The wave animation is enormously slowed down;
+it does not depict optical oscillations at real speed. Source colors are
+approximate screen RGB representations of visible wavelengths.
+
+The color treatment turns on when you enter wavelength control. `C` toggles it
+off again; in webcam mode it is an illustrative tint, **not a measurement or
+reconstruction of the room's spectrum**. A space source star always uses the
+selected wavelength color. Its position is independent of the lens and can be
+changed even with the lens locked. The first switch to space aligns it behind
+the lens to show a ring immediately. `A` realigns it later; move
+it off-axis to compare the separated images. `S` changes only the background;
+hand tracking continues to use the live webcam, shown in the inset.
+
+An existing lens lock survives wavelength adjustment. If the left pinch arrives
+up to 0.35 seconds before the right pinch, its new lock is consumed as part of
+the two-hand gesture. An observed release of both visible pinches ends the
+transition back to lens controls without generating lock/unlock taps. Losing
+tracking holds wavelength; reacquiring both pinches anchors a new adjustment
+to the retained value. `R` resets the lens, wavelength (550 nm), and tint.
 
 ### Model and visual meaning
 
@@ -84,13 +124,23 @@ tracer. The room is treated as a flat source image, with no depth reconstruction
 Relative mass is `(theta_E / 115 px)²` at fixed assumed lens geometry; no actual
 mass, distance or camera calibration is inferred.
 
+Within this geometric-optics model, lensing is achromatic: all selected
+wavelengths use the same deflection map. The two-hand gesture changes the
+source-light wavelength, not lens mass or gravitational bending. It is not a
+calculation of gravitational redshift or Doppler shift. The color treatment is
+a visualization, not a physical spectral transformation of an RGB camera.
+
 References: [Narayan & Bartelmann, Lectures on Gravitational Lensing](https://www.astro.umd.edu/~richard/ASTR680/Naryan_Bartlemann_Lensing.pdf),
-[OpenCV inverse image remapping](https://docs.opencv.org/4.1.0/da/d54/group__imgproc__transform.html).
+[OpenCV inverse image remapping](https://docs.opencv.org/4.1.0/da/d54/group__imgproc__transform.html),
+[NASA on achromatic lensing](https://imagine.gsfc.nasa.gov/ask_astro/relativity.html),
+[NASA visible light](https://science.nasa.gov/ems/09_visiblelight/).
 
 ### Camera-free preview
 
 ```bash
 python3 CompPhysics/src/vision/lensing_camera.py --demo
+python3 CompPhysics/src/vision/lensing_camera.py --background space
+python3 CompPhysics/src/vision/lensing_camera.py --demo --background space --wavelength 680 --tint
 python3 CompPhysics/src/vision/lensing_camera.py --demo --headless --frames 120 --snapshot CompPhysics/output/reports/lensing_camera_demo.png
 ```
 
