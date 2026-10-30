@@ -346,11 +346,11 @@ def constrain_macos_window(width, height, screen):
         pass
 
 
-def fit_window(width, height, screen):
+def fit_window(width, height, screen, window_name=WINDOW):
     w, h = fitted_size(width, height, screen)
-    cv2.resizeWindow(WINDOW, w, h)
+    cv2.resizeWindow(window_name, w, h)
     # Cocoa's moveWindow uses an offset from the top of the usable display.
-    cv2.moveWindow(WINDOW, screen.x+max(16, (screen.width-w)//2),
+    cv2.moveWindow(window_name, screen.x+max(16, (screen.width-w)//2),
                    max(16, (screen.height-h-28)//2))
     constrain_macos_window(width, height, screen)
     print(f"Window: {w}x{h} points; usable display: {screen.width}x{screen.height}; display scale: {screen.scale}x")

@@ -1,5 +1,21 @@
 # Camera experiments
 
+## Body particle lab
+
+```bash
+python3 explore.py run body_particle_camera
+```
+
+Your camera-tracked silhouette becomes a water-like 2D target for simulated
+alpha, beta and gamma beams. Choose a particle, adjust energy, and compare
+tracks that pass through, scatter or stop. Click/drag to aim, Space to pause,
+and M for slow motion. The app uses the bundled pose model and the same fitted
+Retina interface as the lensing camera. Nothing is recorded automatically.
+
+See the [model and controls guide](../../docs/BODY_PARTICLE_LAB.md) for assumptions,
+sources and camera-free previews. It is a material-transport visualization, not
+a tissue scan or dose estimate.
+
 ## Gravitational lensing camera
 
 ```bash
