@@ -16,7 +16,7 @@ shows the original image.
 
 No target selection, mass entry or calibration is needed.
 
-Uses existing dependencies: OpenCV, NumPy, MediaPipe and the bundled
+Uses OpenCV, NumPy, MediaPipe, Pillow for text rendering, and the bundled
 `resources/models/hand_landmarker.task`. There are no model downloads. If hand
 tracking cannot initialize, mouse controls remain available. On macOS, launch
 from Terminal and allow Terminal under **Privacy & Security → Camera**.
@@ -26,10 +26,24 @@ python3 CompPhysics/src/vision/lensing_camera.py --camera 1
 python3 CompPhysics/src/vision/lensing_camera.py --no-hands
 ```
 
+### Interface
+
+A small Camera/Space switch changes the background. Drag the **Lens size** slider
+at the bottom to adjust strength; it holds while the lens is locked. The bottom
+status shows when the lens is following, locked, paused, or using mouse control.
+The smaller camera preview can be hidden with `I`.
+
+Click **Controls** at the top right, or press `?`, for the shortcut panel.
+Click its close button or press **Esc** to dismiss it. The scene has no permanent
+FPS counter or numerical dashboard. Text uses the bundled Inter typeface.
+
 ### Controls
 
 | Input | Action |
 | --- | --- |
+| Controls button / `?` | Show or hide shortcut panel |
+| Camera / Space buttons | Switch background |
+| Lens size slider | Adjust lens strength while unlocked |
 | Right thumb/index midpoint | Lens position |
 | Right thumb/index separation, normalized by palm width | Lens strength |
 | Left thumb/index pinch | Lock lens position and size |
@@ -61,7 +75,7 @@ recognized on the next camera detection and takes priority over right-hand
 motion in that frame.
 
 While locked, mouse movement and strength controls also hold; `L` unlocks and `R`
-resets/unlocks. The header says **LOCKED**, and the status line shows when the
+resets/unlocks. The bottom status says **Locked**, and shows when the
 first unlocking pinch has been received. The webcam itself keeps running.
 `Space` independently freezes the source frame and pauses gesture detection;
 unfreeze it before using gestures again. Gesture indicators disappear after

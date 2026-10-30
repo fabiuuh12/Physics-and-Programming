@@ -71,12 +71,12 @@ def test_full_render_includes_unwarped_inset_and_ui():
     lens = PointLens(960, 540)
     control = LensControl(np.array([480., 270.]))
     result = compose(frame, lens.apply(frame, control.center, control.radius),
-                     control, True, True, True, False, 30, 'TEST', 0)
-    assert result.shape == (712, 960, 3)
+                     control, guide=True, inset=True, frozen=False, now=0)
+    assert result.shape == (648, 960, 3)
     # Sample the inset away from its border and label.
     import cv2
-    expected = cv2.resize(frame, (240, 135))
-    np.testing.assert_array_equal(result[54+387+5:54+387+30, 23:48], expected[5:30, 5:30])
+    expected = cv2.resize(frame, (190, 107))
+    np.testing.assert_array_equal(result[56+413+12:56+413+35, 32:55], expected[12:35, 12:35])
 
 
 @pytest.mark.parametrize('center,radius', [((np.nan, 1), 10), ((1, 1), -5), ((1, 1), np.inf)])

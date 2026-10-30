@@ -3,6 +3,7 @@
 
 Mouse drag also moves the lens. +/- changes strength; H switches hand control;
 Left pinch locks; two new left pinches resume right-hand control; L toggles lock.
+Click Controls (or press ?) for shortcuts.
 G toggles the Einstein-radius guide; B toggles a stylized black center;
 I toggles original inset; Space freezes the image; R resets; Q quits.
 S: camera/space; A: align the bright source star; right-click: move star;
@@ -12,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from functools import lru_cache
 import math
 import os
 from pathlib import Path
@@ -19,8 +21,11 @@ import time
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
-WINDOW = "Lensing Camera"
+WINDOW = "Lensing"
+HEADER_H, FOOTER_H = 56, 52
+FONT_PATH = Path(__file__).resolve().parents[2] / "resources/fonts/Inter-Regular.ttf"
 CYAN = (235, 215, 80)
 INK = (23, 18, 13)
 MODEL_PATH = Path(__file__).resolve().parents[2] / "resources/models/hand_landmarker.task"
@@ -265,40 +270,152 @@ def star_bloom(image):
     return np.clip(image.astype(np.float32)+glow, 0, 255).astype(np.uint8)
 
 
-def compose(frame, lensed, control, guide, inset, shadow, frozen, fps, status, now, background="camera"):
+
+@lru_cache(maxsize=256)
+def text_mask(message, size):
+    font = ImageFont.truetype(str(FONT_PATH), size)
+    bounds = font.getbbox(message)
+    mask = Image.new("L", (max(1, bounds[2]-bounds[0])+4, max(1, bounds[3]-bounds[1])+4))
+    ImageDraw.Draw(mask).text((2-bounds[0], 2-bounds[1]), message, fill=255, font=font)
+    return np.asarray(mask, dtype=np.float32)[..., None]/255
+
+
+def ui_text(image, message, xy, size=14, color=(225, 226, 230)):
+    """Cached Inter glyph masks; xy is the top-left, not a text baseline."""
+    alpha = text_mask(message, size)
+    x, y = xy
+    h, w = alpha.shape[:2]
+    x0, y0 = max(0, x), max(0, y)
+    x1, y1 = min(image.shape[1], x+w), min(image.shape[0], y+h)
+    if x0 >= x1 or y0 >= y1:
+        return
+    alpha = alpha[y0-y:y1-y, x0-x:x1-x]
+    roi = image[y0:y1, x0:x1]
+    roi[:] = roi*(1-alpha)+np.asarray(color)*alpha
+
+
+def rounded_rect(image, box, fill, radius=8):
+    x0, y0, x1, y1 = box
+    cv2.rectangle(image, (x0+radius, y0), (x1-radius, y1), fill, -1)
+    cv2.rectangle(image, (x0, y0+radius), (x1, y1-radius), fill, -1)
+    for x in (x0+radius, x1-radius):
+        for y in (y0+radius, y1-radius):
+            cv2.circle(image, (x, y), radius, fill, -1, cv2.LINE_AA)
+
+
+def ui_layout(width, height):
+    middle = width//2
+    return {
+        "camera": (middle-88, 12, middle-2, 44),
+        "space": (middle+2, 12, middle+88, 44),
+        "controls": (width-126, 12, width-18, 44),
+        "slider": (width-196, HEADER_H+height+18, width-28, HEADER_H+height+38),
+        "help": (width-378, HEADER_H+14, width-18, HEADER_H+min(height-14, 504)),
+        "close": (width-54, HEADER_H+24, width-28, HEADER_H+50),
+    }
+
+
+def inside(box, x, y):
+    return box[0] <= x <= box[2] and box[1] <= y <= box[3]
+
+
+def draw_controls(canvas, box):
+    x0, y0, x1, y1 = box
+    rounded_rect(canvas, box, (35, 33, 31), 12)
+    ui_text(canvas, "Controls", (x0+20, y0+17), 18)
+    ui_text(canvas, "×", (x1-33, y0+15), 21, (165, 167, 173))
+    ui_text(canvas, "HANDS", (x0+20, y0+56), 10, (132, 135, 142))
+    rows = [
+        ("Right hand", "Move and resize"),
+        ("Left pinch", "Hold the lens"),
+        ("Double left pinch", "Resume following"),
+    ]
+    y = y0+79
+    for key, action in rows:
+        ui_text(canvas, key, (x0+20, y), 13, (188, 191, 197))
+        ui_text(canvas, action, (x0+164, y), 13)
+        y += 25
+    ui_text(canvas, "MOUSE & KEYBOARD", (x0+20, y+11), 10, (132, 135, 142))
+    y += 36
+    rows = [
+        ("Drag", "Move lens"), ("Right-drag", "Move star in space"),
+        ("A", "Align star"), ("+ / −", "Lens size"),
+        ("Space", "Pause camera"), ("L", "Hold / release lens"),
+        ("H", "Hand / mouse control"), ("I", "Camera preview"),
+        ("G / B / T", "Guide / mask / star"), ("R", "Reset lens"),
+        ("Q", "Quit"),
+    ]
+    for key, action in rows:
+        if y+17 > y1-14:
+            break
+        ui_text(canvas, key, (x0+20, y), 12, (156, 160, 167))
+        ui_text(canvas, action, (x0+164, y), 13)
+        y += 24
+
+
+def compose(frame, lensed, control, guide, inset, frozen, now,
+            background="camera", help_open=False):
     h, w = frame.shape[:2]
     view = lensed.copy()
     center = tuple(np.rint(control.center).astype(int))
     if guide:
-        cv2.circle(view, center, round(control.radius), (135, 135, 80), 1, cv2.LINE_AA)
-        label_pos = (max(10, min(w-185, center[0]+15)),
-                     max(25, min(h-15, center[1]-round(control.radius)-12)))
-        text(view, "Einstein radius (guide)", label_pos, CYAN, 0.43)
+        cv2.circle(view, center, round(control.radius), (120, 127, 136), 1, cv2.LINE_AA)
     if control.hand_enabled and control.points is not None and now-control.last_hand < 0.35:
-        a, b = (tuple(np.rint(p).astype(int)) for p in control.points)
-        cv2.line(view, a, b, CYAN, 1, cv2.LINE_AA)
-        for p in (a, b):
-            cv2.circle(view, p, 5, CYAN, -1, cv2.LINE_AA)
-        cv2.line(view, tuple(np.int32((np.array(a)+b)/2)), center, CYAN, 1, cv2.LINE_AA)
+        for p in control.points:
+            cv2.circle(view, tuple(np.rint(p).astype(int)), 3, (210, 217, 220), -1, cv2.LINE_AA)
     if inset:
-        iw = w//4
+        iw = min(190, w//5)
         ih = round(h*iw/w)
         original = cv2.resize(frame, (iw, ih))
-        x, y = 18, h-ih-18
-        view[y:y+ih, x:x+iw] = original
-        cv2.rectangle(view, (x-1, y-1), (x+iw, y+ih), (175, 168, 145), 1)
-        cv2.rectangle(view, (x, y+ih-26), (x+100, y+ih), INK, -1)
-        text(view, "CAMERA" if background == "space" else "ORIGINAL", (x+8, y+ih-9), size=0.42)
-    header = np.full((54, w, 3), INK, np.uint8)
-    text(header, "L E N S I N G   C A M E R A", (20, 34), CYAN, 0.7)
-    state = "LOCKED" if control.locked else "FROZEN" if frozen else background.upper()
-    text(header, f"{fps:.0f} FPS / {state}", (w-230, 33), size=0.48)
-    footer = np.full((118, w, 3), INK, np.uint8)
-    text(footer, status, (20, 24), CYAN)
-    text(footer, f"Einstein radius {control.radius:.0f} px | Relative mass {(control.radius/115)**2:.2f}x | Center mask {'on (stylized)' if shadow else 'off'}", (20, 49), size=0.48)
-    text(footer, "S: camera/space | Right-drag: star | A: align | T: star | +/-: lens | G: guide | B: mask", (20, 74), size=0.44)
-    text(footer, "Left pinch: lock | Left double pinch: resume | L: lock | H: hands | Space: freeze | R: reset | Q: quit", (20, 99), (150, 165, 180), 0.42)
-    return np.vstack((header, view, footer))
+        x, y = 20, h-ih-20
+        # Rounded, quiet camera preview with a small label over a dark strip.
+        mask = np.zeros((ih, iw, 3), np.uint8)
+        rounded_rect(mask, (0, 0, iw-1, ih-1), (255, 255, 255), 8)
+        alpha = mask.astype(np.float32)/255
+        roi = view[y:y+ih, x:x+iw]
+        roi[:] = roi*(1-alpha)+original*alpha
+        roi[ih-25:ih-3, 5:iw-5] = (roi[ih-25:ih-3, 5:iw-5]*0.5).astype(np.uint8)
+        ui_text(view, "Camera" if background == "space" else "Original", (x+10, y+ih-23), 11)
+    header = np.full((HEADER_H, w, 3), (23, 22, 21), np.uint8)
+    footer = np.full((FOOTER_H, w, 3), (23, 22, 21), np.uint8)
+    ui_text(header, "Lensing", (20, 16), 21)
+    layout = ui_layout(w, h)
+    rounded_rect(header, (w//2-92, 9, w//2+92, 47), (32, 30, 29), 9)
+    for mode in ("camera", "space"):
+        box = layout[mode]
+        active = mode == background
+        if active:
+            rounded_rect(header, box, (62, 59, 56), 7)
+        ui_text(header, mode.capitalize(), (box[0]+15, 22), 13,
+                (235, 236, 239) if active else (153, 157, 164))
+    rounded_rect(header, layout["controls"], (39, 37, 35), 7)
+    ui_text(header, "Controls  ?", (w-113, 22), 13, (184, 188, 194))
+    if control.locked:
+        state, hint = "Locked", "Double-pinch left to resume"
+        if now-control.unlock_first <= 0.8:
+            hint = "One more pinch to resume"
+    elif frozen:
+        state, hint = "Paused", "Space to continue"
+    elif control.hand_enabled:
+        state = "Following hand" if now-control.last_hand < 0.35 else "Ready"
+        hint = "Left pinch to hold" if state == "Following hand" else "Show your right hand"
+    else:
+        state, hint = "Mouse control", "Drag to move"
+    cv2.circle(footer, (25, 27), 3, (158, 178, 158) if state == "Following hand" else (136, 143, 153), -1, cv2.LINE_AA)
+    ui_text(footer, state, (37, 21), 13)
+    ui_text(footer, hint, (180, 22), 12, (133, 139, 149))
+    ui_text(footer, "Lens size", (w-274, 22), 12, (155, 160, 170))
+    slider = layout["slider"]
+    x0, x1 = slider[0], slider[2]
+    cv2.line(footer, (x0, 27), (x1, 27), (62, 63, 68), 3, cv2.LINE_AA)
+    fraction = float(np.clip((control.radius-20)/210, 0, 1))
+    knob = round(x0+fraction*(x1-x0))
+    cv2.line(footer, (x0, 27), (knob, 27), (137, 142, 152), 3, cv2.LINE_AA)
+    cv2.circle(footer, (knob, 27), 5, (169, 173, 180) if control.locked else (230, 231, 234), -1, cv2.LINE_AA)
+    canvas = np.vstack((header, view, footer))
+    if help_open:
+        draw_controls(canvas, layout["help"])
+    return canvas
 
 
 def main(argv=None):
@@ -310,6 +427,7 @@ def main(argv=None):
     parser.add_argument("--headless", action="store_true", help="demo only, no windows")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--snapshot", type=Path)
+    parser.add_argument("--show-controls", action="store_true", help="show the controls panel")
     args = parser.parse_args(argv)
     if args.headless and (not args.demo or args.frames < 1):
         parser.error("--headless requires --demo and a positive --frames")
@@ -322,7 +440,6 @@ def main(argv=None):
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
     control = LensControl(np.array([480., 270.]), hand_enabled=not (args.no_hands or args.demo))
-    hand_status = "Mouse control: drag anywhere in the camera view; +/- changes strength"
     if control.hand_enabled:
         try:
             detector = HandInput()
@@ -336,33 +453,65 @@ def main(argv=None):
     frame = None
     view = None
     shape = None
-    dragging = star_dragging = False
+    dragging = star_dragging = slider_dragging = False
+    help_open = args.show_controls
     guide, inset, shadow, frozen = False, True, True, False
-    index, fps = 0, 30.0
-    last_time = time.perf_counter()
-    last_detection = last_time
+    index = 0
+    last_detection = time.perf_counter()
     mouse_time = -math.inf
     hands = {}
 
+    def switch_background(mode):
+        nonlocal background, space_seen, star_dragging
+        background = mode
+        if mode == "space" and not space_seen:
+            star_position[:] = control.center
+            space_seen = True
+        star_dragging = False
+
     def mouse(event, x, y, flags, userdata):
-        nonlocal dragging, star_dragging, mouse_time
+        nonlocal dragging, star_dragging, slider_dragging, mouse_time, help_open
         if event == cv2.EVENT_LBUTTONUP:
-            dragging = False
+            dragging = slider_dragging = False
         if event == cv2.EVENT_RBUTTONUP:
             star_dragging = False
-        if shape is None or not (0 <= y-54 < shape[0]):
+        if shape is None:
+            return
+        layout = ui_layout(shape[1], shape[0])
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if inside(layout["controls"], x, y):
+                help_open = not help_open
+                return
+            for mode in ("camera", "space"):
+                if inside(layout[mode], x, y):
+                    switch_background(mode)
+                    return
+            if help_open and inside(layout["close"], x, y):
+                help_open = False
+                return
+        if help_open and inside(layout["help"], x, y):
+            return
+        if not control.locked:
+            if event == cv2.EVENT_LBUTTONDOWN and inside(layout["slider"], x, y):
+                slider_dragging = True
+            if slider_dragging and event in (cv2.EVENT_LBUTTONDOWN, cv2.EVENT_MOUSEMOVE):
+                x0, _, x1, _ = layout["slider"]
+                control.radius = float(20+210*np.clip((x-x0)/(x1-x0), 0, 1))
+                mouse_time = time.perf_counter()
+                return
+        if not (0 <= y-HEADER_H < shape[0]):
             return
         if background == "space":
             if event == cv2.EVENT_RBUTTONDOWN:
                 star_dragging = True
             if star_dragging and event in (cv2.EVENT_MOUSEMOVE, cv2.EVENT_RBUTTONDOWN):
-                star_position[:] = np.clip([x, y-54], [0, 0], [shape[1]-1, shape[0]-1])
+                star_position[:] = np.clip([x, y-HEADER_H], [0, 0], [shape[1]-1, shape[0]-1])
         if control.locked:
             return
         if event == cv2.EVENT_LBUTTONDOWN:
             dragging = True
         if dragging and event in (cv2.EVENT_MOUSEMOVE, cv2.EVENT_LBUTTONDOWN):
-            control.center[:] = np.clip([x, y-54], [0, 0], [shape[1]-1, shape[0]-1])
+            control.center[:] = np.clip([x, y-HEADER_H], [0, 0], [shape[1]-1, shape[0]-1])
             mouse_time = time.perf_counter()
             control.points = None
         if event == cv2.EVENT_MOUSEWHEEL:
@@ -374,9 +523,6 @@ def main(argv=None):
             cv2.setMouseCallback(WINDOW, mouse)
         while True:
             now = time.perf_counter()
-            dt = max(1e-4, now-last_time)
-            last_time = now
-            fps = 0.9*fps + 0.1/dt
             if not frozen or frame is None:
                 if args.demo:
                     frame = synthetic_scene(960, 540, index/30)
@@ -405,25 +551,12 @@ def main(argv=None):
                 elapsed = now-last_detection
                 last_detection = now
                 control.update_hands(hands, shape[1], shape[0], now, elapsed,
-                                     allow_follow=not dragging and now-mouse_time > 1.5)
-            if control.locked:
-                pending = now-control.unlock_first <= 0.8
-                hand_status = ("LOCKED / one more left pinch to resume" if pending else
-                               "LOCKED / position + size held / double-pinch LEFT hand to resume (or L)")
-            elif control.hand_enabled:
-                if now-control.last_hand < 0.35:
-                    hand_status = "FOLLOWING RIGHT HAND / left pinch locks position + size"
-                else:
-                    hand_status = "Show RIGHT thumb + index to steer / LEFT pinch locks / mouse drag also works"
-            else:
-                hand_status = "MOUSE CONTROL / drag the lens; +/- changes strength"
-            if args.demo and not control.locked:
-                hand_status = "DEMO / S switches space background / right-click places star / A aligns for a ring"
+                                     allow_follow=not (dragging or slider_dragging) and now-mouse_time > 1.5)
             source = sky.render(star_position, star_visible) if background == "space" else frame
             lensed = lens.apply(source, control.center, control.radius, shadow)
             if background == "space":
                 lensed = star_bloom(lensed)
-            view = compose(frame, lensed, control, guide, inset, shadow, frozen, fps, hand_status, now, background)
+            view = compose(frame, lensed, control, guide, inset, frozen, now, background, help_open)
             index += 1
             if args.headless:
                 if index >= args.frames:
@@ -431,17 +564,18 @@ def main(argv=None):
                 continue
             cv2.imshow(WINDOW, view)
             key = cv2.waitKey(15 if args.demo else 1) & 0xFF
+            if key == 27 and help_open:
+                help_open = False
+                continue
             if key in (27, ord("q")) or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
             if key in (ord("+"), ord("="), ord("-"), ord("_")):
                 if not control.locked:
                     control.radius = float(np.clip(control.radius*(1.08 if key in (43, 61) else 1/1.08), 20, 230))
+            elif key in (ord("?"), ord("/")):
+                help_open = not help_open
             elif key == ord("s"):
-                background = "space" if background == "camera" else "camera"
-                if background == "space" and not space_seen:
-                    star_position[:] = control.center
-                    space_seen = True
-                star_dragging = False
+                switch_background("space" if background == "camera" else "camera")
             elif key == ord("a") and background == "space":
                 star_position[:] = control.center
             elif key == ord("t"):
