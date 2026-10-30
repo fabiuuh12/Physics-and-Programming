@@ -1,5 +1,20 @@
 # Camera experiments
 
+## Particle Studio
+
+```bash
+python3 explore.py run particle_studio
+```
+
+Switch between **Tracks** and **Collisions** in one camera-controlled detector.
+Hold a right pinch to release charged particles; left-hand spread changes the
+magnetic field. In Collisions, pinch both hands apart and bring them together
+to trigger a charge-balanced toy event. Mouse controls are also available.
+
+See the [controls and model guide](../../docs/PARTICLE_STUDIO.md) for units,
+conservation checks, model assumptions and camera-free previews. The app reuses
+the existing hand tracker, font and fitted Retina interface.
+
 ## Gravitational lensing camera
 
 ```bash
