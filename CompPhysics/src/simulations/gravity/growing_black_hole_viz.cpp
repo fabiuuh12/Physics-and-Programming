@@ -282,28 +282,52 @@ void preset(int key,CameraRig* r,Camera3D* c){
 
 float effectiveJetPower(float mass,float spin){return sat((float)blackhole::jetPower(mass)*(.65f+.65f*(float)blackhole::spinJetMultiplier(spin)));}
 
+Rectangle controlPanel(){return{GetScreenWidth()-352.0f,64,324,392};}
+Rectangle feedControl(){Rectangle p=controlPanel();return{p.x+18,p.y+48,137,46};}
+Rectangle rewindControl(){Rectangle p=controlPanel();return{p.x+163,p.y+48,143,46};}
+Rectangle spinDownControl(){Rectangle p=controlPanel();return{p.x+240,p.y+313,28,28};}
+Rectangle spinUpControl(){Rectangle p=controlPanel();return{p.x+278,p.y+313,28,28};}
+
+void metricBar(Rectangle panel,float y,const char* label,float value,Color color){
+    value=sat(value);studio::text(label,panel.x+18,y,13,{163,179,195,255});
+    studio::text(TextFormat("%3.0f%%",value*100),panel.x+266,y,13,{224,231,237,255});
+    Rectangle track={panel.x+18,y+21,panel.width-36,7};DrawRectangleRounded(track,1,8,{29,42,56,255});
+    if(value>.002f)DrawRectangleRounded({track.x,track.y,track.width*value,track.height},1,8,color);
+    DrawCircleV({track.x+track.width*value,track.y+track.height*.5f},4,Fade(color,.85f));
+}
+
 void drawHud(float mass,float spin,float observerDistance,float speed,bool paused,bool feeding,bool rewinding,bool blazarView,float renderScale,float fps){
     float disk=blackhole::diskFraction(mass),jet=effectiveJetPower(mass,spin);
-    studio::title("Growing Black Hole",studio::Style::Observatory);
     const char* activity=blazarView?"BLAZAR VIEW - JET ALIGNED":blackhole::stateName(mass);
-    studio::readout(TextFormat("%s   |   mass reservoir %.0f%%   |   disk %.0f%%   |   jet power %.0f%%",activity,mass*100,disk*100,jet*100));
-    studio::note("Feed matter into the gravity well and watch the accretion state evolve");
-    Rectangle panel={GetScreenWidth()-312.0f,86,284,248};studio::panel(panel,{11,19,32,236});
-    studio::text("ACCRETION CONTROL",panel.x+18,panel.y+16,13,{231,190,128,255});
-    Rectangle feed={panel.x+18,panel.y+48,118,48},rewind={panel.x+144,panel.y+48,122,48};
+    studio::text("OBSERVATORY  /  GENERAL RELATIVITY",26,18,11,{205,166,109,255});
+    studio::text("Growing Black Hole",26,39,28,{239,241,240,255});DrawLine(26,78,146,78,{205,166,109,255});
+    float badgeWidth=studio::textWidth(activity,14)+28;Rectangle badge={26,93,badgeWidth,32};
+    DrawRectangleRounded(badge,.22f,8,{18,29,43,232});DrawRectangleRoundedLinesEx(badge,.22f,8,1,Fade({231,190,128,255},.45f));
+    DrawCircle(42,109,3,{231,190,128,255});studio::text(activity,53,101,14,{235,211,170,255});
+    studio::text(paused?"SIMULATION PAUSED":"LIVE ACCRETION MODEL",26,135,11,paused?Color{255,183,99,255}:Color{126,185,218,255});
+
+    Rectangle panel=controlPanel();
+    DrawRectangleRounded({panel.x+2,panel.y+5,panel.width,panel.height},.055f,10,{0,0,0,65});
+    DrawRectangleRounded(panel,.055f,10,{9,17,28,239});DrawRectangleRoundedLinesEx(panel,.055f,10,1,{55,73,91,190});
+    studio::text("SYSTEM EVOLUTION",panel.x+18,panel.y+16,12,{231,190,128,255});
+    Rectangle feed=feedControl(),rewind=rewindControl();
     Color fc=feeding?Color{219,119,48,255}:(studio::over(feed)?Color{63,77,94,255}:Color{37,50,66,255});
     Color rc=rewinding?Color{67,125,174,255}:(studio::over(rewind)?Color{63,77,94,255}:Color{37,50,66,255});
     DrawRectangleRounded(feed,.18f,8,fc);DrawRectangleRounded(rewind,.18f,8,rc);
-    studio::text(feeding?"FEEDING...":"FEED +",feed.x+22,feed.y+14,16,{248,242,226,255});
-    studio::text(rewinding?"REWINDING...":"REWIND -",rewind.x+13,rewind.y+14,15,{226,239,249,255});
-    studio::text(TextFormat("Horizon radius  %.2f",blackhole::horizonRadius(mass)),panel.x+18,panel.y+113,15,{195,207,220,255});
-    studio::text(TextFormat("Radiative output  %.0f%%",blackhole::luminosity(mass)*100),panel.x+18,panel.y+138,15,{255,181,91,255});
-    studio::text(TextFormat("Kerr spin  %+.2f",spin),panel.x+18,panel.y+163,15,{183,202,236,255});
-    Rectangle spinDown={panel.x+202,panel.y+151,28,28},spinUp={panel.x+238,panel.y+151,28,28};
+    studio::text(feeding?"FEEDING...":"FEED  +",feed.x+29,feed.y+13,15,{248,242,226,255});
+    studio::text(rewinding?"REWINDING...":"REWIND  -",rewind.x+24,rewind.y+13,15,{226,239,249,255});
+    metricBar(panel,panel.y+108,"MASS RESERVOIR",mass,{222,126,54,255});
+    metricBar(panel,panel.y+153,"ACCRETION DISK",disk,{236,178,79,255});
+    metricBar(panel,panel.y+198,"RADIATIVE OUTPUT",(float)blackhole::luminosity(mass),{225,232,245,255});
+    metricBar(panel,panel.y+243,"JET POWER",jet,{105,169,245,255});
+    studio::text(TextFormat("KERR SPIN  %+.2f",spin),panel.x+18,panel.y+315,13,{183,202,236,255});
+    Rectangle spinDown=spinDownControl(),spinUp=spinUpControl();
     studio::button(spinDown,"-",false,{82,119,167,255});studio::button(spinUp,"+",false,{82,119,167,255});
-    studio::text(TextFormat("ISCO %.2f  |  observer %.1f R_H",blackhole::iscoRadius(spin),observerDistance),panel.x+18,panel.y+188,14,{170,185,201,255});
-    const char* jetText=blazarView?"Jet aimed toward observer":(jet>.05f?"Polar magnetic jets launched":"Jets waiting for high accretion");
-    studio::text(jetText,panel.x+18,panel.y+213,15,jet>.05f?Color{139,193,255,255}:Color{133,151,169,255});
+    Rectangle spinTrack={panel.x+18,panel.y+349,210,5};DrawRectangleRounded(spinTrack,1,8,{34,48,64,255});
+    float spin01=(spin+1)*.5f;DrawLineEx({spinTrack.x+spinTrack.width*.5f,spinTrack.y-4},{spinTrack.x+spinTrack.width*.5f,spinTrack.y+9},1,{94,111,128,255});
+    DrawCircleV({spinTrack.x+spinTrack.width*spin01,spinTrack.y+2.5f},6,{166,196,236,255});
+    studio::text(TextFormat("ISCO %.2f GM/c^2",blackhole::iscoRadius(spin)),panel.x+18,panel.y+367,12,{153,169,185,255});
+    studio::text(TextFormat("OBSERVER %.1f R_H",observerDistance),panel.x+170,panel.y+367,12,{153,169,185,255});
     studio::help(TextFormat("F/D: feed/rewind | Z/X: Kerr spin | Drag: unlimited orbit | Wheel: zoom | Q: quality %.0f%% | Space: pause",renderScale*100));
     studio::fps();(void)speed;(void)paused;(void)fps;
 }
@@ -327,8 +351,8 @@ int main(int argc,char** argv){
     if(startDistance>0)rig.distance=startDistance;
     float mass=startMass,spin=startSpin,time=0,speed=1,ignition=0;bool paused=false;int frame=0;
     while(!WindowShouldClose()){
-        Rectangle feedButton={GetScreenWidth()-294.0f,134,118,48},rewindButton={GetScreenWidth()-168.0f,134,122,48};
-        Rectangle spinDownButton={GetScreenWidth()-110.0f,237,28,28},spinUpButton={GetScreenWidth()-74.0f,237,28,28};
+        Rectangle feedButton=feedControl(),rewindButton=rewindControl();
+        Rectangle spinDownButton=spinDownControl(),spinUpButton=spinUpControl();
         bool feeding=IsKeyDown(KEY_F)||(studio::over(feedButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
         bool rewinding=IsKeyDown(KEY_D)||(studio::over(rewindButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
         if(IsKeyPressed(KEY_SPACE)||IsKeyPressed(KEY_P))paused=!paused;if(IsKeyPressed(KEY_R)){mass=.07f;spin=.72f;time=0;ignition=0;paused=false;}
