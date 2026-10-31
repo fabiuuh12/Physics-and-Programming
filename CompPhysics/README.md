@@ -23,17 +23,17 @@ python3 explore.py run three_body_problem_viz
 
 Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program catalog](docs/CATALOG.md) for every file, and the [folder map](docs/STRUCTURE.md) for the complete structure.
 
-## Spacetime Geometry Lab
+## Spacetime Sandbox
 
-Explore a curved 3D grid with planet, star, black hole and hypothetical wormhole
-geometries. Switch between a single plane and a spatial lattice; inspect light
-paths, causal cones and clock rates with interactive controls.
+Start with an empty 3D grid. Place planets, stars, black holes and wormhole mouths,
+then drag them around and change their mass to reshape the grid. A small object
+picker and optional help keep the scene clear.
 
 ```bash
 ./CompPhysics/scripts/run spacetime_geometry_viz
 ```
 
-See [controls, geometry and numerical assumptions](docs/SPACETIME_GEOMETRY.md).
+See [sandbox controls and model notes](docs/SPACETIME_GEOMETRY.md).
 
 ## Good first physics demos
 

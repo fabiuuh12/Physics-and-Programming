@@ -14,14 +14,9 @@ def main():
     executable = root / 'output/native/spacetime_geometry_viz_cpp'
     output = root / 'output/reports/spacetime_geometry'
     output.mkdir(parents=True, exist_ok=True)
-    profiles = [(f'preset_{p}_lattice_{g}', ['--preset', str(p), '--lattice', str(g)])
-                for p in range(5) for g in range(2)]
-    profiles += [
-        ('inside_horizon', ['--preset', '3', '--probe', '.75']),
-        ('strong_mass', ['--preset', '3', '--mass', '2.4', '--warp', '2']),
-        ('thin_throat', ['--preset', '4', '--mass', '.35', '--impact', '0']),
-        ('negative_impact', ['--preset', '3', '--impact', '-3']),
-    ]
+    profiles = [(f'{scene}_lattice_{g}', ['--scene', scene, '--lattice', str(g)])
+                for scene in ('empty', 'mixed', 'planet', 'star', 'blackhole', 'wormhole')
+                for g in range(2)]
     scenes, results = {}, []
     for name, options in profiles:
         path = output / f'{name}.png'
@@ -39,11 +34,13 @@ def main():
         scenes[name] = scene
         results.append({'profile': name, 'passed': True})
         print(f'PASS {name}', flush=True)
-    for p in range(5):
-        difference = ImageChops.difference(scenes[f'preset_{p}_lattice_0'], scenes[f'preset_{p}_lattice_1'])
-        assert max(ImageStat.Stat(difference).mean) > 1, f'Lattice toggle has no visible effect: {p}'
-    invalid = subprocess.run([str(executable), '--mass', 'nan'], capture_output=True, text=True)
-    assert invalid.returncode == 2, 'Invalid numeric settings must be rejected before opening a window'
+    for scene in ('empty', 'mixed', 'planet', 'star', 'blackhole', 'wormhole'):
+        difference = ImageChops.difference(scenes[f'{scene}_lattice_0'], scenes[f'{scene}_lattice_1'])
+        assert max(ImageStat.Stat(difference).mean) > 1, f'Lattice toggle has no visible effect: {scene}'
+    difference = ImageChops.difference(scenes['empty_lattice_0'], scenes['mixed_lattice_0'])
+    assert max(ImageStat.Stat(difference).mean) > 2, 'Placing objects must visibly deform the grid'
+    invalid = subprocess.run([str(executable), '--scene', 'invalid'], capture_output=True, text=True)
+    assert invalid.returncode == 2, 'Invalid scene must be rejected before opening a window'
     (output / 'results.json').write_text(json.dumps(results, indent=2))
     print(f'{len(results)} graphics profiles passed; {output}')
 
