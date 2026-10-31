@@ -261,7 +261,7 @@ void preset(int key,CameraRig* r,Camera3D* c){
     if(key==KEY_THREE){*r={1.56f,-.04f,12.0f};c->target={0,1.8f,0};}
 }
 
-void drawHud(float mass,float speed,bool paused,bool feeding,bool blazarView,float renderScale,float fps){
+void drawHud(float mass,float speed,bool paused,bool feeding,bool rewinding,bool blazarView,float renderScale,float fps){
     float disk=blackhole::diskFraction(mass),jet=blackhole::jetPower(mass);
     studio::title("Growing Black Hole",studio::Style::Observatory);
     const char* activity=blazarView?"BLAZAR VIEW - JET ALIGNED":blackhole::stateName(mass);
@@ -269,13 +269,17 @@ void drawHud(float mass,float speed,bool paused,bool feeding,bool blazarView,flo
     studio::note("Feed matter into the gravity well and watch the accretion state evolve");
     Rectangle panel={GetScreenWidth()-312.0f,86,284,196};studio::panel(panel,{11,19,32,236});
     studio::text("ACCRETION CONTROL",panel.x+18,panel.y+16,13,{231,190,128,255});
-    Rectangle feed={panel.x+18,panel.y+48,panel.width-36,48};bool over=studio::over(feed);Color fc=feeding?Color{219,119,48,255}:(over?Color{63,77,94,255}:Color{37,50,66,255});
-    DrawRectangleRounded(feed,.18f,8,fc);studio::text(feeding?"FEEDING MATTER...":"HOLD TO FEED",feed.x+27,feed.y+14,17,{248,242,226,255});
+    Rectangle feed={panel.x+18,panel.y+48,118,48},rewind={panel.x+144,panel.y+48,122,48};
+    Color fc=feeding?Color{219,119,48,255}:(studio::over(feed)?Color{63,77,94,255}:Color{37,50,66,255});
+    Color rc=rewinding?Color{67,125,174,255}:(studio::over(rewind)?Color{63,77,94,255}:Color{37,50,66,255});
+    DrawRectangleRounded(feed,.18f,8,fc);DrawRectangleRounded(rewind,.18f,8,rc);
+    studio::text(feeding?"FEEDING...":"FEED +",feed.x+22,feed.y+14,16,{248,242,226,255});
+    studio::text(rewinding?"REWINDING...":"REWIND -",rewind.x+13,rewind.y+14,15,{226,239,249,255});
     studio::text(TextFormat("Horizon radius  %.2f",blackhole::horizonRadius(mass)),panel.x+18,panel.y+113,15,{195,207,220,255});
     studio::text(TextFormat("Radiative output  %.0f%%",blackhole::luminosity(mass)*100),panel.x+18,panel.y+138,15,{255,181,91,255});
     const char* jetText=blazarView?"Jet aimed toward observer":(jet>.05f?"Polar magnetic jets launched":"Jets waiting for high accretion");
     studio::text(jetText,panel.x+18,panel.y+163,15,jet>.05f?Color{139,193,255,255}:Color{133,151,169,255});
-    studio::help(TextFormat("Hold F or button: feed | Drag: orbit | Wheel: zoom | 1/2/3: views | Q: quality %.0f%% | Space: pause | R: reset",renderScale*100));
+    studio::help(TextFormat("F: feed | D: rewind | Drag: orbit | Wheel: zoom | 1/2/3: views | Q: quality %.0f%% | Space: pause | R: reset",renderScale*100));
     studio::fps();(void)speed;(void)paused;(void)fps;
 }
 
@@ -295,14 +299,17 @@ int main(int argc,char** argv){
     Camera3D camera{{0,0,0},{0,0,0},{0,1,0},47,CAMERA_PERSPECTIVE};CameraRig rig;preset(KEY_ONE,&rig,&camera);
     float mass=startMass,time=0,speed=1,ignition=0;bool paused=false;int frame=0;
     while(!WindowShouldClose()){
-        Rectangle feedButton={GetScreenWidth()-294.0f,134,248,48};bool feeding=IsKeyDown(KEY_F)||(studio::over(feedButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
+        Rectangle feedButton={GetScreenWidth()-294.0f,134,118,48},rewindButton={GetScreenWidth()-168.0f,134,122,48};
+        bool feeding=IsKeyDown(KEY_F)||(studio::over(feedButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
+        bool rewinding=IsKeyDown(KEY_D)||(studio::over(rewindButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
         if(IsKeyPressed(KEY_SPACE)||IsKeyPressed(KEY_P))paused=!paused;if(IsKeyPressed(KEY_R)){mass=.07f;time=0;ignition=0;paused=false;}
         if(IsKeyPressed(KEY_MINUS)||IsKeyPressed(KEY_KP_SUBTRACT))speed=std::max(.25f,speed-.25f);if(IsKeyPressed(KEY_EQUAL)||IsKeyPressed(KEY_KP_ADD))speed=std::min(4.0f,speed+.25f);
         bool qualityChanged=false;if(IsKeyPressed(KEY_Q)){renderScale=renderScale>1.1f?1.0f:1.5f;qualityChanged=true;}
         for(int key:{KEY_ONE,KEY_TWO,KEY_THREE})if(IsKeyPressed(key))preset(key,&rig,&camera);updateCamera(&camera,&rig);
         float dt=std::min(GetFrameTime(),.05f)*speed;if(!paused&&capture.empty()){
-            time+=dt;float previous=mass;if(feeding)mass=(float)blackhole::feed(mass,.105,dt);
+            time+=dt;float previous=mass;if(feeding&&!rewinding)mass=(float)blackhole::feed(mass,.105,dt);if(rewinding&&!feeding)mass=(float)blackhole::rewind(mass,.12,dt);
             if(previous<.68f&&mass>=.68f)ignition=1;ignition=std::max(0.0f,ignition-dt*.42f);
+            if(mass<.68f)ignition=0;
         }
         if(IsWindowResized()||qualityChanged){UnloadRenderTexture(scene);scene=LoadRenderTexture((int)(GetScreenWidth()*renderScale),(int)(GetScreenHeight()*renderScale));}
         Vector3 right,up;cameraBasis(camera,&right,&up);
@@ -310,7 +317,7 @@ int main(int argc,char** argv){
         drawSky(sky,glow,right,up);drawFeedingClouds(glow,camera,time,mass,feeding);drawContinuousDisk(camera,time,mass);drawDisk(disk,glow,camera,time,mass);drawJets(jets,glow,camera,time,(float)blackhole::jetPower(mass));EndMode3D();EndTextureMode();
         BeginDrawing();ClearBackground({2,4,10,255});drawLensedScene(scene,lens,camera,mass,ignition);
         bool blazarView=blackhole::jetPower(mass)>.05&&std::fabs(rig.pitch)>1.05f;
-        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,220},{2,4,10,0});drawHud(mass,speed,paused,feeding,blazarView,renderScale,(float)GetFPS());EndDrawing();
+        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,220},{2,4,10,0});drawHud(mass,speed,paused,feeding,rewinding,blazarView,renderScale,(float)GetFPS());EndDrawing();
         if(!capture.empty()&&++frame>=captureFrames){std::filesystem::create_directories(std::filesystem::path(capture).parent_path());TakeScreenshot(capture.c_str());break;}
         if(studio::smokeFrame(__FILE__))break;
     }

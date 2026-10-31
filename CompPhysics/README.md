@@ -42,7 +42,9 @@ strands, recollimation shocks, and view-dependent Doppler brightness.
 ```
 
 Hold `F` or the onscreen feed button to add matter. Drag to orbit, scroll to zoom,
-press space to pause, `R` to reset, and `1`–`3` for camera presets.
+hold `D` or Rewind to move backward through the illustrative accretion states,
+press space to pause, `R` to reset, and `1`–`3` for camera presets. Rewind is an
+exploration control, not literal rapid mass loss by the black hole.
 
 ## Good first physics demos
 
