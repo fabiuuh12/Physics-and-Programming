@@ -86,4 +86,16 @@ inline double spinJetMultiplier(double spin) {
     return 0.30 + 0.70 * a * a;
 }
 
+inline double properTimeRate(double horizonRadii) {
+    if (horizonRadii <= 1.0) return 0.0;
+    return std::sqrt(std::max(0.0, 1.0 - 1.0 / horizonRadii));
+}
+
+inline const char* observerRegime(double horizonRadii) {
+    if (horizonRadii > 9.0) return "DISTANT FIELD";
+    if (horizonRadii > 4.5) return "STRONG LENSING";
+    if (horizonRadii > 2.4) return "PHOTON REGION";
+    return "NEAR-HORIZON FLIGHT";
+}
+
 }  // namespace blackhole

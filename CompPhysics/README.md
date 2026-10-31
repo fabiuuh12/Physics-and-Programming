@@ -41,6 +41,11 @@ approach adds an observer-frequency treatment: forward/lensed light shifts blue
 while peripheral rearward light shifts red. Use `Z` / `X` or the panel buttons
 to vary Kerr spin from retrograde to prograde; spin changes the exact Kerr ISCO,
 radiative efficiency, inner-disk flow, frame dragging, shadow offset, and jet power.
+Zooming is an observer journey rather than a passive scale change. The HUD moves
+through Distant Field, Strong Lensing, Photon Region, and Near-Horizon Flight;
+rapid inward/outward movement adds reversible radial aberration and spectral
+streaking. The displayed `dTau/dt` is the Schwarzschild coordinate-time factor
+used to slow the scene clock near the modeled horizon.
 
 ```bash
 ./CompPhysics/scripts/run growing_black_hole_viz

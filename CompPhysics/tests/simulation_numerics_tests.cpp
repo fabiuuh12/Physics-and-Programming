@@ -67,5 +67,7 @@ int main() {
     require(blackhole::iscoRadius(0.9)<6&&blackhole::iscoRadius(-0.9)>6,"Kerr spin moves prograde and retrograde ISCOs in opposite directions");
     require(blackhole::radiativeEfficiency(0.9)>blackhole::radiativeEfficiency(0),"prograde Kerr disk has higher radiative efficiency");
     require(blackhole::spinJetMultiplier(.95)>blackhole::spinJetMultiplier(.2),"rapid spin strengthens the magnetic jet channel");
+    require(blackhole::properTimeRate(2)<blackhole::properTimeRate(10)&&blackhole::properTimeRate(1)==0,"coordinate time dilation strengthens near the horizon");
+    require(std::string(blackhole::observerRegime(12))=="DISTANT FIELD"&&std::string(blackhole::observerRegime(2))=="NEAR-HORIZON FLIGHT","observer distance selects the camera regime");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }

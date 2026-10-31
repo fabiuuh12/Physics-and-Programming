@@ -204,6 +204,7 @@ uniform float luminosity;
 uniform float ignition;
 uniform float spin;
 uniform float proximity;
+uniform float radialVelocity;
 out vec4 finalColor;
 void main(){
     vec2 pixel=fragTexCoord*resolution;
@@ -214,9 +215,15 @@ void main(){
     float shadowR=length(shadowD);
     vec2 source=pixel-lensStrength*einsteinRadius*einsteinRadius*d/r2;
     source+=spin*vec2(-d.y,d.x)*(shadowRadius*shadowRadius/r2)*.22;
+    source+=d*radialVelocity*proximity*.032;
     vec2 uv=source/resolution;
     vec3 base=texture(texture0,fragTexCoord).rgb;
     vec3 warped=texture(texture0,clamp(uv,vec2(0.001),vec2(0.999))).rgb;
+    vec2 radial=normalize(d+vec2(.001))/resolution;
+    float streak=abs(radialVelocity)*proximity*8.0;
+    warped+=texture(texture0,clamp(uv+radial*streak,vec2(.001),vec2(.999))).rgb*.34;
+    warped+=texture(texture0,clamp(uv-radial*streak,vec2(.001),vec2(.999))).rgb*.34;
+    warped/=1.68;
     float influence=1.0-smoothstep(einsteinRadius*1.65,einsteinRadius*3.25,r);
     vec3 color=mix(base,warped,influence);
     float critical=exp(-pow((r-einsteinRadius)/max(1.3,einsteinRadius*.028),2.0));
@@ -237,20 +244,22 @@ void main(){
     float peripheral=smoothstep(einsteinRadius*.72,einsteinRadius*2.7,r);
     color*=mix(vec3(1.0),vec3(1.20,.72,.54),proximity*peripheral*.72);
     color*=mix(vec3(1.0),vec3(.70,.90,1.32),proximity*(1.0-peripheral)*.52);
+    float motionShift=radialVelocity*proximity;
+    color*=mix(vec3(1.0),motionShift>=0.0?vec3(.72,.91,1.38):vec3(1.35,.82,.63),abs(motionShift)*.42);
     float shadow=smoothstep(shadowRadius*.955,shadowRadius*1.025,shadowR);
     color=mix(vec3(.0015,.0025,.005),color,shadow);
     finalColor=vec4(color,1.0)*fragColor;
 })GLSL";
 
-struct LensPass {Shader shader{};int resolution=-1,center=-1,einstein=-1,shadow=-1,photon=-1,strength=-1,luminosity=-1,ignition=-1,spin=-1,proximity=-1;};
+struct LensPass {Shader shader{};int resolution=-1,center=-1,einstein=-1,shadow=-1,photon=-1,strength=-1,luminosity=-1,ignition=-1,spin=-1,proximity=-1,radialVelocity=-1;};
 
 LensPass makeLensPass(){
     LensPass p;p.shader=LoadShaderFromMemory(nullptr,kLensFragment);p.resolution=GetShaderLocation(p.shader,"resolution");p.center=GetShaderLocation(p.shader,"lensCenter");
     p.einstein=GetShaderLocation(p.shader,"einsteinRadius");p.shadow=GetShaderLocation(p.shader,"shadowRadius");p.photon=GetShaderLocation(p.shader,"photonRadius");p.strength=GetShaderLocation(p.shader,"lensStrength");
-    p.luminosity=GetShaderLocation(p.shader,"luminosity");p.ignition=GetShaderLocation(p.shader,"ignition");p.spin=GetShaderLocation(p.shader,"spin");p.proximity=GetShaderLocation(p.shader,"proximity");return p;
+    p.luminosity=GetShaderLocation(p.shader,"luminosity");p.ignition=GetShaderLocation(p.shader,"ignition");p.spin=GetShaderLocation(p.shader,"spin");p.proximity=GetShaderLocation(p.shader,"proximity");p.radialVelocity=GetShaderLocation(p.shader,"radialVelocity");return p;
 }
 
-void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera,float mass,float spin,float ignition){
+void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera,float mass,float spin,float ignition,float radialVelocity){
     Vector3 forward=Vector3Normalize(Vector3Subtract(camera.target,camera.position));
     Vector3 screenRight=Vector3Normalize(Vector3CrossProduct(forward,camera.up));
     Vector2 center=GetWorldToScreen({0,0,0},camera),edge=GetWorldToScreen(Vector3Scale(screenRight,(float)blackhole::horizonRadius(mass)),camera);
@@ -262,7 +271,7 @@ void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera
     SetShaderValue(lens.shader,lens.photon,&photon,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.strength,&strength,SHADER_UNIFORM_FLOAT);
     float luminosity=(float)blackhole::luminosity(mass);SetShaderValue(lens.shader,lens.luminosity,&luminosity,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.ignition,&ignition,SHADER_UNIFORM_FLOAT);
     float observerDistance=Vector3Distance(camera.position,{0,0,0})/(float)blackhole::horizonRadius(mass);
-    float proximity=1-smooth(1.75f,5.5f,observerDistance);SetShaderValue(lens.shader,lens.spin,&spin,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.proximity,&proximity,SHADER_UNIFORM_FLOAT);
+    float proximity=1-smooth(1.75f,5.5f,observerDistance);SetShaderValue(lens.shader,lens.spin,&spin,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.proximity,&proximity,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.radialVelocity,&radialVelocity,SHADER_UNIFORM_FLOAT);
     BeginShaderMode(lens.shader);DrawTexturePro(scene.texture,{0,0,(float)scene.texture.width,-(float)scene.texture.height},{0,0,(float)GetScreenWidth(),(float)GetScreenHeight()},{0,0},0,WHITE);EndShaderMode();
 }
 
@@ -296,7 +305,7 @@ void metricBar(Rectangle panel,float y,const char* label,float value,Color color
     DrawCircleV({track.x+track.width*value,track.y+track.height*.5f},4,Fade(color,.85f));
 }
 
-void drawHud(float mass,float spin,float observerDistance,float speed,bool paused,bool feeding,bool rewinding,bool blazarView,float renderScale,float fps){
+void drawHud(float mass,float spin,float observerDistance,float radialVelocity,float speed,bool paused,bool feeding,bool rewinding,bool blazarView,float renderScale,float fps){
     float disk=blackhole::diskFraction(mass),jet=effectiveJetPower(mass,spin);
     const char* activity=blazarView?"BLAZAR VIEW - JET ALIGNED":blackhole::stateName(mass);
     studio::text("OBSERVATORY  /  GENERAL RELATIVITY",26,18,11,{205,166,109,255});
@@ -305,6 +314,13 @@ void drawHud(float mass,float spin,float observerDistance,float speed,bool pause
     DrawRectangleRounded(badge,.22f,8,{18,29,43,232});DrawRectangleRoundedLinesEx(badge,.22f,8,1,Fade({231,190,128,255},.45f));
     DrawCircle(42,109,3,{231,190,128,255});studio::text(activity,53,101,14,{235,211,170,255});
     studio::text(paused?"SIMULATION PAUSED":"LIVE ACCRETION MODEL",26,135,11,paused?Color{255,183,99,255}:Color{126,185,218,255});
+    Rectangle observer={26,158,270,78};DrawRectangleRounded(observer,.08f,8,{9,17,28,218});DrawRectangleRoundedLinesEx(observer,.08f,8,1,{48,67,86,175});
+    studio::text("OBSERVER JOURNEY",observer.x+14,observer.y+11,10,{126,185,218,255});
+    studio::text(blackhole::observerRegime(observerDistance),observer.x+14,observer.y+29,15,{226,232,236,255});
+    const char* motion=radialVelocity>.08f?"INBOUND / BLUE SHIFT":(radialVelocity<-.08f?"OUTBOUND / RED SHIFT":"ORBIT HOLD");
+    Color motionColor=radialVelocity>.08f?Color{130,190,255,255}:(radialVelocity<-.08f?Color{255,142,105,255}:Color{146,160,175,255});
+    studio::text(TextFormat("dTau/dt %.3f",blackhole::properTimeRate(observerDistance)),observer.x+14,observer.y+53,11,{157,173,189,255});
+    studio::text(motion,observer.x+104,observer.y+53,11,motionColor);
 
     Rectangle panel=controlPanel();
     DrawRectangleRounded({panel.x+2,panel.y+5,panel.width,panel.height},.055f,10,{0,0,0,65});
@@ -335,11 +351,12 @@ void drawHud(float mass,float spin,float observerDistance,float speed,bool pause
 } // namespace
 
 int main(int argc,char** argv){
-    float startMass=.07f,startSpin=.72f,startDistance=-1;std::string capture;int captureFrames=3;
+    float startMass=.07f,startSpin=.72f,startDistance=-1,startRadialVelocity=0;std::string capture;int captureFrames=3;
     for(int i=1;i<argc;i++){
         std::string a=argv[i];if(a=="--mass"&&i+1<argc)startMass=std::clamp(std::strtof(argv[++i],nullptr),0.0f,1.0f);
         else if(a=="--spin"&&i+1<argc)startSpin=std::clamp(std::strtof(argv[++i],nullptr),-.998f,.998f);
         else if(a=="--distance"&&i+1<argc)startDistance=std::clamp(std::strtof(argv[++i],nullptr),1.5f,32.0f);
+        else if(a=="--radial-velocity"&&i+1<argc)startRadialVelocity=std::clamp(std::strtof(argv[++i],nullptr),-1.0f,1.0f);
         else if(a=="--capture"&&i+1<argc)capture=argv[++i];else if(a=="--frames"&&i+1<argc)captureFrames=std::clamp(std::atoi(argv[++i]),1,1200);
         else{std::fprintf(stderr,"Unknown or incomplete option: %s\n",a.c_str());return 2;}
     }
@@ -349,13 +366,13 @@ int main(int argc,char** argv){
     float renderScale=1.5f;RenderTexture2D scene=LoadRenderTexture((int)(GetScreenWidth()*renderScale),(int)(GetScreenHeight()*renderScale));LensPass lens=makeLensPass();
     Camera3D camera{{0,0,0},{0,0,0},{0,1,0},47,CAMERA_PERSPECTIVE};CameraRig rig;preset(KEY_ONE,&rig,&camera);
     if(startDistance>0)rig.distance=startDistance;
-    float mass=startMass,spin=startSpin,time=0,speed=1,ignition=0;bool paused=false;int frame=0;
+    float mass=startMass,spin=startSpin,time=0,speed=1,ignition=0,observerVelocity=startRadialVelocity,previousObserverDistance=-1;bool paused=false;int frame=0;
     while(!WindowShouldClose()){
         Rectangle feedButton=feedControl(),rewindButton=rewindControl();
         Rectangle spinDownButton=spinDownControl(),spinUpButton=spinUpControl();
         bool feeding=IsKeyDown(KEY_F)||(studio::over(feedButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
         bool rewinding=IsKeyDown(KEY_D)||(studio::over(rewindButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
-        if(IsKeyPressed(KEY_SPACE)||IsKeyPressed(KEY_P))paused=!paused;if(IsKeyPressed(KEY_R)){mass=.07f;spin=.72f;time=0;ignition=0;paused=false;}
+        if(IsKeyPressed(KEY_SPACE)||IsKeyPressed(KEY_P))paused=!paused;if(IsKeyPressed(KEY_R)){mass=.07f;spin=.72f;time=0;ignition=0;observerVelocity=0;previousObserverDistance=-1;paused=false;}
         if(IsKeyPressed(KEY_MINUS)||IsKeyPressed(KEY_KP_SUBTRACT))speed=std::max(.25f,speed-.25f);if(IsKeyPressed(KEY_EQUAL)||IsKeyPressed(KEY_KP_ADD))speed=std::min(4.0f,speed+.25f);
         bool qualityChanged=false;if(IsKeyPressed(KEY_Q)){renderScale=renderScale>1.1f?1.0f:1.5f;qualityChanged=true;}
         float controlDt=std::min(GetFrameTime(),.05f);bool spinDown=IsKeyDown(KEY_Z)||(studio::over(spinDownButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
@@ -363,8 +380,14 @@ int main(int argc,char** argv){
         if(spinDown&&!spinUp)spin=std::max(-.998f,spin-controlDt*.55f);if(spinUp&&!spinDown)spin=std::min(.998f,spin+controlDt*.55f);
         for(int key:{KEY_ONE,KEY_TWO,KEY_THREE})if(IsKeyPressed(key))preset(key,&rig,&camera);
         updateCamera(&camera,&rig,(float)blackhole::horizonRadius(mass)*1.72f);
+        float observerDistance=Vector3Distance(camera.position,{0,0,0})/(float)blackhole::horizonRadius(mass);
+        if(previousObserverDistance>0&&controlDt>.0001f){
+            float target=std::clamp((previousObserverDistance-observerDistance)/controlDt*.16f,-1.0f,1.0f);
+            float follow=1-std::exp(-controlDt/.11f);observerVelocity+=(target-observerVelocity)*follow;
+        }previousObserverDistance=observerDistance;
         float dt=std::min(GetFrameTime(),.05f)*speed;if(!paused&&capture.empty()){
-            time+=dt;float previous=mass;if(feeding&&!rewinding)mass=(float)blackhole::feed(mass,.105,dt);if(rewinding&&!feeding)mass=(float)blackhole::rewind(mass,.12,dt);
+            float coordinateRate=.32f+.68f*(float)blackhole::properTimeRate(observerDistance);
+            time+=dt*coordinateRate;float previous=mass;if(feeding&&!rewinding)mass=(float)blackhole::feed(mass,.105,dt);if(rewinding&&!feeding)mass=(float)blackhole::rewind(mass,.12,dt);
             if(previous<.68f&&mass>=.68f)ignition=1;ignition=std::max(0.0f,ignition-dt*.42f);
             if(mass<.68f)ignition=0;
         }
@@ -373,10 +396,9 @@ int main(int argc,char** argv){
         BeginTextureMode(scene);ClearBackground({2,4,10,255});BeginMode3D(camera);
         float jetPower=effectiveJetPower(mass,spin);
         drawSky(sky,glow,right,up);drawFeedingClouds(glow,camera,time,mass,feeding);drawContinuousDisk(camera,time,mass,spin);drawDisk(disk,glow,camera,time,mass,spin);drawJets(jets,glow,camera,time,jetPower);EndMode3D();EndTextureMode();
-        BeginDrawing();ClearBackground({2,4,10,255});drawLensedScene(scene,lens,camera,mass,spin,ignition);
+        BeginDrawing();ClearBackground({2,4,10,255});drawLensedScene(scene,lens,camera,mass,spin,ignition,observerVelocity);
         bool blazarView=jetPower>.05f&&std::fabs(std::sin(rig.pitch))>.86f;
-        float observerDistance=Vector3Distance(camera.position,{0,0,0})/(float)blackhole::horizonRadius(mass);
-        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,220},{2,4,10,0});drawHud(mass,spin,observerDistance,speed,paused,feeding,rewinding,blazarView,renderScale,(float)GetFPS());EndDrawing();
+        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,220},{2,4,10,0});drawHud(mass,spin,observerDistance,observerVelocity,speed,paused,feeding,rewinding,blazarView,renderScale,(float)GetFPS());EndDrawing();
         if(!capture.empty()&&++frame>=captureFrames){std::filesystem::create_directories(std::filesystem::path(capture).parent_path());TakeScreenshot(capture.c_str());break;}
         if(studio::smokeFrame(__FILE__))break;
     }
