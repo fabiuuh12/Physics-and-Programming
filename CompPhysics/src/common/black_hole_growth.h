@@ -27,6 +27,11 @@ inline double jetPower(double mass) {
     return onset * onset * (3.0 - 2.0 * onset);
 }
 
+inline double luminosity(double mass) {
+    const double hot = saturate((mass - 0.18) / 0.76);
+    return hot * hot * (3.0 - 2.0 * hot);
+}
+
 inline State state(double mass) {
     if (mass < 0.12) return State::Dormant;
     if (mass < 0.42) return State::Feeding;
@@ -39,7 +44,7 @@ inline const char* stateName(double mass) {
         case State::Dormant: return "DORMANT BLACK HOLE";
         case State::Feeding: return "ACCRETION DISK FORMING";
         case State::ActiveNucleus: return "ACTIVE GALACTIC NUCLEUS";
-        case State::RelativisticJet: return "RELATIVISTIC JETS ACTIVE";
+        case State::RelativisticJet: return mass > 0.84 ? "QUASAR - RELATIVISTIC JETS" : "RELATIVISTIC JETS ACTIVE";
     }
     return "DORMANT BLACK HOLE";
 }

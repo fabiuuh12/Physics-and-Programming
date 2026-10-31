@@ -56,6 +56,7 @@ int main() {
     require(blackhole::diskFraction(0.8)==1&&blackhole::diskFraction(0.04)==0,"accretion disk formation is bounded");
     require(blackhole::temperature(0.8)>blackhole::temperature(0.3),"disk temperature rises with accretion state");
     require(blackhole::jetPower(0.5)==0&&blackhole::jetPower(0.9)>0.9,"relativistic jets activate only at high accretion");
+    require(blackhole::luminosity(0.9)>blackhole::luminosity(0.4),"radiative output rises toward the high-accretion state");
     require(blackhole::state(0.05)==blackhole::State::Dormant&&blackhole::state(0.5)==blackhole::State::ActiveNucleus,"mass selects the correct activity state");
     require(blackhole::feed(0.2,0.1,2)==0.4&&blackhole::feed(0.98,1,1)==1,"feeding integrates mass and saturates safely");
     require(std::abs(blackhole::lensedSourceRadius(2,2))<1e-12,"Einstein radius maps to the aligned source");
