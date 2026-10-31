@@ -1,6 +1,7 @@
 #include "../src/common/physics_models.h"
 #include "../src/common/project_paths.h"
 #include "../src/common/quantum_solver.h"
+#include "../src/simulations/astronomy/cosmic_evolution_model.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -51,5 +52,29 @@ int main() {
     for (int i=480;i<3360;++i) { free.step(); barrier.step(); }
     require(std::abs(free.norm()-1)<1e-10 && std::abs(barrier.norm()-1)<1e-10,"Schrodinger solver conserves probability");
     require(barrier.regions()[2]<free.regions()[2]*0.6,"barrier scatters the packet and reduces transmission");
+    for(const auto& family:evolution::tracks)for(const auto& track:family){
+        require(evolution::age(track,0)==0,"formation clock starts at zero");
+        require(evolution::age(track,1)==track.years.back(),"formation clock includes final endpoint");
+        double previous=0;
+        for(int i=0;i<=1000;++i){
+            double p=i/1000.0,age=evolution::age(track,p);
+            require(std::isfinite(age)&&age>=previous,"all twelve tracks have finite monotonic ages");
+            previous=age;
+        }
+        for(int i=0;i<5;++i){
+            require(evolution::stage(i*.2+1e-9)==i,"stage selection matches timeline markers");
+            require(std::abs(evolution::age(track,i*.2)-track.years[i])<1e-12*std::max(1.0,track.years[i]),"age matches stage boundaries");
+        }
+        require(evolution::age(track,-1)==0&&evolution::age(track,2)==track.years.back(),"scrub endpoints clamp safely");
+    }
+    require(evolution::stage(1)==4,"end of journey remains in final stage");
+    require(evolution::tracks[1][0].years.back()>evolution::tracks[1][1].years.back()&&
+            evolution::tracks[1][1].years.back()>evolution::tracks[1][2].years.back(),"stellar lifetime falls with mass");
+    require(std::abs(evolution::horizonKm(10)-29.5325)<1e-8,"Schwarzschild radius uses kilometers and solar masses");
+    require(evolution::blackHoleMass(0,0)==evolution::blackHoleMass(0,1),"chosen stellar remnant mass does not silently grow");
+    for(int variant=1;variant<3;++variant){
+        require(evolution::blackHoleMass(variant,0)==evolution::tracks[2][variant].mass,"growth starts at seed mass");
+        require(evolution::blackHoleMass(variant,1)>evolution::blackHoleMass(variant,.5),"accretion grows seed mass");
+    }
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }

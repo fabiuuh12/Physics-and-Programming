@@ -23,6 +23,18 @@ python3 explore.py run three_body_problem_viz
 
 Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program catalog](docs/CATALOG.md) for every file, and the [folder map](docs/STRUCTURE.md) for the complete structure.
 
+## Cosmic Atlas
+
+Explore planet formation, stellar lifecycles, black-hole growth and galaxy
+assembly in a procedural, interactive observatory. Twelve object types have
+separate year clocks, scrubbable stages and explanations.
+
+```bash
+./CompPhysics/scripts/run cosmic_evolution_viz
+```
+
+See [controls, model assumptions and scientific reading](docs/COSMIC_ATLAS.md).
+
 ## Good first physics demos
 
 | Demo | Explore |

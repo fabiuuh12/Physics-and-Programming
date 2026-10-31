@@ -316,3 +316,6 @@ target_link_libraries(planet_magnetosphere_compare_viz_cpp PRIVATE raylib)
 
 add_executable(observable_universe_scale_viz_cpp "src/simulations/astronomy/observable_universe_scale_viz.cpp")
 target_link_libraries(observable_universe_scale_viz_cpp PRIVATE raylib)
+
+add_executable(cosmic_evolution_viz_cpp "src/simulations/astronomy/cosmic_evolution_viz.cpp")
+target_link_libraries(cosmic_evolution_viz_cpp PRIVATE raylib)
