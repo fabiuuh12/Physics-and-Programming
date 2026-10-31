@@ -62,8 +62,8 @@ target_link_libraries(quasar_core_viz_cpp PRIVATE raylib)
 add_executable(black_hole_particle_field_viz_cpp "src/simulations/gravity/black_hole_particle_field_viz.cpp")
 target_link_libraries(black_hole_particle_field_viz_cpp PRIVATE raylib)
 
-add_executable(tidal_disruption_event_viz_cpp "src/simulations/gravity/tidal_disruption_event_viz.cpp")
-target_link_libraries(tidal_disruption_event_viz_cpp PRIVATE raylib)
+add_executable(growing_black_hole_viz_cpp "src/simulations/gravity/growing_black_hole_viz.cpp")
+target_link_libraries(growing_black_hole_viz_cpp PRIVATE raylib)
 
 add_executable(dual_black_white_hole_viz_cpp "src/simulations/gravity/dual_black_white_hole_viz.cpp")
 target_link_libraries(dual_black_white_hole_viz_cpp PRIVATE raylib)

@@ -23,18 +23,18 @@ python3 explore.py run three_body_problem_viz
 
 Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program catalog](docs/CATALOG.md) for every file, and the [folder map](docs/STRUCTURE.md) for the complete structure.
 
-## Tidal Disruption Event
+## Growing Black Hole
 
-Watch a solar-type star approach a supermassive black hole, stretch into thousands
-of visible fragments, and separate into captured, orbiting, and escaping debris.
-Orbit and pan the high-resolution 3D scene or switch among three camera views.
+Feed matter into a black hole and watch a sparse gas field develop into a hot,
+dense accretion disk. At high accretion, an active galactic nucleus launches
+relativistic polar jets. The particle renderer is GPU-batched for smooth playback.
 
 ```bash
-./CompPhysics/scripts/run tidal_disruption_event_viz
+./CompPhysics/scripts/run growing_black_hole_viz
 ```
 
-Controls are shown in the scene: drag to orbit, scroll to zoom, press space to
-pause, `R` to replay, and `1`–`3` for camera presets.
+Hold `F` or the onscreen feed button to add matter. Drag to orbit, scroll to zoom,
+press space to pause, `R` to reset, and `1`–`3` for camera presets.
 
 ## Good first physics demos
 

@@ -1,7 +1,7 @@
 #include "../src/common/physics_models.h"
 #include "../src/common/project_paths.h"
 #include "../src/common/quantum_solver.h"
-#include "../src/common/tidal_disruption.h"
+#include "../src/common/black_hole_growth.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -52,11 +52,11 @@ int main() {
     for (int i=480;i<3360;++i) { free.step(); barrier.step(); }
     require(std::abs(free.norm()-1)<1e-10 && std::abs(barrier.norm()-1)<1e-10,"Schrodinger solver conserves probability");
     require(barrier.regions()[2]<free.regions()[2]*0.6,"barrier scatters the packet and reduces transmission");
-    require(tidal::tidalAcceleration(12,3,0.8)>tidal::tidalAcceleration(12,6,0.8),"tidal gradient grows near the black hole");
-    require(tidal::tidalAcceleration(24,5,1)>tidal::tidalAcceleration(12,5,1),"tidal gradient scales with black-hole mass");
-    require(tidal::orbitalAngularSpeed(16,2)>tidal::orbitalAngularSpeed(16,4),"inner debris orbits faster than outer debris");
-    require(tidal::phase(0)==tidal::Phase::Approach&&tidal::phase(3)==tidal::Phase::TidalStretch,"event phase boundaries identify approach and stretching");
-    require(tidal::phase(6)==tidal::Phase::Disruption&&tidal::phase(10)==tidal::Phase::Accretion,"event phase boundaries identify disruption and accretion");
-    require(tidal::horizonFade(0.5,1)==0&&tidal::horizonFade(1.5,1)==1,"captured debris fades only across the horizon boundary");
+    require(blackhole::horizonRadius(1)>blackhole::horizonRadius(0),"event horizon grows with black-hole mass");
+    require(blackhole::diskFraction(0.8)==1&&blackhole::diskFraction(0.04)==0,"accretion disk formation is bounded");
+    require(blackhole::temperature(0.8)>blackhole::temperature(0.3),"disk temperature rises with accretion state");
+    require(blackhole::jetPower(0.5)==0&&blackhole::jetPower(0.9)>0.9,"relativistic jets activate only at high accretion");
+    require(blackhole::state(0.05)==blackhole::State::Dormant&&blackhole::state(0.5)==blackhole::State::ActiveNucleus,"mass selects the correct activity state");
+    require(blackhole::feed(0.2,0.1,2)==0.4&&blackhole::feed(0.98,1,1)==1,"feeding integrates mass and saturates safely");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }
