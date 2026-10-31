@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "rlgl.h"
 #include "../../common/studio.h"
 #include "../../common/tidal_disruption.h"
 
@@ -22,7 +23,7 @@ constexpr float kHorizon = 0.92f;
 constexpr float kPhotonRing = 1.34f;
 constexpr float kCycle = 17.5f;
 
-struct OrbitCamera { float yaw=0.64f, pitch=-0.24f, distance=18.5f; };
+struct OrbitCamera { float yaw=0.76f, pitch=-0.48f, distance=14.8f; };
 struct Debris { Vector3 seed{}; float phase=0, lane=0, size=0, release=0, heat=0; int fate=0; };
 struct DiskDust { float radius=0, angle=0, height=0, speed=0, size=0, heat=0; };
 struct SkyStar { Vector3 p{}; float size=0, alpha=0; Color color{}; };
@@ -119,10 +120,38 @@ void drawRing(float radius,float y,Color color,float width=1){
     }
 }
 
+Vector3 streamPoint(float s,float t,float offset){
+    float reveal=smooth(2.0f,7.0f,t), outer=std::max(3.2f,Vector3Length(starCenter(std::min(t,4.0f))));
+    outer+=std::max(0.0f,t-5.0f)*.22f;
+    float outerAngle=2.83f+offset*.14f;
+    float wraps=.30f+1.48f*reveal;
+    float a=outerAngle+s*wraps*2*PI;
+    float r=outer*(1-s)+1.06f*s+.30f*std::sin(s*PI)*std::sin(t*.7f+offset);
+    return {r*std::cos(a),offset*.10f*(1-s)+.05f*std::sin(a*2+t),r*std::sin(a)};
+}
+
+void drawStreamRibbons(float t){
+    float visible=smooth(2.15f,3.7f,t); if(visible<.01f)return;
+    constexpr int segments=110;
+    for(int layer=0;layer<34;layer++){
+        float f=(layer-16.5f)/16.5f, layerOffset=f*.48f;
+        Color c=mixColor({255,73,22,255},{255,245,194,255},1-std::fabs(f));
+        float alpha=visible*(.20f+.42f*(1-std::fabs(f)));
+        Vector3 previous=streamPoint(0,t,layerOffset);
+        for(int i=0;i<segments;i++){
+            float s=(i+1)/float(segments); Vector3 next=streamPoint(s,t,layerOffset);
+            float envelope=.25f+.75f*std::sin(PI*std::pow(s,.72f));
+            next.y+=f*.24f*envelope+.018f*std::sin(i*.9f+layer*1.7f);
+            DrawLine3D(previous,next,Fade(c,alpha*envelope)); previous=next;
+            if(layer%5==0&&i%4==0) DrawSphere(next,.025f+.045f*envelope,Fade(c,.10f*visible));
+        }
+    }
+}
+
 void drawBlackHole(float t,const std::vector<DiskDust>& disk){
     for(const auto& p:disk){
         Vector3 v=diskPosition(p,t); Color c=mixColor({255,91,39,255},{255,234,176,255},p.heat);
-        DrawSphere(v,p.size*1.8f,Fade(c,.055f)); DrawSphere(v,p.size,Fade(c,.52f));
+        DrawSphere(v,p.size*1.55f,Fade(c,.035f)); DrawSphere(v,p.size,Fade(c,.42f));
     }
     for(int i=0;i<8;i++) drawRing(kPhotonRing+i*.014f,(i-3.5f)*.006f,Fade({255,178,92,255},.18f+i*.035f),2);
     DrawSphere({0,0,0},1.78f,Fade({76,114,255,255},.025f));
@@ -147,14 +176,20 @@ void drawStarAndDebris(const std::vector<Debris>& debris,float t){
     for(const Debris& p:debris){
         Vector3 v=debrisPosition(p,t); float a=debrisAlpha(p,t); if(a<.015f) continue;
         float hot=clamp01(.2f+p.heat*.65f+smooth(3.0f,7.0f,t)*.25f);
-        Color c=mixColor({255,102,37,255},{255,244,189,255},hot);
-        float s=p.size*(1+.55f*smooth(3.0f,5.0f,t)); DrawSphere(v,s*2.35f,Fade(c,.08f*a)); DrawSphere(v,s,Fade(c,.88f*a));
+        Color c=mixColor({255,119,39,255},{255,250,214,255},hot);
+        float s=p.size*(1+.55f*smooth(3.0f,5.0f,t)); DrawSphere(v,s*3.0f,Fade(c,.075f*a)); DrawSphere(v,s,Fade(c,.96f*a));
     }
     float intact=1-smooth(2.7f,4.5f,t); if(intact>.01f){
         Vector3 c=starCenter(t); float pulse=1+.025f*std::sin(t*5.2f);
-        DrawSphere(c,1.03f*pulse,Fade({255,143,45,255},.11f*intact));
-        DrawSphere(c,.91f*pulse,Fade({255,190,80,255},.18f*intact));
-        DrawSphereWires(c,.94f*pulse,18,18,Fade({255,244,195,255},.10f*intact));
+        Vector3 towardHole=Vector3Normalize(Vector3Scale(c,-1));
+        rlDisableDepthTest();
+        DrawSphere(c,1.42f*pulse,Fade({255,102,28,255},.045f*intact));
+        DrawSphere(c,1.13f*pulse,Fade({255,193,77,255},.14f*intact));
+        DrawSphere(c,.91f*pulse,Fade({255,249,204,255},.62f+.32f*intact));
+        DrawSphere(c,.68f*pulse,{255,255,238,255});
+        DrawCylinderEx(Vector3Add(c,Vector3Scale(towardHole,.34f)),Vector3Add(c,Vector3Scale(towardHole,1.72f)),.54f,.035f,24,{255,246,197,245});
+        DrawSphere(Vector3Add(c,Vector3Scale(towardHole,1.68f)),.08f,{255,255,226,255});
+        rlEnableDepthTest();
     }
 }
 
@@ -171,8 +206,22 @@ void drawHud(float t,float speed,bool paused,int accreted){
     studio::help("Drag: orbit | Wheel: zoom | Shift+drag: pan | Space: pause | R: replay | -/+: speed | 1/2/3: views"); studio::fps();
 }
 
+void drawStarScreenGlow(const Camera3D& camera,float t,float cameraDistance){
+    float intact=1-smooth(2.7f,4.5f,t); if(intact<=.01f)return;
+    Vector2 p=GetWorldToScreen(starCenter(t),camera);
+    Vector2 hole=GetWorldToScreen({0,0,0},camera),direction=Vector2Normalize(Vector2Subtract(hole,p));
+    float radius=(54.0f+32.0f*intact)*14.8f/std::max(6.5f,cameraDistance);
+    DrawCircleGradient(int(p.x),int(p.y),radius*1.75f,Fade({255,119,30,255},.24f*intact),BLANK);
+    Vector2 side={-direction.y*radius*.48f,direction.x*radius*.48f};
+    Vector2 base=Vector2Add(p,Vector2Scale(direction,radius*.18f));
+    Vector2 tip=Vector2Add(p,Vector2Scale(direction,radius*3.1f));
+    DrawTriangle(Vector2Add(base,side),Vector2Subtract(base,side),tip,Fade({255,235,174,255},.92f));
+    DrawCircleGradient(int(p.x),int(p.y),radius,Fade({255,251,210,255},.96f),Fade({255,147,42,255},.10f));
+    DrawCircleV(p,radius*.48f,{255,255,238,255});
+}
+
 void preset(int key,OrbitCamera* o,Camera3D* c){
-    if(key==KEY_ONE){o->yaw=.64f;o->pitch=-.24f;o->distance=18.5f;c->target={-1.1f,0,0};}
+    if(key==KEY_ONE){o->yaw=.76f;o->pitch=-.48f;o->distance=14.8f;c->target={-1.0f,0,0};}
     if(key==KEY_TWO){o->yaw=1.57f;o->pitch=-1.12f;o->distance=17;c->target={0,0,0};}
     if(key==KEY_THREE){o->yaw=3.05f;o->pitch=-.08f;o->distance=13.5f;c->target={-.4f,0,0};}
 }
@@ -205,7 +254,8 @@ int main(int argc,char** argv){
         int accreted=0; for(const auto& p:debris) if(p.fate==0&&debrisAlpha(p,simTime)<.08f) accreted++;
         BeginDrawing(); ClearBackground({2,4,11,255}); BeginMode3D(camera);
         for(const auto& s:sky){DrawSphere(s.p,s.size*2.5f,Fade(s.color,.035f*s.alpha));DrawSphere(s.p,s.size,Fade(s.color,s.alpha));}
-        drawBlackHole(simTime,disk); drawStarAndDebris(debris,simTime); EndMode3D();
+        drawStreamRibbons(simTime); drawBlackHole(simTime,disk); drawStarAndDebris(debris,simTime); EndMode3D();
+        drawStarScreenGlow(camera,simTime,orbit.distance);
         DrawRectangleGradientV(0,0,GetScreenWidth(),155,{2,4,11,215},{2,4,11,0}); drawHud(simTime,speed,paused,accreted); EndDrawing();
         if(!capture.empty()&&++frame>=captureFrames){std::filesystem::create_directories(std::filesystem::path(capture).parent_path());TakeScreenshot(capture.c_str());break;}
         if(studio::smokeFrame(__FILE__)) break;
