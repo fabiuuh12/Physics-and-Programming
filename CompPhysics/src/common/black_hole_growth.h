@@ -48,4 +48,14 @@ inline double feed(double mass, double rate, double dt) {
     return saturate(mass + std::max(0.0, rate) * std::max(0.0, dt));
 }
 
+// Thin-lens inverse mapping used by the real-time post-process, in screen units.
+inline double lensedSourceRadius(double imageRadius, double einsteinRadius) {
+    if (std::abs(imageRadius) < 1e-9) return 0.0;
+    return imageRadius - einsteinRadius * einsteinRadius / imageRadius;
+}
+
+inline double relativisticBeaming(double dopplerFactor) {
+    return std::pow(std::max(0.0, dopplerFactor), 3.0);
+}
+
 }  // namespace blackhole

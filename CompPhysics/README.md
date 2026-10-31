@@ -28,6 +28,10 @@ Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program c
 Feed matter into a black hole and watch a sparse gas field develop into a hot,
 dense accretion disk. At high accretion, an active galactic nucleus launches
 relativistic polar jets. The particle renderer is GPU-batched for smooth playback.
+The image is passed through the same inverse point-lens mapping used by
+`lensing_camera.py`, bending the disk and background together. The disk uses a
+thin temperature field, an inner cutoff, Kepler-like differential rotation,
+and cubic Doppler beaming to distinguish its approaching and receding sides.
 
 ```bash
 ./CompPhysics/scripts/run growing_black_hole_viz

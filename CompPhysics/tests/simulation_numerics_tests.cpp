@@ -58,5 +58,8 @@ int main() {
     require(blackhole::jetPower(0.5)==0&&blackhole::jetPower(0.9)>0.9,"relativistic jets activate only at high accretion");
     require(blackhole::state(0.05)==blackhole::State::Dormant&&blackhole::state(0.5)==blackhole::State::ActiveNucleus,"mass selects the correct activity state");
     require(blackhole::feed(0.2,0.1,2)==0.4&&blackhole::feed(0.98,1,1)==1,"feeding integrates mass and saturates safely");
+    require(std::abs(blackhole::lensedSourceRadius(2,2))<1e-12,"Einstein radius maps to the aligned source");
+    require(blackhole::lensedSourceRadius(8,2)>7&&blackhole::lensedSourceRadius(8,2)<8,"far-field lens deflection weakens with separation");
+    require(blackhole::relativisticBeaming(1.2)>1&&blackhole::relativisticBeaming(0.8)<1,"Doppler factor beams approaching and dims receding gas");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }
