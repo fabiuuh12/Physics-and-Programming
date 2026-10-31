@@ -23,17 +23,18 @@ python3 explore.py run three_body_problem_viz
 
 Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program catalog](docs/CATALOG.md) for every file, and the [folder map](docs/STRUCTURE.md) for the complete structure.
 
-## Spacetime Sandbox
+## Tidal Disruption Event
 
-Start with an empty 3D grid. Place planets, stars, black holes and wormhole mouths,
-then drag them around and change their mass to reshape the grid. A small object
-picker and optional help keep the scene clear.
+Watch a solar-type star approach a supermassive black hole, stretch into thousands
+of visible fragments, and separate into captured, orbiting, and escaping debris.
+Orbit and pan the high-resolution 3D scene or switch among three camera views.
 
 ```bash
-./CompPhysics/scripts/run spacetime_geometry_viz
+./CompPhysics/scripts/run tidal_disruption_event_viz
 ```
 
-See [sandbox controls and model notes](docs/SPACETIME_GEOMETRY.md).
+Controls are shown in the scene: drag to orbit, scroll to zoom, press space to
+pause, `R` to replay, and `1`–`3` for camera presets.
 
 ## Good first physics demos
 

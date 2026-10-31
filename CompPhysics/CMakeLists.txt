@@ -62,6 +62,9 @@ target_link_libraries(quasar_core_viz_cpp PRIVATE raylib)
 add_executable(black_hole_particle_field_viz_cpp "src/simulations/gravity/black_hole_particle_field_viz.cpp")
 target_link_libraries(black_hole_particle_field_viz_cpp PRIVATE raylib)
 
+add_executable(tidal_disruption_event_viz_cpp "src/simulations/gravity/tidal_disruption_event_viz.cpp")
+target_link_libraries(tidal_disruption_event_viz_cpp PRIVATE raylib)
+
 add_executable(dual_black_white_hole_viz_cpp "src/simulations/gravity/dual_black_white_hole_viz.cpp")
 target_link_libraries(dual_black_white_hole_viz_cpp PRIVATE raylib)
 
@@ -316,6 +319,3 @@ target_link_libraries(planet_magnetosphere_compare_viz_cpp PRIVATE raylib)
 
 add_executable(observable_universe_scale_viz_cpp "src/simulations/astronomy/observable_universe_scale_viz.cpp")
 target_link_libraries(observable_universe_scale_viz_cpp PRIVATE raylib)
-
-add_executable(spacetime_geometry_viz_cpp "src/simulations/relativity/spacetime_geometry_viz.cpp")
-target_link_libraries(spacetime_geometry_viz_cpp PRIVATE raylib)

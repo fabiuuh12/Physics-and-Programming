@@ -1,7 +1,7 @@
 #include "../src/common/physics_models.h"
 #include "../src/common/project_paths.h"
 #include "../src/common/quantum_solver.h"
-#include "../src/common/spacetime_geometry.h"
+#include "../src/common/tidal_disruption.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -52,30 +52,11 @@ int main() {
     for (int i=480;i<3360;++i) { free.step(); barrier.step(); }
     require(std::abs(free.norm()-1)<1e-10 && std::abs(barrier.norm()-1)<1e-10,"Schrodinger solver conserves probability");
     require(barrier.regions()[2]<free.regions()[2]*0.6,"barrier scatters the packet and reduces transmission");
-    std::vector<spacetime::Body> objects;
-    require(spacetime::height(0,0,objects)==0,"empty sandbox starts with a flat grid");
-    spacetime::add(objects,spacetime::Kind::Planet,0,0);
-    double planetWell=spacetime::height(0,0,objects);
-    require(planetWell<0&&spacetime::height(6,0,objects)>planetWell,"placed object creates a localized well");
-    require(std::abs(spacetime::height(2,3,objects)-spacetime::height(-2,-3,objects))<1e-12,"isolated well is reflection symmetric");
-    spacetime::resize(objects[0],2);
-    require(spacetime::height(0,0,objects)<planetWell,"increased mass deepens the grid");
-    double singleWell=spacetime::height(0,0,objects);
-    spacetime::add(objects,spacetime::Kind::Star,2,0);
-    require(spacetime::height(0,0,objects)<singleWell,"multiple placed objects combine their deformation");
-    require(spacetime::height(14,0,objects)==0&&spacetime::height(20,0,objects)==0,"outer grid rim stays anchored");
-    for(int x=-28;x<=28;x++)for(int z=-28;z<=28;z++){
-        double h=spacetime::height(x*.5,z*.5,objects,3);
-        require(std::isfinite(h)&&h>=-8&&h<=0,"deformed mesh remains finite and bounded");
-    }
-    spacetime::move(objects[0],100,-100);
-    require(objects[0].x==12&&objects[0].z==-12,"dragging stays inside the placement bounds");
-    spacetime::resize(objects[0],1e6);require(objects[0].mass==20,"mass has a safe upper bound");
-    spacetime::resize(objects[0],1e-10);require(objects[0].mass==.2,"mass has a positive lower bound");
-    objects.clear();
-    for(int i=0;i<spacetime::maxBodies;i++)require(spacetime::add(objects,spacetime::Kind(i%4),0,0),"all object slots can be placed");
-    require(!spacetime::add(objects,spacetime::Kind::Planet,0,0),"object limit prevents unbounded mesh work");
-    require(std::isfinite(spacetime::height(0,0,objects))&&spacetime::height(0,0,objects)>=-8,"overlapping sources saturate smoothly");
-    objects.clear();require(spacetime::height(0,0,objects)==0,"clearing restores the original flat grid");
+    require(tidal::tidalAcceleration(12,3,0.8)>tidal::tidalAcceleration(12,6,0.8),"tidal gradient grows near the black hole");
+    require(tidal::tidalAcceleration(24,5,1)>tidal::tidalAcceleration(12,5,1),"tidal gradient scales with black-hole mass");
+    require(tidal::orbitalAngularSpeed(16,2)>tidal::orbitalAngularSpeed(16,4),"inner debris orbits faster than outer debris");
+    require(tidal::phase(0)==tidal::Phase::Approach&&tidal::phase(3)==tidal::Phase::TidalStretch,"event phase boundaries identify approach and stretching");
+    require(tidal::phase(6)==tidal::Phase::Disruption&&tidal::phase(10)==tidal::Phase::Accretion,"event phase boundaries identify disruption and accretion");
+    require(tidal::horizonFade(0.5,1)==0&&tidal::horizonFade(1.5,1)==1,"captured debris fades only across the horizon boundary");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }
