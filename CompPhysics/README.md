@@ -46,6 +46,11 @@ through Distant Field, Strong Lensing, Photon Region, and Near-Horizon Flight;
 rapid inward/outward movement adds reversible radial aberration and spectral
 streaking. The displayed `dTau/dt` is the Schwarzschild coordinate-time factor
 used to slow the scene clock near the modeled horizon.
+The default HUD is a minimal recording layout; press `H` for full telemetry.
+The camera may cross the modeled horizon and automatically look outward at the
+densely populated lensed sky and accretion flow. This interior is an explicitly
+conceptual visualization: ordinary Euclidean 3D cameras and the thin-lens model
+do not describe the causal geometry of a real Kerr black-hole interior.
 
 ```bash
 ./CompPhysics/scripts/run growing_black_hole_viz
