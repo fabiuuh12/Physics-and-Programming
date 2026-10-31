@@ -23,6 +23,18 @@ python3 explore.py run three_body_problem_viz
 
 Read [Getting started](docs/GETTING_STARTED.md) for installation, the [program catalog](docs/CATALOG.md) for every file, and the [folder map](docs/STRUCTURE.md) for the complete structure.
 
+## Spacetime Geometry Lab
+
+Explore a curved 3D grid with planet, star, black hole and hypothetical wormhole
+geometries. Switch between a single plane and a spatial lattice; inspect light
+paths, causal cones and clock rates with interactive controls.
+
+```bash
+./CompPhysics/scripts/run spacetime_geometry_viz
+```
+
+See [controls, geometry and numerical assumptions](docs/SPACETIME_GEOMETRY.md).
+
 ## Good first physics demos
 
 | Demo | Explore |
