@@ -67,4 +67,23 @@ inline double relativisticBeaming(double dopplerFactor) {
     return std::pow(std::max(0.0, dopplerFactor), 3.0);
 }
 
+inline double iscoRadius(double spin) {
+    const double a = std::clamp(spin, -0.998, 0.998);
+    const double z1 = 1.0 + std::cbrt(1.0 - a * a) *
+        (std::cbrt(1.0 + a) + std::cbrt(1.0 - a));
+    const double z2 = std::sqrt(3.0 * a * a + z1 * z1);
+    const double branch = a >= 0.0 ? -1.0 : 1.0;
+    return 3.0 + z2 + branch * std::sqrt((3.0 - z1) * (3.0 + z1 + 2.0 * z2));
+}
+
+inline double radiativeEfficiency(double spin) {
+    const double r = iscoRadius(spin);
+    return 1.0 - std::sqrt(std::max(0.0, 1.0 - 2.0 / (3.0 * r)));
+}
+
+inline double spinJetMultiplier(double spin) {
+    const double a = std::abs(std::clamp(spin, -0.998, 0.998));
+    return 0.30 + 0.70 * a * a;
+}
+
 }  // namespace blackhole

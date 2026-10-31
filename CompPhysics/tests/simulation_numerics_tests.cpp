@@ -63,5 +63,9 @@ int main() {
     require(std::abs(blackhole::lensedSourceRadius(2,2))<1e-12,"Einstein radius maps to the aligned source");
     require(blackhole::lensedSourceRadius(8,2)>7&&blackhole::lensedSourceRadius(8,2)<8,"far-field lens deflection weakens with separation");
     require(blackhole::relativisticBeaming(1.2)>1&&blackhole::relativisticBeaming(0.8)<1,"Doppler factor beams approaching and dims receding gas");
+    require(std::abs(blackhole::iscoRadius(0)-6)<1e-12,"nonspinning black hole has the Schwarzschild ISCO");
+    require(blackhole::iscoRadius(0.9)<6&&blackhole::iscoRadius(-0.9)>6,"Kerr spin moves prograde and retrograde ISCOs in opposite directions");
+    require(blackhole::radiativeEfficiency(0.9)>blackhole::radiativeEfficiency(0),"prograde Kerr disk has higher radiative efficiency");
+    require(blackhole::spinJetMultiplier(.95)>blackhole::spinJetMultiplier(.2),"rapid spin strengthens the magnetic jet channel");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }

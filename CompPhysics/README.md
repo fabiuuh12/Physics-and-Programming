@@ -36,6 +36,11 @@ The default quality mode renders the scene at 150% resolution and downsamples it
 for cleaner lensing and particle edges; press `Q` to switch to native resolution.
 Jets contain a bright relativistic spine, expanding plasma sheath, braided field
 strands, recollimation shocks, and view-dependent Doppler brightness.
+The camera can orbit continuously over both poles without a pitch stop. Close
+approach adds an observer-frequency treatment: forward/lensed light shifts blue
+while peripheral rearward light shifts red. Use `Z` / `X` or the panel buttons
+to vary Kerr spin from retrograde to prograde; spin changes the exact Kerr ISCO,
+radiative efficiency, inner-disk flow, frame dragging, shadow offset, and jet power.
 
 ```bash
 ./CompPhysics/scripts/run growing_black_hole_viz
