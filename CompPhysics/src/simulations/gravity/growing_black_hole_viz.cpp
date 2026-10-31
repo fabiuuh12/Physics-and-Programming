@@ -210,6 +210,8 @@ void main(){
     vec2 d=pixel-lensCenter;
     float r2=max(dot(d,d),4.0);
     float r=sqrt(r2);
+    vec2 shadowD=d-vec2(spin*shadowRadius*.16,0.0);
+    float shadowR=length(shadowD);
     vec2 source=pixel-lensStrength*einsteinRadius*einsteinRadius*d/r2;
     source+=spin*vec2(-d.y,d.x)*(shadowRadius*shadowRadius/r2)*.22;
     vec2 uv=source/resolution;
@@ -219,8 +221,9 @@ void main(){
     vec3 color=mix(base,warped,influence);
     float critical=exp(-pow((r-einsteinRadius)/max(1.3,einsteinRadius*.028),2.0));
     color+=critical*vec3(0.035,0.032,0.028);
-    float photon=exp(-pow((r-photonRadius)/max(1.0,photonRadius*.018),2.0));
-    color+=photon*vec3(1.35,0.96,0.55);
+    float photon=exp(-pow((shadowR-photonRadius)/max(1.0,photonRadius*.012),2.0));
+    float subring=exp(-pow((shadowR-photonRadius*1.055)/max(1.0,photonRadius*.022),2.0));
+    color+=photon*vec3(1.20,0.91,0.61)+subring*vec3(.16,.12,.09);
     vec2 texel=1.0/resolution;
     float spread=2.0+7.0*luminosity;
     vec3 bloom=vec3(0.0);
@@ -234,9 +237,8 @@ void main(){
     float peripheral=smoothstep(einsteinRadius*.72,einsteinRadius*2.7,r);
     color*=mix(vec3(1.0),vec3(1.20,.72,.54),proximity*peripheral*.72);
     color*=mix(vec3(1.0),vec3(.70,.90,1.32),proximity*(1.0-peripheral)*.52);
-    vec2 shadowD=d-vec2(spin*shadowRadius*.16,0.0);
-    float shadow=smoothstep(shadowRadius-1.4,shadowRadius+1.4,length(shadowD));
-    color*=shadow;
+    float shadow=smoothstep(shadowRadius*.955,shadowRadius*1.025,shadowR);
+    color=mix(vec3(.0015,.0025,.005),color,shadow);
     finalColor=vec4(color,1.0)*fragColor;
 })GLSL";
 
@@ -253,7 +255,7 @@ void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera
     Vector3 screenRight=Vector3Normalize(Vector3CrossProduct(forward,camera.up));
     Vector2 center=GetWorldToScreen({0,0,0},camera),edge=GetWorldToScreen(Vector3Scale(screenRight,(float)blackhole::horizonRadius(mass)),camera);
     float sx=scene.texture.width/(float)GetScreenWidth(),sy=scene.texture.height/(float)GetScreenHeight(),pixelScale=std::sqrt(sx*sy);
-    float shadow=std::max(18.0f,Vector2Distance(center,edge))*pixelScale,einstein=shadow*(2.08f+.12f*mass),photon=shadow*1.48f;
+    float shadow=std::max(18.0f,Vector2Distance(center,edge))*pixelScale,einstein=shadow*(2.08f+.12f*mass),photon=shadow*1.055f;
     Vector2 resolution={(float)scene.texture.width,(float)scene.texture.height},textureCenter={center.x*sx,(GetScreenHeight()-center.y)*sy};float strength=.46f+.08f*mass;
     SetShaderValue(lens.shader,lens.resolution,&resolution,SHADER_UNIFORM_VEC2);SetShaderValue(lens.shader,lens.center,&textureCenter,SHADER_UNIFORM_VEC2);
     SetShaderValue(lens.shader,lens.einstein,&einstein,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.shadow,&shadow,SHADER_UNIFORM_FLOAT);
