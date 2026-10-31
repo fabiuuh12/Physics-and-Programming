@@ -32,6 +32,10 @@ The image is passed through the same inverse point-lens mapping used by
 `lensing_camera.py`, bending the disk and background together. The disk uses a
 thin temperature field, an inner cutoff, Kepler-like differential rotation,
 and cubic Doppler beaming to distinguish its approaching and receding sides.
+The default quality mode renders the scene at 150% resolution and downsamples it
+for cleaner lensing and particle edges; press `Q` to switch to native resolution.
+Jets contain a bright relativistic spine, expanding plasma sheath, braided field
+strands, recollimation shocks, and view-dependent Doppler brightness.
 
 ```bash
 ./CompPhysics/scripts/run growing_black_hole_viz

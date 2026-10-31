@@ -136,17 +136,41 @@ void drawDisk(const std::vector<DiskParticle>& disk,Texture2D glow,const Camera3
 
 void drawJets(const std::vector<JetParticle>& jets,Texture2D glow,const Camera3D& camera,float t,float power){
     if(power<.002f)return;Vector3 right,up;cameraBasis(camera,&right,&up);int count=(int)(jets.size()*(.15f+.85f*power));
+    Vector3 toCamera=Vector3Normalize(camera.position);
     BeginBlendMode(BLEND_ADDITIVE);rlDisableDepthMask();beginBillboards(glow);
     for(int i=0;i<count;i++){
         const auto& p=jets[i];float q=std::fmod(p.phase+t*p.speed*.18f,1.0f),y=p.side*(1.15f+q*(7.5f+7.5f*power));
-        float width=(.08f+.62f*q)*(.35f+.65f*power),a=p.twist+t*2.4f+p.side*q*13;
+        float width=(.07f+1.02f*std::pow(q,.82f))*(.30f+.70f*power),a=p.twist+t*2.4f+p.side*q*13;
         Vector3 v={std::cos(a)*width*p.radius,y,std::sin(a)*width*p.radius};
-        Color c=mix({105,173,255,255},{242,247,255,255},1-q);float fade=std::sin(PI*q)*power;
+        float beam=std::clamp(1.0f+1.05f*p.side*toCamera.y,.28f,2.0f);
+        Color c=mix({91,137,255,255},{242,249,255,255},1-q);float fade=std::sin(PI*q)*power*beam;
         billboard(glow,v,p.size*(.75f+power),Fade(c,.72f*fade),right,up);
     }endBillboards();rlEnableDepthMask();EndBlendMode();
-    for(int side:{-1,1})for(int i=0;i<4;i++){
-        float length=(3.5f+i*2.2f)*power;DrawCylinderEx({0,side*1.0f,0},{0,side*(1.0f+length),0},.12f+.06f*i,.035f+.02f*i,18,Fade({104,172,255,255},.025f*power));
+    // Magnetically braided core, expanding sheath, and recollimation shocks.
+    BeginBlendMode(BLEND_ADDITIVE);rlDisableDepthMask();rlSetTexture(0);rlBegin(RL_LINES);
+    for(int side:{-1,1}){
+        float beam=std::clamp(1.0f+1.05f*side*toCamera.y,.28f,2.0f),length=4.0f+10.5f*power;
+        for(int strand=0;strand<5;strand++){
+            Vector3 previous={0,side*1.02f,0};
+            for(int i=1;i<=150;i++){
+                float q=i/150.0f,radius=(.035f+.62f*std::pow(q,.86f))*power;
+                float angle=strand*2*PI/5+side*q*(13.0f+4.0f*power)-t*2.5f*side;
+                Vector3 next={std::cos(angle)*radius,side*(1.02f+q*length),std::sin(angle)*radius};
+                Color c=mix({74,119,255,255},{225,246,255,255},1-q);
+                c=Fade(c,sat((.16f+.34f*(1-q))*power*beam));
+                rlColor4ub(c.r,c.g,c.b,c.a);rlVertex3f(previous.x,previous.y,previous.z);rlVertex3f(next.x,next.y,next.z);previous=next;
+            }
+        }
+        for(int shock=1;shock<=5;shock++){
+            float q=shock/5.5f,radius=(.12f+.72f*q)*power*(1+.18f*std::sin(t*4-shock));
+            for(int i=0;i<56;i++){
+                float a0=2*PI*i/56,a1=2*PI*(i+1)/56;float y=side*(1.02f+q*length);
+                Color c=Fade({190,224,255,255},sat(.13f*power*beam*(1-q*.45f)));rlColor4ub(c.r,c.g,c.b,c.a);
+                rlVertex3f(std::cos(a0)*radius,y,std::sin(a0)*radius);rlVertex3f(std::cos(a1)*radius,y,std::sin(a1)*radius);
+            }
+        }
     }
+    rlEnd();rlEnableDepthMask();EndBlendMode();
 }
 
 void drawFeedingClouds(Texture2D glow,const Camera3D& camera,float t,float mass,bool feeding){
@@ -214,13 +238,14 @@ void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera
     Vector3 forward=Vector3Normalize(Vector3Subtract(camera.target,camera.position));
     Vector3 screenRight=Vector3Normalize(Vector3CrossProduct(forward,camera.up));
     Vector2 center=GetWorldToScreen({0,0,0},camera),edge=GetWorldToScreen(Vector3Scale(screenRight,(float)blackhole::horizonRadius(mass)),camera);
-    float shadow=std::max(18.0f,Vector2Distance(center,edge)),einstein=shadow*(2.08f+.12f*mass),photon=shadow*1.48f;
-    Vector2 resolution={(float)GetScreenWidth(),(float)GetScreenHeight()},textureCenter={center.x,resolution.y-center.y};float strength=.46f+.08f*mass;
+    float sx=scene.texture.width/(float)GetScreenWidth(),sy=scene.texture.height/(float)GetScreenHeight(),pixelScale=std::sqrt(sx*sy);
+    float shadow=std::max(18.0f,Vector2Distance(center,edge))*pixelScale,einstein=shadow*(2.08f+.12f*mass),photon=shadow*1.48f;
+    Vector2 resolution={(float)scene.texture.width,(float)scene.texture.height},textureCenter={center.x*sx,(GetScreenHeight()-center.y)*sy};float strength=.46f+.08f*mass;
     SetShaderValue(lens.shader,lens.resolution,&resolution,SHADER_UNIFORM_VEC2);SetShaderValue(lens.shader,lens.center,&textureCenter,SHADER_UNIFORM_VEC2);
     SetShaderValue(lens.shader,lens.einstein,&einstein,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.shadow,&shadow,SHADER_UNIFORM_FLOAT);
     SetShaderValue(lens.shader,lens.photon,&photon,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.strength,&strength,SHADER_UNIFORM_FLOAT);
     float luminosity=(float)blackhole::luminosity(mass);SetShaderValue(lens.shader,lens.luminosity,&luminosity,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.ignition,&ignition,SHADER_UNIFORM_FLOAT);
-    BeginShaderMode(lens.shader);DrawTextureRec(scene.texture,{0,0,(float)scene.texture.width,-(float)scene.texture.height},{0,0},WHITE);EndShaderMode();
+    BeginShaderMode(lens.shader);DrawTexturePro(scene.texture,{0,0,(float)scene.texture.width,-(float)scene.texture.height},{0,0,(float)GetScreenWidth(),(float)GetScreenHeight()},{0,0},0,WHITE);EndShaderMode();
 }
 
 void updateCamera(Camera3D* c,CameraRig* r){
@@ -236,7 +261,7 @@ void preset(int key,CameraRig* r,Camera3D* c){
     if(key==KEY_THREE){*r={1.56f,-.04f,12.0f};c->target={0,1.8f,0};}
 }
 
-void drawHud(float mass,float speed,bool paused,bool feeding,bool blazarView,float fps){
+void drawHud(float mass,float speed,bool paused,bool feeding,bool blazarView,float renderScale,float fps){
     float disk=blackhole::diskFraction(mass),jet=blackhole::jetPower(mass);
     studio::title("Growing Black Hole",studio::Style::Observatory);
     const char* activity=blazarView?"BLAZAR VIEW - JET ALIGNED":blackhole::stateName(mass);
@@ -250,7 +275,7 @@ void drawHud(float mass,float speed,bool paused,bool feeding,bool blazarView,flo
     studio::text(TextFormat("Radiative output  %.0f%%",blackhole::luminosity(mass)*100),panel.x+18,panel.y+138,15,{255,181,91,255});
     const char* jetText=blazarView?"Jet aimed toward observer":(jet>.05f?"Polar magnetic jets launched":"Jets waiting for high accretion");
     studio::text(jetText,panel.x+18,panel.y+163,15,jet>.05f?Color{139,193,255,255}:Color{133,151,169,255});
-    studio::help("Hold F or button: feed | Drag: orbit | Wheel: zoom | 1/2/3: views | Space: pause | R: reset | -/+: speed");
+    studio::help(TextFormat("Hold F or button: feed | Drag: orbit | Wheel: zoom | 1/2/3: views | Q: quality %.0f%% | Space: pause | R: reset",renderScale*100));
     studio::fps();(void)speed;(void)paused;(void)fps;
 }
 
@@ -266,25 +291,26 @@ int main(int argc,char** argv){
     SetConfigFlags(FLAG_WINDOW_RESIZABLE|FLAG_MSAA_4X_HINT);if(std::getenv("COMPPHYSICS_SMOKE_FRAMES"))SetConfigFlags(FLAG_WINDOW_HIDDEN);
     InitWindow(kWidth,kHeight,"Growing Black Hole - C++ (raylib)");SetWindowMinSize(1000,650);SetTargetFPS(120);
     Texture2D glow=makeGlowTexture();auto disk=makeDisk();auto jets=makeJets();auto sky=makeSky();
-    RenderTexture2D scene=LoadRenderTexture(GetScreenWidth(),GetScreenHeight());LensPass lens=makeLensPass();
+    float renderScale=1.5f;RenderTexture2D scene=LoadRenderTexture((int)(GetScreenWidth()*renderScale),(int)(GetScreenHeight()*renderScale));LensPass lens=makeLensPass();
     Camera3D camera{{0,0,0},{0,0,0},{0,1,0},47,CAMERA_PERSPECTIVE};CameraRig rig;preset(KEY_ONE,&rig,&camera);
     float mass=startMass,time=0,speed=1,ignition=0;bool paused=false;int frame=0;
     while(!WindowShouldClose()){
         Rectangle feedButton={GetScreenWidth()-294.0f,134,248,48};bool feeding=IsKeyDown(KEY_F)||(studio::over(feedButton)&&IsMouseButtonDown(MOUSE_BUTTON_LEFT));
         if(IsKeyPressed(KEY_SPACE)||IsKeyPressed(KEY_P))paused=!paused;if(IsKeyPressed(KEY_R)){mass=.07f;time=0;ignition=0;paused=false;}
         if(IsKeyPressed(KEY_MINUS)||IsKeyPressed(KEY_KP_SUBTRACT))speed=std::max(.25f,speed-.25f);if(IsKeyPressed(KEY_EQUAL)||IsKeyPressed(KEY_KP_ADD))speed=std::min(4.0f,speed+.25f);
+        bool qualityChanged=false;if(IsKeyPressed(KEY_Q)){renderScale=renderScale>1.1f?1.0f:1.5f;qualityChanged=true;}
         for(int key:{KEY_ONE,KEY_TWO,KEY_THREE})if(IsKeyPressed(key))preset(key,&rig,&camera);updateCamera(&camera,&rig);
         float dt=std::min(GetFrameTime(),.05f)*speed;if(!paused&&capture.empty()){
             time+=dt;float previous=mass;if(feeding)mass=(float)blackhole::feed(mass,.105,dt);
             if(previous<.68f&&mass>=.68f)ignition=1;ignition=std::max(0.0f,ignition-dt*.42f);
         }
-        if(IsWindowResized()){UnloadRenderTexture(scene);scene=LoadRenderTexture(GetScreenWidth(),GetScreenHeight());}
+        if(IsWindowResized()||qualityChanged){UnloadRenderTexture(scene);scene=LoadRenderTexture((int)(GetScreenWidth()*renderScale),(int)(GetScreenHeight()*renderScale));}
         Vector3 right,up;cameraBasis(camera,&right,&up);
         BeginTextureMode(scene);ClearBackground({2,4,10,255});BeginMode3D(camera);
         drawSky(sky,glow,right,up);drawFeedingClouds(glow,camera,time,mass,feeding);drawContinuousDisk(camera,time,mass);drawDisk(disk,glow,camera,time,mass);drawJets(jets,glow,camera,time,(float)blackhole::jetPower(mass));EndMode3D();EndTextureMode();
         BeginDrawing();ClearBackground({2,4,10,255});drawLensedScene(scene,lens,camera,mass,ignition);
         bool blazarView=blackhole::jetPower(mass)>.05&&std::fabs(rig.pitch)>1.05f;
-        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,220},{2,4,10,0});drawHud(mass,speed,paused,feeding,blazarView,(float)GetFPS());EndDrawing();
+        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,220},{2,4,10,0});drawHud(mass,speed,paused,feeding,blazarView,renderScale,(float)GetFPS());EndDrawing();
         if(!capture.empty()&&++frame>=captureFrames){std::filesystem::create_directories(std::filesystem::path(capture).parent_path());TakeScreenshot(capture.c_str());break;}
         if(studio::smokeFrame(__FILE__))break;
     }
