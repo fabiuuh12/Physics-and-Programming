@@ -69,5 +69,6 @@ int main() {
     require(blackhole::spinJetMultiplier(.95)>blackhole::spinJetMultiplier(.2),"rapid spin strengthens the magnetic jet channel");
     require(blackhole::properTimeRate(2)<blackhole::properTimeRate(10)&&blackhole::properTimeRate(1)==0,"coordinate time dilation strengthens near the horizon");
     require(std::string(blackhole::observerRegime(12))=="DISTANT FIELD"&&std::string(blackhole::observerRegime(2))=="NEAR-HORIZON FLIGHT","observer distance selects the camera regime");
+    require(blackhole::interiorSkyRate(1.2)==1&&blackhole::interiorSkyRate(.2)>blackhole::interiorSkyRate(.8),"incoming sky evolution accelerates with conceptual interior depth");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }

@@ -207,6 +207,7 @@ uniform float spin;
 uniform float proximity;
 uniform float radialVelocity;
 uniform float interior;
+uniform float interiorDepth;
 out vec4 finalColor;
 void main(){
     vec2 pixel=fragTexCoord*resolution;
@@ -250,29 +251,36 @@ void main(){
     color*=mix(vec3(1.0),motionShift>=0.0?vec3(.72,.91,1.38):vec3(1.35,.82,.63),abs(motionShift)*.42);
     vec2 interiorP=fragTexCoord-vec2(.5);
     float interiorR=length(interiorP);
-    float swirl=spin*(.16+.28*interiorR);
+    float cone=mix(.78,.20,interiorDepth);
+    float swirl=spin*(.16+.85*interiorDepth+.28*interiorR);
     mat2 turn=mat2(cos(swirl),-sin(swirl),sin(swirl),cos(swirl));
-    vec2 interiorUv=vec2(.5)+turn*interiorP*(.72+.42*interiorR);
+    vec2 interiorUv=vec2(.5)+turn*interiorP/max(.08,2.0*cone);
     vec3 interiorColor=texture(texture0,clamp(interiorUv,vec2(.001),vec2(.999))).rgb;
-    interiorColor*=mix(vec3(.72,.86,1.28),vec3(1.28,.68,.46),smoothstep(.22,.72,interiorR));
-    float horizonWall=smoothstep(.34,.49,interiorR)*(1.0-smoothstep(.49,.72,interiorR));
-    interiorColor+=horizonWall*vec3(.09,.13,.22);
-    color=mix(color,interiorColor,interior);
+    vec2 interiorRay=normalize(interiorP+vec2(.001))/resolution;
+    float interiorStreak=6.0+34.0*interiorDepth;
+    interiorColor+=texture(texture0,clamp(interiorUv+interiorRay*interiorStreak,vec2(.001),vec2(.999))).rgb*.30;
+    interiorColor+=texture(texture0,clamp(interiorUv-interiorRay*interiorStreak,vec2(.001),vec2(.999))).rgb*.18;
+    interiorColor*=mix(vec3(.76,.90,1.22),vec3(.48,.82,1.72),interiorDepth);
+    float coneMask=1.0-smoothstep(cone*.72,cone,interiorR);
+    float coneEdge=exp(-pow((interiorR-cone)/max(.009,cone*.065),2.0));
+    vec3 interiorView=mix(vec3(.001,.002,.006),interiorColor,coneMask)+coneEdge*vec3(.018,.042,.10)*(.5+interiorDepth);
+    color=mix(color,interiorView,interior);
     float shadow=smoothstep(shadowRadius*.955,shadowRadius*1.025,shadowR);
     color=mix(vec3(.0015,.0025,.005),color,mix(shadow,1.0,interior));
     finalColor=vec4(color,1.0)*fragColor;
 })GLSL";
 
-struct LensPass {Shader shader{};int resolution=-1,center=-1,einstein=-1,shadow=-1,photon=-1,strength=-1,luminosity=-1,ignition=-1,spin=-1,proximity=-1,radialVelocity=-1,interior=-1;};
+struct LensPass {Shader shader{};int resolution=-1,center=-1,einstein=-1,shadow=-1,photon=-1,strength=-1,luminosity=-1,ignition=-1,spin=-1,proximity=-1,radialVelocity=-1,interior=-1,interiorDepth=-1;};
 
 LensPass makeLensPass(){
     LensPass p;p.shader=LoadShaderFromMemory(nullptr,kLensFragment);p.resolution=GetShaderLocation(p.shader,"resolution");p.center=GetShaderLocation(p.shader,"lensCenter");
     p.einstein=GetShaderLocation(p.shader,"einsteinRadius");p.shadow=GetShaderLocation(p.shader,"shadowRadius");p.photon=GetShaderLocation(p.shader,"photonRadius");p.strength=GetShaderLocation(p.shader,"lensStrength");
-    p.luminosity=GetShaderLocation(p.shader,"luminosity");p.ignition=GetShaderLocation(p.shader,"ignition");p.spin=GetShaderLocation(p.shader,"spin");p.proximity=GetShaderLocation(p.shader,"proximity");p.radialVelocity=GetShaderLocation(p.shader,"radialVelocity");p.interior=GetShaderLocation(p.shader,"interior");return p;
+    p.luminosity=GetShaderLocation(p.shader,"luminosity");p.ignition=GetShaderLocation(p.shader,"ignition");p.spin=GetShaderLocation(p.shader,"spin");p.proximity=GetShaderLocation(p.shader,"proximity");p.radialVelocity=GetShaderLocation(p.shader,"radialVelocity");p.interior=GetShaderLocation(p.shader,"interior");p.interiorDepth=GetShaderLocation(p.shader,"interiorDepth");return p;
 }
 
 void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera,float mass,float spin,float ignition,float radialVelocity){
     float observerDistance=Vector3Distance(camera.position,{0,0,0})/(float)blackhole::horizonRadius(mass),interior=observerDistance<1.0f?1.0f:0.0f;
+    float interiorDepth=sat(1.0f-observerDistance);
     Vector3 forward=Vector3Normalize(Vector3Subtract(camera.target,camera.position));
     Vector3 screenRight=Vector3Normalize(Vector3CrossProduct(forward,camera.up));
     Vector2 center=interior>.5f?Vector2{GetScreenWidth()*.5f,GetScreenHeight()*.5f}:GetWorldToScreen({0,0,0},camera);
@@ -285,7 +293,7 @@ void drawLensedScene(RenderTexture2D scene,LensPass& lens,const Camera3D& camera
     SetShaderValue(lens.shader,lens.photon,&photon,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.strength,&strength,SHADER_UNIFORM_FLOAT);
     float luminosity=(float)blackhole::luminosity(mass);SetShaderValue(lens.shader,lens.luminosity,&luminosity,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.ignition,&ignition,SHADER_UNIFORM_FLOAT);
     float proximity=1-smooth(1.75f,5.5f,observerDistance);SetShaderValue(lens.shader,lens.spin,&spin,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.proximity,&proximity,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.radialVelocity,&radialVelocity,SHADER_UNIFORM_FLOAT);
-    SetShaderValue(lens.shader,lens.interior,&interior,SHADER_UNIFORM_FLOAT);
+    SetShaderValue(lens.shader,lens.interior,&interior,SHADER_UNIFORM_FLOAT);SetShaderValue(lens.shader,lens.interiorDepth,&interiorDepth,SHADER_UNIFORM_FLOAT);
     BeginShaderMode(lens.shader);DrawTexturePro(scene.texture,{0,0,(float)scene.texture.width,-(float)scene.texture.height},{0,0,(float)GetScreenWidth(),(float)GetScreenHeight()},{0,0},0,WHITE);EndShaderMode();
 }
 
@@ -327,38 +335,33 @@ void metricBar(Rectangle panel,float y,const char* label,float value,Color color
 void drawHud(float mass,float spin,float observerDistance,float radialVelocity,float speed,bool paused,bool feeding,bool rewinding,bool blazarView,bool detailed,float renderScale,float fps){
     float disk=blackhole::diskFraction(mass),jet=effectiveJetPower(mass,spin);
     const char* activity=blazarView?"BLAZAR VIEW - JET ALIGNED":blackhole::stateName(mass);
-    studio::text("OBSERVATORY  /  GENERAL RELATIVITY",26,18,11,{205,166,109,255});
-    studio::text("Growing Black Hole",26,39,28,{239,241,240,255});DrawLine(26,78,146,78,{205,166,109,255});
-    float badgeWidth=studio::textWidth(activity,14)+28;Rectangle badge={26,93,badgeWidth,32};
-    DrawRectangleRounded(badge,.22f,8,{18,29,43,232});DrawRectangleRoundedLinesEx(badge,.22f,8,1,Fade({231,190,128,255},.45f));
-    DrawCircle(42,109,3,{231,190,128,255});studio::text(activity,53,101,14,{235,211,170,255});
-    studio::text(paused?"SIMULATION PAUSED":"LIVE ACCRETION MODEL",26,135,11,paused?Color{255,183,99,255}:Color{126,185,218,255});
+    studio::text("KERR BLACK HOLE",26,23,22,{241,243,243,255});
+    studio::text(activity,26,55,14,{177,185,191,255});
     if(!detailed){
-        studio::help(TextFormat("F/D feed/rewind | Z/X spin | Drag orbit | Wheel journey | H telemetry | Q quality %.0f%%",renderScale*100));
-        studio::fps();return;
+        studio::text("H  TELEMETRY",GetScreenWidth()-126.0f,GetScreenHeight()-31.0f,14,{151,160,168,210});return;
     }
-    Rectangle observer={26,158,270,78};DrawRectangleRounded(observer,.08f,8,{9,17,28,218});DrawRectangleRoundedLinesEx(observer,.08f,8,1,{48,67,86,175});
-    studio::text("OBSERVER JOURNEY",observer.x+14,observer.y+11,10,{126,185,218,255});
-    studio::text(observerDistance<1?"INTERIOR - LOOKING OUT":blackhole::observerRegime(observerDistance),observer.x+14,observer.y+29,15,{226,232,236,255});
+    Rectangle observer={26,92,270,84};DrawRectangleRounded(observer,.08f,8,{9,15,23,222});DrawRectangleRoundedLinesEx(observer,.08f,8,1,{56,65,73,175});
+    studio::text("OBSERVER",observer.x+14,observer.y+12,13,{165,174,181,255});
+    studio::text(observerDistance<1?"INTERIOR - LOOKING OUT":blackhole::observerRegime(observerDistance),observer.x+14,observer.y+34,16,{231,234,235,255});
     const char* motion=radialVelocity>.08f?"INBOUND / BLUE SHIFT":(radialVelocity<-.08f?"OUTBOUND / RED SHIFT":"ORBIT HOLD");
     Color motionColor=radialVelocity>.08f?Color{130,190,255,255}:(radialVelocity<-.08f?Color{255,142,105,255}:Color{146,160,175,255});
-    studio::text(TextFormat("dTau/dt %.3f",blackhole::properTimeRate(observerDistance)),observer.x+14,observer.y+53,11,{157,173,189,255});
-    studio::text(motion,observer.x+104,observer.y+53,11,motionColor);
+    studio::text(TextFormat("dTau/dt %.3f",blackhole::properTimeRate(observerDistance)),observer.x+14,observer.y+61,13,{170,177,183,255});
+    studio::text(motion,observer.x+120,observer.y+61,13,motionColor);
 
     Rectangle panel=controlPanel();
     DrawRectangleRounded({panel.x+2,panel.y+5,panel.width,panel.height},.055f,10,{0,0,0,65});
     DrawRectangleRounded(panel,.055f,10,{9,17,28,239});DrawRectangleRoundedLinesEx(panel,.055f,10,1,{55,73,91,190});
-    studio::text("SYSTEM EVOLUTION",panel.x+18,panel.y+16,12,{231,190,128,255});
+    studio::text("CONTROLS",panel.x+18,panel.y+16,14,{201,205,207,255});
     Rectangle feed=feedControl(),rewind=rewindControl();
-    Color fc=feeding?Color{219,119,48,255}:(studio::over(feed)?Color{63,77,94,255}:Color{37,50,66,255});
-    Color rc=rewinding?Color{67,125,174,255}:(studio::over(rewind)?Color{63,77,94,255}:Color{37,50,66,255});
+    Color fc=feeding?Color{105,113,120,255}:(studio::over(feed)?Color{63,72,80,255}:Color{35,43,51,255});
+    Color rc=rewinding?Color{105,113,120,255}:(studio::over(rewind)?Color{63,72,80,255}:Color{35,43,51,255});
     DrawRectangleRounded(feed,.18f,8,fc);DrawRectangleRounded(rewind,.18f,8,rc);
     studio::text(feeding?"FEEDING...":"FEED  +",feed.x+29,feed.y+13,15,{248,242,226,255});
     studio::text(rewinding?"REWINDING...":"REWIND  -",rewind.x+24,rewind.y+13,15,{226,239,249,255});
-    metricBar(panel,panel.y+108,"MASS RESERVOIR",mass,{222,126,54,255});
-    metricBar(panel,panel.y+153,"ACCRETION DISK",disk,{236,178,79,255});
-    metricBar(panel,panel.y+198,"RADIATIVE OUTPUT",(float)blackhole::luminosity(mass),{225,232,245,255});
-    metricBar(panel,panel.y+243,"JET POWER",jet,{105,169,245,255});
+    metricBar(panel,panel.y+108,"MASS",mass,{188,193,196,255});
+    metricBar(panel,panel.y+153,"DISK",disk,{188,193,196,255});
+    metricBar(panel,panel.y+198,"LIGHT",(float)blackhole::luminosity(mass),{224,227,229,255});
+    metricBar(panel,panel.y+243,"JETS",jet,{174,183,190,255});
     studio::text(TextFormat("KERR SPIN  %+.2f",spin),panel.x+18,panel.y+315,13,{183,202,236,255});
     Rectangle spinDown=spinDownControl(),spinUp=spinUpControl();
     studio::button(spinDown,"-",false,{82,119,167,255});studio::button(spinUp,"+",false,{82,119,167,255});
@@ -367,8 +370,8 @@ void drawHud(float mass,float spin,float observerDistance,float radialVelocity,f
     DrawCircleV({spinTrack.x+spinTrack.width*spin01,spinTrack.y+2.5f},6,{166,196,236,255});
     studio::text(TextFormat("ISCO %.2f GM/c^2",blackhole::iscoRadius(spin)),panel.x+18,panel.y+367,12,{153,169,185,255});
     studio::text(TextFormat("OBSERVER %.1f R_H",observerDistance),panel.x+170,panel.y+367,12,{153,169,185,255});
-    studio::help(TextFormat("F/D feed/rewind | Z/X spin | Drag orbit | Wheel journey | H hide telemetry | Q quality %.0f%%",renderScale*100));
-    studio::fps();(void)speed;(void)paused;(void)fps;
+    studio::help(TextFormat("F/D feed/rewind | Z/X spin | Drag orbit | Wheel journey | H hide | Q %.0f%%",renderScale*100));
+    (void)speed;(void)paused;(void)fps;
 }
 
 } // namespace
@@ -410,7 +413,7 @@ int main(int argc,char** argv){
             float follow=1-std::exp(-controlDt/.11f);observerVelocity+=(target-observerVelocity)*follow;
         }previousObserverDistance=observerDistance;
         float dt=std::min(GetFrameTime(),.05f)*speed;if(!paused&&capture.empty()){
-            float coordinateRate=.32f+.68f*(float)blackhole::properTimeRate(observerDistance);
+            float coordinateRate=observerDistance<1?(float)blackhole::interiorSkyRate(observerDistance):(.32f+.68f*(float)blackhole::properTimeRate(observerDistance));
             time+=dt*coordinateRate;float previous=mass;if(feeding&&!rewinding)mass=(float)blackhole::feed(mass,.105,dt);if(rewinding&&!feeding)mass=(float)blackhole::rewind(mass,.12,dt);
             if(previous<.68f&&mass>=.68f)ignition=1;ignition=std::max(0.0f,ignition-dt*.42f);
             if(mass<.68f)ignition=0;
@@ -422,7 +425,8 @@ int main(int argc,char** argv){
         drawSky(sky,glow,right,up);drawFeedingClouds(glow,camera,time,mass,feeding);drawContinuousDisk(camera,time,mass,spin);drawDisk(disk,glow,camera,time,mass,spin);drawJets(jets,glow,camera,time,jetPower);EndMode3D();EndTextureMode();
         BeginDrawing();ClearBackground({2,4,10,255});drawLensedScene(scene,lens,camera,mass,spin,ignition,observerVelocity);
         bool blazarView=jetPower>.05f&&std::fabs(std::sin(rig.pitch))>.86f;
-        DrawRectangleGradientV(0,0,GetScreenWidth(),150,{2,4,10,205},{2,4,10,0});drawHud(mass,spin,observerDistance,observerVelocity,speed,paused,feeding,rewinding,blazarView,showTelemetry,renderScale,(float)GetFPS());EndDrawing();
+        int headerFade=showTelemetry?190:92;DrawRectangleGradientV(0,0,GetScreenWidth(),headerFade,{2,4,10,185},{2,4,10,0});
+        drawHud(mass,spin,observerDistance,observerVelocity,speed,paused,feeding,rewinding,blazarView,showTelemetry,renderScale,(float)GetFPS());EndDrawing();
         if(!capture.empty()&&++frame>=captureFrames){std::filesystem::create_directories(std::filesystem::path(capture).parent_path());TakeScreenshot(capture.c_str());break;}
         if(studio::smokeFrame(__FILE__))break;
     }

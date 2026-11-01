@@ -51,6 +51,10 @@ The camera may cross the modeled horizon and automatically look outward at the
 densely populated lensed sky and accretion flow. This interior is an explicitly
 conceptual visualization: ordinary Euclidean 3D cameras and the thin-lens model
 do not describe the causal geometry of a real Kerr black-hole interior.
+The interior does not claim that an infaller watches the universe run infinitely
+fast. Instead, increasing depth narrows and frame-drags the visible exterior
+light cone, strengthens directional blueshift and aberration, and accelerates a
+bounded incoming-sky proxy while the infaller retains finite proper time.
 
 ```bash
 ./CompPhysics/scripts/run growing_black_hole_viz

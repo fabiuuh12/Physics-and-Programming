@@ -98,4 +98,10 @@ inline const char* observerRegime(double horizonRadii) {
     return "NEAR-HORIZON FLIGHT";
 }
 
+inline double interiorSkyRate(double horizonRadii) {
+    if (horizonRadii >= 1.0) return 1.0;
+    const double depth = saturate(1.0 - horizonRadii);
+    return 1.0 + 4.0 * depth * depth;
+}
+
 }  // namespace blackhole
