@@ -46,7 +46,8 @@
 \newtheorem{example}{Worked example}[chapter]
 \newtheorem*{pitfall}{Common pitfall}
 \newtheorem*{connection}{Connection}
-\newcommand{\learningcheck}[1]{\subsection*{Try it yourself}\noindent #1\par}
+\newcommand{\learningcheck}[1]{\subsection*{Exercises}\noindent #1\par\smallskip\noindent\emph{Answers are in Appendix~\ref{app:chapter-answers}.}}
+\newcommand{\chapterlevel}[2]{\begin{center}\fcolorbox{blue!45!black}{blue!4}{\parbox{0.88\textwidth}{\textbf{#1.} #2}}\end{center}}
 \title{Physics Calc\\\large Mathematical Foundations, Classical Theory, and Modern Physics}
 \author{Physics and Programming}
 \date{September 2026}
@@ -57,7 +58,115 @@
 \hypersetup{pageanchor=true}
 \tableofcontents
 
+\chapter*{How to use this book}
+\addcontentsline{toc}{chapter}{How to use this book}
+This book can be read at more than one depth. A \textbf{foundation} chapter develops ideas needed repeatedly later. A \textbf{core} chapter forms part of a broad first path through physics. An \textbf{advanced} chapter gives a careful entrance to material normally studied in a later course. These labels describe prerequisites, not importance.
+
+The recommended first route is mathematical tools; motion, forces, energy, and momentum; oscillations and waves; thermodynamics; electricity and magnetism; special relativity; and quantum principles. After that route, choose branches according to interest. Differential geometry and Lie theory prepare the mathematical language of general relativity, gauge theory, and modern particle physics. Continuum mechanics, statistical mechanics, condensed matter, nuclear physics, and cosmology can be read as further branches.
+
+Each chapter contains short exercises that require only pencil, paper, and the information in the text. Answers are collected in the appendix. No exercise requires laboratory equipment, purchased materials, or access to a school facility. Sketches are mathematical diagrams: their purpose is to expose directions, slopes, boundaries, or transformations clearly enough to reason from them.
+
+When a chapter feels too abrupt, return to the mathematical toolkit and follow the cross-reference named at the start of the section. A productive pass through a chapter has four goals: explain the physical picture, reproduce one central derivation, solve a representative exercise, and state the assumptions that limit the result.
+
 \mainmatter
+\part{Mathematical Toolkit}
+\chapter{Functions, trigonometry, and calculus}
+\chapterlevel{Foundation}{No prior calculus is assumed. This chapter supplies the notation used throughout the book.}
+A physical model often begins with a function: one quantity is assigned to each allowed value of another. Writing $x(t)$ means that time is the input and position is the output. A graph of the function records the same relation geometrically. Its slope measures change, while area accumulated under a rate records a total change.
+
+\section{Functions, graphs, and scale}
+For a linear function $y=mx+b$, the number $m$ is the change in $y$ per unit change in $x$, and $b$ is the value at $x=0$. Powers describe other common scaling laws. If $y=Cx^2$, doubling $x$ multiplies $y$ by four. If $y=C/x^2$, doubling $x$ divides $y$ by four. On logarithmic axes, a power law $y=Cx^n$ becomes $\ln y=\ln C+n\ln x$, so its exponent is a slope.
+
+An equation may define a family rather than one answer. The differential equation $\dot x=v$ has solutions $x=vt+C$; an initial condition such as $x(0)=x_0$ fixes $C=x_0$. This distinction between a law and the data selecting one solution will recur in mechanics, waves, diffusion, and quantum theory.
+
+\section{Angles and oscillations}
+Radians measure angle by arc length divided by radius. This makes an angle dimensionless and gives the clean derivative rules
+\begin{equation}
+\od{}{x}\sin x=\cos x,\qquad \od{}{x}\cos x=-\sin x.
+\end{equation}
+For a right triangle, $\sin\theta$ is opposite over hypotenuse, $\cos\theta$ is adjacent over hypotenuse, and $\tan\theta=\sin\theta/\cos\theta$. The identity $\sin^2\theta+\cos^2\theta=1$ is the Pythagorean theorem written in normalized coordinates. A phase $\omega t+\phi$ must be dimensionless, so angular frequency $\omega$ has units of inverse time.
+
+\section{Derivatives, integrals, and approximation}
+The derivative is a limiting slope,
+\begin{equation}
+f'(x)=\lim_{h\to0}\frac{f(x+h)-f(x)}h.
+\end{equation}
+Useful rules include $(fg)'=f'g+fg'$, $[f(g(x))]'=f'(g(x))g'(x)$, and $\od{}{x}\ee^{ax}=a\ee^{ax}$. An integral adds narrow contributions. The fundamental theorem connects the two operations:
+\begin{equation}
+\od{}{x}\int_a^x f(s)\,\dd s=f(x),\qquad
+\int_a^b f'(x)\,\dd x=f(b)-f(a).
+\end{equation}
+Integration by parts follows from the product rule:
+\begin{equation}
+\int_a^b u\,\dd v=[uv]_a^b-\int_a^b v\,\dd u.
+\end{equation}
+It will be used when deriving equations from an action and when transforming derivatives in Fourier analysis.
+
+A Taylor expansion makes the size of an approximation visible:
+\begin{equation}
+f(x+h)=f(x)+hf'(x)+\frac{h^2}{2}f''(x)+\cdots.
+\end{equation}
+Keeping only the first terms is justified when the omitted contribution is small compared with the accuracy required.
+
+\begin{example}[From a rate to a total]
+If $v(t)=v_0+at$, then $x(t)-x(0)=\int_0^t(v_0+as)\dd s=v_0t+at^2/2$. Differentiating the result returns the velocity, which checks the calculation.
+\end{example}
+
+\learningcheck{Differentiate $x(t)=3t^2-2t+1$. Integrate the resulting velocity from $0$ to $T$ and verify that it equals $x(T)-x(0)$. Explain why the argument of $\sin(\omega t)$ is dimensionless.}
+
+\chapter{Complex numbers, vectors, and linear algebra}
+\chapterlevel{Foundation}{This chapter prepares oscillations, waves, quantum mechanics, coupled systems, and rotations.}
+\section{Complex numbers as rotations}
+A complex number $z=a+\ii b$ has conjugate $z^*=a-\ii b$ and squared magnitude $|z|^2=zz^*=a^2+b^2$. Euler's identity,
+\begin{equation}
+\ee^{\ii\theta}=\cos\theta+\ii\sin\theta,
+\end{equation}
+turns oscillation into rotation in a plane. Multiplying by $\ee^{\ii\theta}$ rotates a complex number by $\theta$ without changing its magnitude. Physical displacements may be obtained by taking a real part; in quantum theory the complex amplitude itself carries relative-phase information.
+
+\section{Vectors, matrices, and bases}
+A vector is a geometric object whose components depend on a chosen basis. In two Cartesian dimensions, $\vect v=(v_x,v_y)$ has magnitude $\sqrt{v_x^2+v_y^2}$. The dot product $\vect u\cdot\vect v=u_xv_x+u_yv_y$ measures alignment. A matrix represents a linear transformation: $A(\alpha\vect u+\beta\vect v)=\alpha A\vect u+\beta A\vect v$.
+
+The rotation matrix
+\begin{equation}
+R(\theta)=\begin{pmatrix}\cos\theta&-\sin\theta\\\sin\theta&\cos\theta\end{pmatrix}
+\end{equation}
+changes vector components while preserving lengths. Matrix multiplication represents successive transformations; order generally matters.
+
+An eigenvector keeps its direction under a linear transformation:
+\begin{equation}A\vect v=\lambda\vect v.
+\end{equation}
+In coupled oscillations, eigenvectors are mode shapes and eigenvalues determine squared frequencies. In quantum mechanics, eigenvectors of an observable represent states with definite measurement outcomes.
+
+\begin{example}[Two normal directions]
+For $A=\begin{pmatrix}2&1\\1&2\end{pmatrix}$, the vectors $(1,1)$ and $(1,-1)$ are eigenvectors with eigenvalues $3$ and $1$. Adding or subtracting two coupled equations finds these same in-phase and out-of-phase directions.
+\end{example}
+
+\learningcheck{Write $3-4\ii$ in polar form by finding its magnitude and angle. Multiply $R(\pi/2)$ by $(1,0)$. Verify directly the two eigenvector statements in the example.}
+
+\chapter{Fields, partial derivatives, and vector calculus}
+\chapterlevel{Foundation}{This chapter prepares fluids, electromagnetism, diffusion, wave equations, and geometry.}
+A scalar field assigns a number to each point, such as $T(x,y,z,t)$. A vector field assigns an arrow, such as fluid velocity $\vect v(\vect r,t)$. A partial derivative varies one coordinate while holding the others fixed.
+
+The gradient $\grad f$ points toward fastest increase of a scalar field. Divergence measures local outward flux, curl measures local circulation, and the Laplacian measures how a value differs from its neighbors:
+\begin{align}
+\grad f&=(\partial_xf,\partial_yf,\partial_zf),\\
+\grad\cdot\vect A&=\partial_xA_x+\partial_yA_y+\partial_zA_z,\\
+\lap f&=\partial_x^2f+\partial_y^2f+\partial_z^2f.
+\end{align}
+For a small box, positive divergence means more of the field leaves than enters. The divergence theorem and Stokes's theorem connect local derivatives to boundaries:
+\begin{equation}
+\int_V\grad\cdot\vect A\,\dd V=\oint_{\partial V}\vect A\cdot\dd\vect S,
+\qquad
+\int_S(\grad\times\vect A)\cdot\dd\vect S=\oint_{\partial S}\vect A\cdot\dd\vect\ell.
+\end{equation}
+These theorems explain why integral conservation laws and local differential equations are two descriptions of the same bookkeeping.
+
+\begin{example}[Reading a divergence]
+For $\vect A=(ax,ay,az)$, $\grad\cdot\vect A=3a$. If $a>0$, arrows grow outward in every direction, so a small closed surface has positive net outward flux.
+\end{example}
+
+\learningcheck{Find $\grad f$ and $\lap f$ for $f=x^2+y^2+z^2$. Find the divergence of $\vect A=(-y,x,0)$ and describe why zero divergence does not mean the field is zero.}
+
 \part{First Steps and Newtonian Mechanics}
 \chapter{What a physical model is}
 Physics often starts with an ordinary question: how long will a walk take, or where will a rolling ball stop? To answer, we decide what to measure, describe what matters for that question, and use the description to make a prediction. Then we compare the prediction with what happens. That description is a \emph{model}. We will make a very simple one here before adding calculus or forces.
@@ -118,6 +227,18 @@ v(t)=\lim_{\Delta t\to0}\frac{x(t+\Delta t)-x(t)}{\Delta t}
 =\od{x}{t}.
 \end{equation}
 The limit means the value approached by the nearby slopes; we are not dividing by zero. On the graph it is the slope of the tangent line at that point.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.8cm,y=0.55cm]
+\draw[->] (0,0)--(7,0) node[right] {$t$};
+\draw[->] (0,0)--(0,8) node[above] {$x$};
+\draw[very thick,blue!65!black,domain=0:6.2,smooth] plot (\x,{0.15*\x*\x+0.5*\x+0.5});
+\draw[red!70!black,thick] (1.5,0.926)--(5.8,7.72) node[right] {tangent};
+\fill (3.6,{0.15*3.6*3.6+0.5*3.6+0.5}) circle (2pt);
+\end{tikzpicture}
+\caption{Instantaneous velocity is the slope of the tangent to a position--time graph. The graph itself gives position; its steepness gives velocity.}
+\end{figure}
 
 \begin{example}[Finding one slope from nearby times]
 Use numerical time values in seconds and suppose the numerical position in meters is $x(t)=t^2$. At $t=2$, the slope over the following interval $\Delta t$ is $[(2+\Delta t)^2-2^2]/\Delta t=4+\Delta t$. Restoring the units, the slope approaches $4\,\mathrm{m/s}$ as the interval shrinks. The calculation gives the velocity at that moment even though the average over a longer interval is different.
@@ -192,7 +313,7 @@ A ball leaves a table $5\,\mathrm m$ above the floor at $3\,\mathrm{m/s}$ horizo
 
 The formulas depend on constant downward acceleration and negligible drag. With substantial air resistance, the force and acceleration change with velocity, so we would need a different equation.
 
-\section{Direction and a first visual experiment}
+\section{Direction and a first vector diagram}
 For a moving ball, draw the position arrow from the chosen origin, the velocity arrow tangent to its path, and the acceleration arrow downward. Watching all three at once reveals why a curved path does not require acceleration to point along the path. If you later add drag, record which arrows change compared with the ideal model.
 
 The dot product gives a way to ask how much one vector points along another. For vectors $\vect A=(A_x,A_y)$ and $\vect B=(B_x,B_y)$, it is $\vect A\cdot\vect B=A_xB_x+A_yB_y$. A zero dot product means perpendicular directions. We will use it when a force acts at an angle to a displacement. The cross product, needed later for rotation, will be introduced with torque.
@@ -212,6 +333,18 @@ For an object with constant mass $m$, Newton's second law connects net force to 
 Mass measures how hard it is to change the object's velocity. A newton is the force that gives a $1\,\mathrm{kg}$ mass an acceleration of $1\,\mathrm{m/s^2}$. If the net force is zero, the acceleration is zero; the object may still be moving at constant velocity.
 
 Before using the equation, draw the object alone. Add one arrow for each force acting \emph{on} it, choose a positive direction, and translate the arrows into signed numbers. This is a force diagram. It separates the physical choice of forces from the algebra used afterward.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Latex]
+\draw[fill=gray!12] (-1,-0.55) rectangle (1,0.55);
+\draw[->,very thick,blue!65!black] (1,0)--(3.3,0) node[right] {$\vect F_{\rm push}$};
+\draw[->,very thick,red!70!black] (-1,0)--(-2.4,0) node[left] {$\vect f$};
+\draw[->,very thick] (0,0.55)--(0,2.0) node[above] {$\vect N$};
+\draw[->,very thick] (0,-0.55)--(0,-2.0) node[below] {$m\vect g$};
+\end{tikzpicture}
+\caption{A free-body diagram contains forces acting on the chosen object. The horizontal imbalance determines horizontal acceleration; the vertical forces cancel in this example.}
+\end{figure}
 
 \begin{example}[A horizontal push]
 A $2\,\mathrm{kg}$ cart is pushed right with $8\,\mathrm N$ while a resistive force of $2\,\mathrm N$ acts left. Choose right as positive. The net force is $8-2=6\,\mathrm N$, so $a=F_{\rm net}/m=3\,\mathrm{m/s^2}$ right. If the forces had equal sizes, the cart's acceleration would be zero, but a moving cart would not instantly stop.
@@ -1593,7 +1726,7 @@ Each small source element $s(x')\dd x'$ contributes its own response. Because th
 \begin{equation}
 y(x)=\int_0^L G(x,x')s(x')\,\dd x'.
 \end{equation}
-If the endpoint values were different, the Green function would also be different. That dependence is the key physical point: a boundary changes how a source influences the rest of the region. The same construction works for electrostatic potential in three dimensions, though its geometry is more involved.
+The kernel above is tied to the \emph{type and location} of the homogeneous boundary conditions. Nonzero endpoint values do not require a new kernel: first write $y=h+u$, where a simple function $h$ has the desired endpoint values. Then $u$ has zero endpoint values and can be found with the same $G$. Changing from fixed-value to fixed-derivative conditions, or changing the domain, generally changes the Green function. The same construction works for electrostatic potential in three dimensions, though its geometry is more involved.
 
 \section{Conductors and boundary conditions}
 If an electrostatic field persisted inside an ideal conductor, mobile charges would continue rearranging. Equilibrium is reached when their rearrangement cancels the interior field. At the surface, the field can change abruptly in its normal component because a surface charge is present. Thin integration regions let us calculate that jump without resolving microscopic detail.
@@ -1961,7 +2094,174 @@ A magnetic component has appeared, but the invariant is unchanged. For a vacuum 
 
 \learningcheck{Two observers disagree about elapsed time between events. Identify what each must know about the events and their relative motion before comparing measurements.}
 
+\part{Geometry, Topology, and Continuous Symmetry}
+\chapter{Topology and global structure}
+\chapterlevel{Advanced foundation}{Uses sets, functions, and vectors. It prepares manifolds, defects, gauge fields, and general relativity.}
+Geometry measures lengths and angles. Topology asks which features survive continuous deformation. A coffee-cup-shaped surface and a torus can be deformed into one another without cutting because each has one hole; a sphere cannot be changed into either without a singular step. The point is not the familiar slogan but the discipline behind it: state which transformations are allowed and identify a quantity they preserve.
+
+\section{Open sets, continuity, and homeomorphisms}
+A topology on a set $X$ is a collection of subsets called open sets that contains $X$ and the empty set, is closed under arbitrary unions, and is closed under finite intersections. These rules encode which points count as nearby without first assigning a distance. In ordinary Euclidean space, open balls generate the familiar topology.
+
+A function $f:X\to Y$ is continuous when the preimage of every open set in $Y$ is open in $X$. A homeomorphism is a continuous bijection with a continuous inverse. Homeomorphic spaces have the same topological structure, even when their shapes and distances look different.
+
+\section{Connectedness and compactness}
+A space is connected when it cannot be divided into two disjoint nonempty open subsets. A path-connected space allows a continuous path between every pair of points; path connectedness implies connectedness, although the converse needs qualifications.
+
+Compactness is a global finiteness property: every open cover has a finite subcover. In $\mathbb R^n$, a set is compact exactly when it is closed and bounded. A continuous real-valued function on a compact space reaches both a maximum and a minimum. This result quietly supports many variational arguments in physics.
+
+\section{Loops, winding, and the fundamental group}
+Two loops based at the same point are homotopic when one can be continuously deformed into the other while keeping the base point fixed. Their equivalence classes form the fundamental group $\pi_1(X)$. On a circle, loops are classified by an integer winding number, so $\pi_1(S^1)\simeq\mathbb Z$. On a sphere, every loop contracts to a point, so $\pi_1(S^2)$ is trivial.
+
+For a loop on the unit circle written as $z(t)=\ee^{\ii\theta(t)}$, its winding number is
+\begin{equation}
+n=\frac1{2\pi}\int_0^1\dot\theta(t)\,\dd t
+=\frac{\theta(1)-\theta(0)}{2\pi}\in\mathbb Z.
+\end{equation}
+The integer cannot change under a continuous deformation that keeps the loop on the circle. It can change only if the description becomes singular or leaves the space.
+
+\section{Surfaces and the Euler characteristic}
+For a polygonal decomposition of a closed surface, the Euler characteristic is
+\begin{equation}\chi=V-E+F.
+\end{equation}
+Refining the decomposition changes $V,E,F$ but preserves their combination. A sphere has $\chi=2$, while an orientable surface with $g$ handles has $\chi=2-2g$. This global integer distinguishes a sphere from a torus even before a metric is chosen.
+
+\begin{example}[A loop around a missing point]
+The punctured plane $\mathbb R^2\setminus\{0\}$ has loops that wind around the missing origin. A loop with winding one cannot contract to a point without crossing the removed point. Radial projection onto the unit circle preserves this information, so its fundamental group is also $\mathbb Z$.
+\end{example}
+
+\learningcheck{Classify loops on a circle with winding numbers $2$, $-1$, and $0$. Calculate $V-E+F$ for the surface of a cube. Explain why cutting a torus can change a topological invariant even though stretching it cannot.}
+
+\chapter{Differential geometry}
+\chapterlevel{Advanced foundation}{Uses multivariable calculus, linear algebra, and the preceding topology chapter.}
+A smooth manifold combines topology with calculus. Each sufficiently small region resembles an open subset of $\mathbb R^n$, while overlapping coordinate charts tell us how local descriptions fit together. This chapter develops the geometric tools before gravity assigns them physical meaning.
+
+\section{Charts, tangent vectors, and covectors}
+A chart assigns coordinates $x^\mu$ to points in an open region. Where two charts overlap, their transition functions must be smooth. A tangent vector at $p$ can be defined as a directional derivative acting on smooth functions:
+\begin{equation}
+v[f]=v^\mu\partial_\mu f.
+\end{equation}
+Under coordinates $x^\mu\to x'^{\alpha}$, its components obey
+\begin{equation}v'^{\alpha}=\pd{x'^{\alpha}}{x^\mu}v^\mu.
+\end{equation}
+A covector $\omega=\omega_\mu\dd x^\mu$ is a linear map from tangent vectors to numbers. Its components transform oppositely so the contraction $\omega_\mu v^\mu$ is coordinate independent.
+
+\section{Metrics, lengths, and volume}
+A metric $g$ assigns an inner product to tangent vectors. In coordinates,
+\begin{equation}\dd s^2=g_{\mu\nu}\dd x^\mu\dd x^\nu.
+\end{equation}
+The Euclidean plane in polar coordinates has $\dd s^2=\dd r^2+r^2\dd\phi^2$. The varying component $g_{\phi\phi}=r^2$ comes from the coordinate grid and does not imply curvature. The invariant volume element is $\sqrt{|g|}\,\dd^nx$, where $g$ is the determinant of the metric matrix.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.0]
+\draw[->] (-0.2,0)--(4.4,0) node[right] {$x$};
+\draw[->] (0,-0.2)--(0,3.2) node[above] {$y$};
+\foreach \r in {0.8,1.6,2.4,3.2} {\draw[blue!45] (0,0) circle (\r);}
+\foreach \a in {0,30,...,150} {\draw[blue!45] (0,0)--({3.4*cos(\a)},{3.4*sin(\a)});}
+\draw[very thick,red!70!black,->] (1.6,0) arc (0:35:1.6);
+\node at (2.5,1.25) {$\dd s=r\,\dd\phi$};
+\end{tikzpicture}
+\caption{Polar coordinates curve the coordinate grid, not the Euclidean plane. An angular coordinate interval represents a longer arc at larger radius.}
+\end{figure}
+
+\section{Connections and covariant differentiation}
+Vectors at different points belong to different tangent spaces, so subtracting their components requires a rule for comparison. A connection supplies that rule. For a vector field,
+\begin{equation}
+\nabla_\mu V^\nu=\partial_\mu V^\nu+\Gamma^\nu{}_{\mu\rho}V^\rho.
+\end{equation}
+The connection coefficients are not tensor components; at one point they can be made zero by a suitable coordinate choice. The Levi--Civita connection is the unique torsion-free connection compatible with the metric:
+\begin{equation}
+\Gamma^\rho{}_{\mu\nu}=\frac12g^{\rho\sigma}
+(\partial_\mu g_{\sigma\nu}+\partial_\nu g_{\sigma\mu}-\partial_\sigma g_{\mu\nu}).
+\end{equation}
+
+\section{Geodesics and curvature}
+A geodesic parallel-transports its own tangent:
+\begin{equation}
+\frac{\dd^2x^\rho}{\dd\lambda^2}+\Gamma^\rho{}_{\mu\nu}
+\frac{\dd x^\mu}{\dd\lambda}\frac{\dd x^\nu}{\dd\lambda}=0.
+\end{equation}
+It is locally straight in the connection's sense. For the Levi--Civita connection, sufficiently short geodesics extremize length or proper time, with causal qualifications in spacetime.
+
+Curvature measures the failure of covariant derivatives to commute:
+\begin{equation}
+[\nabla_\mu,\nabla_\nu]V^\rho=R^\rho{}_{\sigma\mu\nu}V^\sigma.
+\end{equation}
+It can also be detected by parallel transport around a small loop or by the relative acceleration of neighboring geodesics. Unlike a connection coefficient, curvature cannot be eliminated throughout a neighborhood by relabeling coordinates.
+
+\section{Differential forms}
+Differential forms are antisymmetric covariant tensors designed for integration. A one-form integrates along a curve, a two-form over a surface, and an $n$-form over an $n$-dimensional region. The exterior derivative satisfies $\dd(\dd\omega)=0$, and the generalized Stokes theorem is
+\begin{equation}\int_M\dd\omega=\int_{\partial M}\omega.
+\end{equation}
+The fundamental theorem of calculus, the divergence theorem, and the ordinary Stokes theorem are instances of this statement. In electromagnetism, the field strength is naturally a two-form, and homogeneous Maxwell equations become a single relation $\dd F=0$.
+
+\learningcheck{For the polar-plane metric, identify $g_{rr}$ and $g_{\phi\phi}$ and calculate the area element. Explain why a nonzero $\Gamma^\rho{}_{\mu\nu}$ is insufficient evidence of curvature. State what kind of region can integrate a two-form.}
+
+\chapter{Lie groups and Lie algebras}
+\chapterlevel{Advanced foundation}{Uses matrices, calculus, and basic group language. It prepares rotations, quantum angular momentum, gauge theory, and particle physics.}
+A Lie group is both a group and a smooth manifold, with smooth multiplication and inversion. It describes transformations that can be composed and varied continuously. Its Lie algebra captures the infinitesimal transformations near the identity. This local data often determines the finite transformations through exponentiation.
+
+\section{Groups and representations}
+A group has an associative product, an identity, and an inverse for every element. A representation assigns each abstract group element an invertible linear transformation while preserving multiplication. Physics uses representations because states and fields transform as vectors, spinors, tensors, or more general multiplets.
+
+The planar rotations form $SO(2)$:
+\begin{equation}
+R(\theta)=\begin{pmatrix}\cos\theta&-\sin\theta\\\sin\theta&\cos\theta\end{pmatrix},
+\qquad R(\theta_1)R(\theta_2)=R(\theta_1+\theta_2).
+\end{equation}
+They commute. Three-dimensional rotations form $SO(3)$ and generally do not: rotations about different axes depend on order.
+
+\section{Generators and the exponential map}
+Near the identity, write a transformation as $I+\epsilon T+O(\epsilon^2)$. The matrix $T$ is a generator. Finite one-parameter transformations are
+\begin{equation}g(\theta)=\exp(\theta T)=I+\theta T+\frac{\theta^2T^2}{2!}+\cdots.
+\end{equation}
+For $SO(2)$,
+\begin{equation}
+J=\begin{pmatrix}0&-1\\1&0\end{pmatrix},\qquad J^2=-I,
+\qquad \ee^{\theta J}=I\cos\theta+J\sin\theta=R(\theta).
+\end{equation}
+The power series turns the local generator into a finite rotation.
+
+\section{Commutators and structure constants}
+The Lie bracket measures the failure of infinitesimal transformations to commute. For matrix groups it is the commutator $[X,Y]=XY-YX$. In a basis $T_a$,
+\begin{equation}
+[T_a,T_b]=f_{ab}{}^cT_c.
+\end{equation}
+where the structure constants encode the local algebra. Angular-momentum generators obey
+\begin{equation}
+[J_i,J_j]=\epsilon_{ijk}J_k.
+\end{equation}
+in a real rotation convention, or acquire factors of $\ii$ and $\hbar$ in the common quantum convention. The Jacobi identity ensures consistent composition of infinitesimal transformations.
+
+\section{\texorpdfstring{$SO(3)$, $SU(2)$, and spin}{SO(3), SU(2), and spin}}
+The groups $SO(3)$ and $SU(2)$ have the same Lie algebra locally, but different global topology. The map from $SU(2)$ to $SO(3)$ is two-to-one: the matrices $U$ and $-U$ describe the same ordinary spatial rotation. This is why spinors can change sign under a $2\pi$ rotation and return to themselves only after $4\pi$, while observable probabilities remain unchanged.
+
+Using Pauli matrices, an $SU(2)$ rotation can be written
+\begin{equation}
+U(\theta,\hat{\vect n})=\exp\left(-\frac{\ii\theta}{2}\hat{\vect n}\cdot\vect\sigma\right)
+=I\cos\frac\theta2-\ii(\hat{\vect n}\cdot\vect\sigma)\sin\frac\theta2.
+\end{equation}
+The half-angle records the double-cover relationship, not an ordinary vector turning through half the physical angle.
+
+\section{Symmetry, conservation, and gauge groups}
+When a continuous transformation leaves an action invariant, Noether's theorem associates it with a conserved quantity. Spatial translations correspond to momentum, rotations to angular momentum, and time translations to energy. In quantum theory, Hermitian generators represent observables associated with continuous unitary transformations.
+
+A global symmetry applies the same group element everywhere. A gauge symmetry permits the group element to depend on spacetime position. Ordinary derivatives then fail to transform covariantly, so a connection or gauge field is introduced. Electromagnetism uses $U(1)$; the Standard Model uses $SU(3)_C\times SU(2)_L\times U(1)_Y$. The group specifies transformation structure, while dynamics still require an action and measured parameters.
+
+\begin{example}[Order matters]
+For small rotations $\epsilon J_x$ and $\delta J_y$, reversing their order changes the result at order $\epsilon\delta$:
+\begin{equation}
+(I+\epsilon J_x)(I+\delta J_y)-(I+\delta J_y)(I+\epsilon J_x)
+=\epsilon\delta[J_x,J_y]=\epsilon\delta J_z.
+\end{equation}
+The commutator says that the mismatch is an infinitesimal rotation about the third axis.
+\end{example}
+
+\learningcheck{Exponentiate the $SO(2)$ generator using $J^2=-I$. Explain why $SO(2)$ is Abelian but $SO(3)$ is not. Evaluate $U(2\pi,\hat{\vect n})$ for a spinor and state why its minus sign does not alter a single measurement probability.}
+
+\part{Relativistic Gravitation}
 \chapter{General relativity}
+\chapterlevel{Advanced}{Requires special relativity and the topology and differential-geometry chapters.}
 Special relativity gave us a way to compare measurements when gravity can be ignored. Now imagine dropping two nearby balls toward Earth. They both fall, but their paths can slowly approach one another because they point toward Earth's center. A freely falling observer can remove the common fall locally; the relative motion remains. General relativity describes that remaining effect with spacetime geometry. We will build the needed geometry from measurements, one idea at a time.
 
 \section{Equivalence principle and geometry}
@@ -2353,7 +2653,7 @@ E_n&=E_n^{(0)}+\lambda\bra n V\ket n+
 \end{align}
 The states on the right are unperturbed. The expansion fails near degeneracy unless the perturbation is first diagonalized within the degenerate or nearly degenerate subspace.
 \begin{example}[Weak quartic anharmonicity]
-For $V=\lambda x^4$ added to a harmonic oscillator, the ground-state Gaussian has $\avg{x^4}=3[\hbar/(2m\omega)]^2$. The first-order shift is therefore $\Delta E_0=3\lambda\hbar^2/(4m^2\omega^2)$. Its smallness relative to $\hbar\omega$ provides a practical perturbative criterion.
+For an added interaction $V=gx^4$, where $g$ is a physical coupling distinct from the bookkeeping parameter above, the harmonic-oscillator ground state has $\avg{x^4}=3[\hbar/(2m\omega)]^2$. The first-order shift is therefore $\Delta E_0=3g\hbar^2/(4m^2\omega^2)$. Its smallness relative to $\hbar\omega$ provides a practical perturbative criterion.
 \end{example}
 
 Use $E_n=E_n^{(0)}+\lambda E_n^{(1)}+\cdots$ and $\ket{\psi_n}=\ket n+\lambda\ket{n^{(1)}}+\cdots$. At first order,
@@ -3188,7 +3488,7 @@ Treat verification as part of solving the problem, not a final cosmetic step. Fo
 
 When a check fails, change one thing at a time. If halving the time step changes the result but enlarging the spatial domain does not, the evidence points toward time discretization rather than the outer boundary. If the numerical result converges but still disagrees with experiment, revisit model assumptions and parameter uncertainty. Separating these questions prevents you from spending computation to refine the wrong physical model.
 
-\learningcheck{Run a calculation with two time steps. What change in the results would suggest numerical error? Name one conserved quantity or limiting case you could check.}
+\learningcheck{A calculation gives $Q(0.1)=1.42$ and $Q(0.05)=1.36$ when only the timestep is changed. What does the difference suggest, and what further value would you calculate to test convergence? Name one conserved quantity or limiting case you could check.}
 
 \chapter{Connections across the subject}
 We can now look backward without flattening the differences between subjects. The same mathematical form can describe a spring, a circuit, a field mode, or a quantum oscillator, but the symbols acquire different physical meanings. These connections are the book's invitation to continue learning beyond its last page.
@@ -3248,8 +3548,51 @@ No one approximation wins everywhere. A good solution identifies the relevant re
 
 For example, a gas can be dilute enough for classical particle statistics while still requiring a fluid description over distances much larger than its mean free path. A slowly moving object can need quantum mechanics, while a rapidly moving dilute beam can be treated with relativistic particle kinematics. These comparisons answer different questions, so no single small parameter decides every approximation. State what you want to predict, identify the controlling ratios, and let those estimates guide the calculation.
 
-\appendix
 \learningcheck{Choose two systems from different parts of the book that obey an oscillator equation. Identify the changing quantity and restoring effect in each.}
+
+\appendix
+\chapter{Answers to chapter exercises}
+\label{app:chapter-answers}
+The answers follow the order of the chapter exercises. A sketch answer describes the features that must appear; equivalent correct drawings are acceptable.
+\begin{enumerate}
+\item \textbf{Functions, trigonometry, and calculus.} $v(t)=6t-2$. Its integral is $3T^2-2T$, equal to $x(T)-x(0)$. Since sine accepts an angle, $[\omega t]=1$ and $[\omega]=T^{-1}$.
+\item \textbf{Complex numbers, vectors, and linear algebra.} $|3-4\ii|=5$ and its angle is $-\arctan(4/3)$, so $z=5\ee^{-\ii\arctan(4/3)}$. A quarter-turn sends $(1,0)$ to $(0,1)$. Direct multiplication gives $A(1,1)=3(1,1)$ and $A(1,-1)=1(1,-1)$.
+\item \textbf{Fields and vector calculus.} $\grad f=(2x,2y,2z)$ and $\lap f=6$. For $\vect A=(-y,x,0)$, $\grad\cdot\vect A=0$. The field is nonzero and circulates; zero divergence only says it has no local net source.
+\item \textbf{Physical models.} The average speed is $1.2\,\mathrm{m/s}$. Stops or changes of pace make the instantaneous speed differ. Steady motion is a straight distance--time line; speeding up is a curve whose slope increases.
+\item \textbf{Change and accumulation.} The average velocity is $(14-2)/4=3\,\mathrm{m/s}$. A suitable curve begins with slope below $3$ and ends above it while keeping the same endpoints. Constant $-2\,\mathrm{m/s}$ for $3\,\mathrm s$ gives displacement $-6\,\mathrm m$ and distance $6\,\mathrm m$.
+\item \textbf{Vectors and motion.} After $2\,\mathrm s$, $\vect v=(3,-20)\,\mathrm{m/s}$. Velocity points right and down; acceleration points straight down. The horizontal component stays constant because $a_x=0$.
+\item \textbf{First forces.} $a=6/2=3\,\mathrm{m/s^2}$ in the force direction. The table force is $5\,\mathrm N$ up and weight is $5\,\mathrm N$ down. If $x<0$, $F=-kx>0$, so the spring force points right toward equilibrium.
+\item \textbf{Newtonian conservation.} $v(1)=10-10=0$ and $\Delta z=10(1)-10(1)^2/2=5\,\mathrm m$. The impulse gives $\Delta v=-6/2=-3\,\mathrm{m/s}$. With drag, acceleration changes with velocity, so a constant-acceleration formula does not apply.
+\item \textbf{Gravitation and rigid bodies.} Increasing $r$ reduces $GMm/r^2$ and raises $V=-GMm/r$ toward zero. Conserved angular momentum removes the angular rate from the radial problem; energy then controls the remaining motion.
+\item \textbf{Oscillations.} In phase means equal displacements; out of phase means opposite displacements. The coupling spring is unchanged in the first mode and stretched in the second, producing different effective restoring strengths and frequencies.
+\item \textbf{Lagrangian mechanics.} The coordinate is $\theta$. $T=m\ell^2\dot\theta^2/2$ and $V=mg\ell(1-\cos\theta)$. Fixed endpoints remove the integration-by-parts boundary term so the interior variation yields the Euler--Lagrange equation.
+\item \textbf{Fluids and transport.} Inflow and outflow are $\rho\vect v\cdot\dd\vect S$ with outward signs. Mass conservation needs a momentum equation and constitutive information such as pressure, viscosity, and an equation of state, plus initial and boundary data.
+\item \textbf{Waves.} $f_1=v/(2L)$ is halved when $L$ doubles. The fundamental has nodes only at the two fixed ends and one antinode at the center.
+\item \textbf{Optics.} Entering a larger refractive index, the ray bends toward the normal. Wave optics is required when phase, interference, diffraction, polarization, or features comparable with wavelength matter.
+\item \textbf{Thermodynamics.} With work by the gas positive, $\Delta U=Q-W_{\rm by}$. Heating gives $Q>0$; expansion usually gives $W_{\rm by}>0$. Their difference fixes the internal-energy change.
+\item \textbf{Statistical mechanics.} At low temperature the lower level dominates and $U\to E_{\rm low}$. At high temperature, nondegenerate levels approach equal occupation and $U\to(E_{\rm low}+E_{\rm high})/2$.
+\item \textbf{Electrostatics.} A positive point charge has radial outward field. $\vect E$ gives force per charge and direction; $\phi$ gives scalar potential energy per charge, with $\vect E=-\grad\phi$.
+\item \textbf{Circuits.} Capacitor voltage and current magnitude decay exponentially as $\ee^{-t/(RC)}$; the current direction is opposite the charging direction. The time constant is $RC$.
+\item \textbf{Electromagnetic waves.} Changing electric and magnetic fields sustain one another through Maxwell's curl equations in vacuum. Measurable properties include frequency, wavelength, intensity, polarization, or propagation direction.
+\item \textbf{Special relativity.} Each observer must identify the same pair of events, their spacetime separation, the relative frame velocity, and which clock measures proper time. For spatially separated events, simultaneity conventions matter.
+\item \textbf{Topology.} The loop classes are $2,-1,0$; the sign records orientation. For a cube, $8-12+6=2$. Cutting permits paths and identifications forbidden to a continuous deformation and can therefore change genus or connectedness.
+\item \textbf{Differential geometry.} $g_{rr}=1$, $g_{\phi\phi}=r^2$, and $\sqrt{g}\,\dd r\dd\phi=r\,\dd r\dd\phi$. Connection coefficients can be nonzero in flat curvilinear coordinates; curvature is the invariant test. A two-form integrates over an oriented two-dimensional surface.
+\item \textbf{Lie theory.} Since $J^2=-I$, even and odd powers give $\ee^{\theta J}=I\cos\theta+J\sin\theta$. Planar rotations add angles and commute; rotations about distinct 3D axes generally do not. $U(2\pi)=-I$ for a spinor; the common minus phase cancels from probabilities.
+\item \textbf{General relativity.} A freely falling object follows a timelike geodesic, locally inertial but with neighboring geodesics showing tidal curvature. Gravitational time dilation, twice-Newtonian light bending, or gravitational waves distinguish the theory from Newtonian gravity.
+\item \textbf{Quantum principles.} Indistinguishable alternatives contribute amplitudes, whose cross terms produce interference. Normalization guarantees total probability one for a complete measurement.
+\item \textbf{Solvable quantum systems.} The ground state is a single positive half-sine on $0<x<L$, vanishing at both walls. A constant zero-momentum state cannot satisfy both boundaries, so the lowest allowed wave number and energy are nonzero.
+\item \textbf{Quantum approximations.} Compare perturbation matrix elements with relevant unperturbed energy gaps. The method predicts energy shifts and state mixing; small denominators warn that nondegenerate theory fails.
+\item \textbf{Entanglement.} A pure joint state can contain correlations that prevent factorization. Tracing over the inaccessible qubit removes joint coherences from the local description, producing a mixed reduced density operator.
+\item \textbf{Quantum computing.} $H^2\ket0=\ket0$. The second Hadamard recombines paths so the $\ket1$ amplitudes cancel and the $\ket0$ amplitudes reinforce.
+\item \textbf{Atomic physics.} A photon supplies the energy gap through a nonzero interaction matrix element. Energy matching is necessary, while symmetry or polarization can make the relevant dipole matrix element vanish.
+\item \textbf{Condensed matter.} Periodicity produces Bloch states and energy bands. A completely filled isolated band has no nearby empty states for ordinary acceleration, while a partly filled band can support current in the simple band picture.
+\item \textbf{Nuclear physics.} List all initial and final particles and compare consistent total masses: $Q=(M_i-M_f)c^2$. Momentum, charge, and other relevant quantum numbers must also be conserved; a positive $Q$ does not determine the rate.
+\item \textbf{Particle physics.} Relativistic energy can create particle--antiparticle excitations, so fixed particle number is insufficient. A Feynman diagram labels a term in an amplitude expansion, including vertices and propagators; it is not a literal trajectory.
+\item \textbf{Astrophysics and cosmology.} A pressure gradient balances gravity inside a stable star, with the pressure supplied by thermal, radiation, or degeneracy physics. A systematic relation between cosmological redshift and distance supports an expanding scale factor after local motions are accounted for.
+\item \textbf{Uncertainty and data.} The fractional uncertainty is $0.1/2.0=0.05$, or $5\%$. Repetition reduces independent random error but preserves a fixed $0.2\,\mathrm s$ calibration bias.
+\item \textbf{Numerical verification.} The change from $1.42$ to $1.36$ shows unresolved timestep error. Calculate $Q(0.025)$ and compare successive differences with the method's expected order. Energy, momentum, probability norm, or a known limiting solution can provide a check.
+\item \textbf{Connections.} Examples include a spring, with displacement restored by $-kx$, and an LC circuit, with charge restored by capacitor voltage $-Q/C$. Both reduce to a second-order oscillator equation with different physical variables.
+\end{enumerate}
 
 \chapter{Constants, units, and useful identities}
 \section{Common constants}
@@ -3299,87 +3642,38 @@ Natural units reduce clutter by using constants as conversion factors between un
 
 Setting $c=\hbar=1$ makes time and length inverse-energy quantities, while mass and momentum have energy units. Temperature can also be measured in energy if $\kb=1$. Restore constants using physical dimensions: $E^2=p^2+m^2$ becomes $E^2=p^2c^2+m^2c^4$, while a Compton length $1/m$ becomes $\hbar/(mc)$. Dimensional restoration may not determine numerical factors or distinguish quantities with identical dimensions.
 
-\chapter{Visual models and computational experiments}
-Equations become easier to trust when their consequences can be seen. A visual model is not decoration: it chooses a physical representation, identifies the quantities that should change, and gives the learner an observation to test. The tables in this chapter assign one distinct visual experiment to every preceding physics chapter. They can guide figures embedded in this book, interactive applications in the repository, or both.
+\chapter{Guided diagrams and thought exercises}
+These exercises require only pencil and paper. A diagram is useful when it makes a relation visible: slope as a rate, area as accumulation, arrows as vectors, contours as constant values, and transformations as changes of description. Draw labels before adding detail, and use equations to check the picture.
 
-\section{How to use a visual model}
-For each experiment, identify the state variables and adjustable parameters, make one prediction before changing a control, and compare the result with an invariant or limiting case. A good animation should reveal the mathematical structure: slopes should become rates, fluxes should cross boundaries, eigenvectors should become independent patterns, and probability should become a normalized area or count.
+\section{Graphs, forces, and conservation}
+\begin{enumerate}
+\item Draw a position--time curve that begins with zero slope and becomes steadily steeper. Beneath it, draw the corresponding qualitative velocity--time graph. State the sign of acceleration.
+\item Draw a box on a horizontal surface with a rightward applied force larger than leftward friction. Add weight and normal force. Write the two component equations and mark which arrows cancel.
+\item Draw two carts before and after a sticking collision. Choose arrow lengths proportional to momentum and use the drawing to explain why kinetic energy can decrease while momentum is conserved.
+\item Sketch $V_{\rm eff}(r)=-\kappa/r+\ell^2/(2\mu r^2)$. Mark a stable circular orbit, a bound radial motion, and an unbound energy.
+\end{enumerate}
 
-\section{First steps and Newtonian mechanics}
-\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
-\toprule Chapter & Visual model & Experiment and observation\\ \midrule
-\endhead
-What a physical model is & Walking-speed lab & Compare a constant-speed estimate with measured travel times across different distances.\\
-Change and accumulation & Tangent-to-trajectory lab & Show position, the local slope of its graph, and accumulated displacement from a velocity graph.\\
-Vectors and first motion models & Projectile lab & Display position, velocity, and acceleration arrows while changing the horizontal launch speed.\\
-First forces and oscillations & Force-diagram lab & Add one force at a time and compare the net-force arrow with observed acceleration.\\
-Newtonian motion and conservation laws & Force and momentum arena & Apply impulses and collisions to bodies with visible momentum arrows; verify that center-of-mass motion changes only through external impulse.\\
-\bottomrule
-\end{longtable}
+\section{Fields, waves, and thermal processes}
+\begin{enumerate}
+\item Draw a small box in a vector field. Label flux entering and leaving each pair of faces, then explain how their difference becomes a divergence.
+\item Draw the first three fixed-end string modes. Mark nodes and wavelengths and infer their frequency ratios.
+\item Draw rays from an object through a converging thin lens using the central ray and the initially parallel ray. Use similar triangles to recover the sign of magnification.
+\item Sketch an isothermal expansion and an isochoric heating path on a $p$--$V$ diagram. Mark the work as an area and explain which path has zero boundary work.
+\item Draw field lines and equipotential curves for a positive point charge. Explain geometrically why they meet at right angles.
+\end{enumerate}
 
-\section{Classical mechanics}
-\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
-\toprule Chapter & Visual model & Experiment and observation\\ \midrule
-\endhead
-Gravitation, orbits, and rigid bodies & Orbit and inertia explorer & Rotate the inertia ellipsoid and launch circular, elliptical, and escape trajectories; compare angular momentum and energy diagnostics.\\
-Oscillations, coupled systems, and chaos & Mode and sensitivity laboratory & Start coupled oscillators in different modes, then perturb a chaotic pendulum and compare nearby trajectories.\\
-Lagrangian and Hamiltonian mechanics & Configuration-space paths & Draw neighboring pendulum paths and highlight the stationary-action path; switch to phase space and observe Hamiltonian contours.\\
-\bottomrule
-\end{longtable}
+\section{Geometry, relativity, and quantum theory}
+\begin{enumerate}
+\item Draw two loops on a punctured plane, one winding once around the missing point and one winding zero times. Explain why only the second can contract without crossing the puncture.
+\item Draw a polar coordinate grid. Mark equal angular intervals at two radii and explain the metric factor $r^2\dd\phi^2$.
+\item Draw two small rotations about different axes in opposite orders. Use the commutator to label the residual rotation.
+\item Draw a spacetime diagram with light cones, a timelike worldline, and a spacelike-separated event. Add two different simultaneity lines.
+\item Draw the lowest three infinite-well wavefunctions, including their nodes. Beside each, sketch the probability density and label its energy scaling with $n^2$.
+\item On a Bloch sphere, mark $\ket0$, $\ket1$, $(\ket0+\ket1)/\sqrt2$, and $(\ket0+\ii\ket1)/\sqrt2$. State which pairs have equal computational-basis probabilities but different relative phases.
+\end{enumerate}
 
-\section{Continuum physics, waves, and optics}
-\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
-\toprule Chapter & Visual model & Experiment and observation\\ \midrule
-\endhead
-Elasticity, fluids, and transport & Conservation-cell laboratory & Display each cell's incoming and outgoing fluxes; use a shallow-water dam break to test mass conservation, positivity, and the CFL limit.\\
-Waves, sound, and interference & Wave-packet and spectrum view & Superpose pulses, show the Fourier spectrum, and vary dispersion to observe reflection, interference, and packet spreading.\\
-Geometrical and physical optics & Ray and aperture bench & Trace rays through lenses, then replace the aperture with a slit and watch the far-field pattern emerge from Fourier structure.\\
-\bottomrule
-\end{longtable}
-
-\section{Thermal physics and electromagnetism}
-\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
-\toprule Chapter & Visual model & Experiment and observation\\ \midrule
-\endhead
-Thermodynamics & State-space process map & Move a gas through isothermal, isochoric, and adiabatic paths on $p$--$V$ and $T$--$S$ diagrams; compare work, heat, and entropy.\\
-Statistical mechanics & Microstate-to-macrostate simulator & Display particles, energy histograms, and the partition function together; vary temperature and watch relative fluctuations change.\\
-Electrostatics, potentials, and matter & Field-line and equipotential map & Move charges and display field arrows and equipotential contours; verify that field lines cross equipotentials normally.\\
-Currents, magnetism, and circuits & Charge-flow circuit bench & Animate charge conservation, voltage drops, magnetic force, and transients while plotting current and stored energy.\\
-Maxwell's equations and electromagnetic waves & Poynting-flow field lab & Show coupled electric and magnetic fields with energy-flow arrows; change polarization and observe transversality.\\
-\bottomrule
-\end{longtable}
-
-\section{Relativity, gravitation, and quantum physics}
-\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
-\toprule Chapter & Visual model & Experiment and observation\\ \midrule
-\endhead
-Special relativity & Spacetime diagram laboratory & Move between inertial frames and display worldlines, light cones, simultaneity slices, and invariant intervals.\\
-Differential geometry and introductory topology & Parallel-transport surface & Carry a vector around loops on a sphere and a plane; compare transport rotation and contractible versus noncontractible loops.\\
-General relativity & Curved-spacetime geodesic map & Launch neighboring geodesics on a metric grid and compare coordinate distortion with measurable separation and lensing.\\
-Quantum principles and mathematical structure & State-vector projection lab & Rotate a state between measurement bases and show amplitudes, projections, and probabilities as geometric components.\\
-Exactly solvable quantum systems & Wavefunction and boundary laboratory & Compare box, oscillator, and hydrogenic states; show nodes, probability density, phase, and quantized energy.\\
-Quantum approximation methods and scattering & Scattering and semiclassical lab & Vary barrier height and wavelength while comparing exact, WKB, and Born-approximation predictions.\\
-Identical particles, entanglement, and quantum information & Correlation and reduced-state display & Show a two-particle amplitude grid, marginal probabilities, and interference before and after tracing out one subsystem.\\
-Quantum computing from bits to algorithms & Circuit and Bloch-sphere laboratory & Start with bits, apply unitary gates, display amplitude interference, and compare ideal measurement histograms with decohering qubits.\\
-\bottomrule
-\end{longtable}
-
-\section{Atoms, materials, nuclei, particles, and cosmology}
-\begin{longtable}{p{0.22\textwidth}p{0.27\textwidth}p{0.43\textwidth}}
-\toprule Chapter & Visual model & Experiment and observation\\ \midrule
-\endhead
-Atomic and molecular physics & Spectral-line and orbital explorer & Change quantum numbers and field strength while showing orbital density, selection rules, and line splitting.\\
-Condensed matter and collective phenomena & Lattice and band-structure laboratory & Animate a crystal lattice, phonon modes, reciprocal space, and band dispersion; open and close a gap to change transport.\\
-Nuclear physics & Binding-energy landscape & Plot binding energy per nucleon and animate decay or reaction channels; separate energy release from reaction probability.\\
-Relativistic quantum theory and particle physics & Field-mode and interaction diagram & Build a particle as a field excitation, then display vertices, conservation laws, and relativistic dispersion.\\
-Stars, compact objects, and the expanding universe & Stellar and cosmological scale map & Move from hydrostatic stellar balance to expanding cosmic volumes; compare pressure, density, temperature, and timescales.\\
-Computational physics and model validation & Convergence and invariant dashboard & Run one model at several resolutions and display error, stability, conserved quantities, and the difference between visual plausibility and validity.\\
-Connections across the subject & Physics pattern atlas & Follow conservation, oscillation, symmetry, and scale from mechanics to fields or quantum theory.\\
-\bottomrule
-\end{longtable}
-
-\section{A visual experiment template}
-Every future figure or application should label the physical question, adjustable parameters, predicted invariant or limit, and observation that would falsify the model. For example, the shallow-water visualizer should display volume error and positivity beside the water surface, while a quantum wave-packet visualizer should display norm and regional probability beside the animation. This keeps the visual layer tied to mathematics instead of turning it into an attractive but untestable movie.
+\section*{Answers}
+The velocity graph in the first problem is positive and increasing, so acceleration is positive. In the force diagram, $N=mg$ while $F_{\rm app}-f=ma_x$. A sticking collision preserves the vector sum of momentum; deformation and thermal energy account for lost kinetic energy. The minimum of $V_{\rm eff}$ marks a stable circular orbit. Fixed-string frequencies have ratio $1:2:3$. Isochoric work is zero because $\dd V=0$. Electric field is $-\grad\phi$, so it is normal to constant-$\phi$ curves. Winding distinguishes the punctured-plane loops. Polar arc length is $r\dd\phi$. Noncommuting rotations leave a commutator-order residual. Timelike events lie within a light cone, while spacelike simultaneity depends on frame. Infinite-well nodes increase with $n$ and $E_n\propto n^2$. Both equatorial qubit states give equal $0/1$ probabilities, but their azimuths record different phases.
 
 \chapter{Review problems}
 Try each problem before reading its solution. State assumptions and check dimensions even when the algebra is short.
@@ -3404,6 +3698,10 @@ Try each problem before reading its solution. State assumptions and check dimens
 \item A radioactive sample has two independent decay channels with rates $\lambda_1,\lambda_2$. Find its half-life and the fraction of decays in channel 1.
 \item Show that a spatially flat matter-only expanding universe has $a(t)\propto t^{2/3}$, taking $a=0$ at $t=0$.
 \item For the explicit diffusion scheme, insert an error mode $u_j^n=A^n\ee^{\ii kj\Delta x}$. Derive its amplification factor and stability bound.
+\item A polyhedral surface has $V=12$, $E=30$, and $F=20$. Find its Euler characteristic and, if it is a closed connected orientable surface, its genus.
+\item For the unit sphere with metric $\dd s^2=\dd\theta^2+\sin^2\theta\,\dd\phi^2$, find the area element and integrate it over the sphere.
+\item Let $J_x,J_y,J_z$ satisfy $[J_x,J_y]=J_z$ and cyclic permutations. Expand $\ee^{\epsilon J_x}\ee^{\delta J_y}$ and the reversed product through order $\epsilon\delta$ and find their difference.
+\item For $U(\theta)=\exp(-\ii\theta\sigma_z/2)$, calculate $U(2\pi)$ and $U(4\pi)$. Explain the distinction between the spinor state vector and its measurement probabilities.
 \end{enumerate}
 
 \chapter{Solutions and reasoning}
@@ -3432,6 +3730,10 @@ Every level shifts by $-f^2/(2m\omega^2)$. First order vanishes because $\avg x=
 \item Survival depends on the sum of rates: $N=N_0\ee^{-(\lambda_1+\lambda_2)t}$. Therefore $t_{1/2}=\ln2/(\lambda_1+\lambda_2)$ and the channel-1 branching fraction is $\lambda_1/(\lambda_1+\lambda_2)$.
 \item Conservation gives $\rho=C/a^3$. The Friedmann equation implies $\dot a^2=(8\pi GC/3)/a$, so $a^{1/2}\dd a=\sqrt{8\pi GC/3}\dd t$. Integration yields $a^{3/2}\propto t$ and $a\propto t^{2/3}$.
 \item Substitution yields $A=1+r(\ee^{\ii k\Delta x}-2+\ee^{-\ii k\Delta x})=1-4r\sin^2(k\Delta x/2)$. Requiring $|A|\leq1$ for all resolved modes and $r\geq0$ gives $r\leq1/2$.
+\item $\chi=V-E+F=12-30+20=2$. Since $\chi=2-2g$, the genus is $g=0$; the surface is topologically a sphere under the stated assumptions.
+\item The metric determinant is $g=\sin^2\theta$, so $\dd A=\sin\theta\,\dd\theta\dd\phi$. Therefore $A=\int_0^{2\pi}\dd\phi\int_0^\pi\sin\theta\dd\theta=4\pi$.
+\item To the requested order, the first product contains $\epsilon\delta J_xJ_y$ and the reversed product contains $\epsilon\delta J_yJ_x$. Their difference is $\epsilon\delta[J_x,J_y]=\epsilon\delta J_z$.
+\item Since $\sigma_z^2=I$, $U(2\pi)=\cos\pi I-\ii\sin\pi\sigma_z=-I$, while $U(4\pi)=I$. The first rotation changes a spinor's overall sign; every probability formed from an absolute square is unchanged.
 \end{enumerate}
 
 \chapter{Further study and a route through the material}
@@ -3443,6 +3745,8 @@ Subject & References\\
 \endhead
 Broad foundations & Halliday, Resnick, and Walker, \emph{Fundamentals of Physics}; Feynman, Leighton, and Sands, \emph{The Feynman Lectures on Physics}.\\
 Mathematical methods & Boas, \emph{Mathematical Methods in the Physical Sciences}; Arfken, Weber, and Harris, \emph{Mathematical Methods for Physicists}.\\
+Geometry and topology & Nakahara, \emph{Geometry, Topology and Physics}; Lee, \emph{Introduction to Smooth Manifolds}.\\
+Lie groups and algebras & Hall, \emph{Lie Groups, Lie Algebras, and Representations}; Georgi, \emph{Lie Algebras in Particle Physics}.\\
 Classical mechanics & Taylor, \emph{Classical Mechanics}; Goldstein, Poole, and Safko, \emph{Classical Mechanics}.\\
 Fluids & Acheson, \emph{Elementary Fluid Dynamics}.\\
 Optics & Hecht, \emph{Optics}.\\
