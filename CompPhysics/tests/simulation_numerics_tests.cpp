@@ -102,6 +102,12 @@ int main() {
     auto collisionAgain=collider::generateEvent(42);
     require(collisionAgain.particles.size()==collision.particles.size()&&
             collisionAgain.totalEnergy==collision.totalEnergy,"collider event generation is reproducible for recording");
+    auto higgs=collider::generateEvent(7,13.6f,true);
+    int higgsDaughters=0;for(const auto& particle:higgs.particles)higgsDaughters+=particle.higgsDaughter;
+    require(higgs.higgsCandidate&&higgs.higgsMassGeV>124&&higgs.higgsMassGeV<126,
+            "forced Higgs display event reconstructs a candidate near 125 GeV");
+    require(higgsDaughters==(higgs.higgsChannel==collider::HiggsChannel::GammaGamma?2:4),
+            "Higgs candidate exposes the expected visible decay products");
     collider::Particle positive{collider::Species::Muon,1,40,.9f,.3f,.1f,0,{255,255,255,255}};
     collider::Particle negative=positive;negative.charge=-1;
     collider::Particle photon=positive;photon.species=collider::Species::Photon;photon.charge=0;

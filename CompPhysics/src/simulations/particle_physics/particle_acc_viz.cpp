@@ -121,7 +121,10 @@ void main() {
     if (const char* initial = std::getenv("COMPPHYSICS_COLLIDER_TIME")) {
         timeline.time = std::clamp(static_cast<float>(std::atof(initial)), 0.0f, collider::Timeline::duration);
     }
-    collider::Event event = collider::generateEvent(1);
+    constexpr float energyOptions[] = {3.5f, 7.0f, 13.6f};
+    int energyIndex = 2;
+    bool forceHiggs = std::getenv("COMPPHYSICS_FORCE_HIGGS") != nullptr;
+    collider::Event event = collider::generateEvent(1, energyOptions[energyIndex], forceHiggs);
     std::uint32_t eventNumber = 1;
     float fieldTesla = 3.8f;
     bool cinematic = true, detectorVisible = true, showTracks = true;
@@ -143,7 +146,12 @@ void main() {
 
         if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_P)) timeline.paused = !timeline.paused;
         if (IsKeyPressed(KEY_R)) timeline.restart();
-        if (IsKeyPressed(KEY_N)) { event = collider::generateEvent(++eventNumber); timeline.restart(); }
+        if (IsKeyPressed(KEY_N)) { event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]); timeline.restart(); }
+        if (IsKeyPressed(KEY_E)) {
+            energyIndex = (energyIndex + 1) % 3;
+            event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]);
+            timeline.restart();
+        }
         if (IsKeyPressed(KEY_C)) cinematic = !cinematic;
         if (IsKeyPressed(KEY_D)) detectorVisible = !detectorVisible;
         if (IsKeyPressed(KEY_T)) showTracks = !showTracks;
@@ -154,7 +162,7 @@ void main() {
         if (IsKeyDown(KEY_RIGHT)) fieldTesla = std::min(6.0f, fieldTesla + dt);
 
         timeline.update(dt);
-        if (timeline.time < previousTimeline) event = collider::generateEvent(++eventNumber);
+        if (timeline.time < previousTimeline) event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]);
         previousTimeline = timeline.time;
         averageMs += (dt * 1000.0f - averageMs) * .04f;
 
@@ -208,17 +216,33 @@ void main() {
             uiText(uiFont, labels[i], x - uiWidth(uiFont, labels[i], 11) * .5f, 64, 11, kMuted);
         }
 
-        Rectangle cinemaButton{static_cast<float>(width - 232), 24, 92, 30};
+        Rectangle energyButton{static_cast<float>(width - 414), 24, 96, 30};
+        Rectangle cinemaButton{static_cast<float>(width - 308), 24, 168, 30};
         Rectangle nextButton{static_cast<float>(width - 130), 24, 96, 30};
+        if (studio::clicked(energyButton)) {
+            energyIndex = (energyIndex + 1) % 3;
+            event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]);
+            timeline.restart();
+        }
         if (studio::clicked(cinemaButton)) cinematic = !cinematic;
-        if (studio::clicked(nextButton)) { event = collider::generateEvent(++eventNumber); timeline.restart(); }
-        drawPill(uiFont, cinemaButton, cinematic ? "CINEMATIC" : "FREE CAM", cinematic, collider::kViolet);
+        if (studio::clicked(nextButton)) { event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]); timeline.restart(); }
+        drawPill(uiFont, energyButton, TextFormat("%.1f TeV", energyOptions[energyIndex]), false, collider::kAmber);
+        drawPill(uiFont, cinemaButton, cinematic ? "CAMERA: CINEMATIC" : "CAMERA: FREE", cinematic, collider::kViolet);
         drawPill(uiFont, nextButton, "NEW EVENT", false, collider::kCyan);
 
         uiText(uiFont, phaseName(timeline.time), 34, height - 94, 27, kInk);
         uiText(uiFont, TextFormat("%.0f GeV visible energy", event.totalEnergy), 35, height - 59, 14, collider::kAmber);
         uiText(uiFont, TextFormat("B %.1f T   /   %zu reconstructed tracks   /   %.1f ms", fieldTesla,
                                   event.particles.size(), averageMs), 35, height - 33, 13, kMuted);
+        if (event.higgsCandidate && timeline.reveal() > .5f) {
+            const char* channel = event.higgsChannel == collider::HiggsChannel::GammaGamma ? "H -> gamma gamma" : "H -> ZZ* -> 4 leptons";
+            Rectangle card{35, 116, 252, 72};
+            DrawRectangleRounded(card, .16f, 8, Color{13, 22, 36, 226});
+            DrawRectangleRoundedLinesEx(card, .16f, 8, 1, Fade(collider::kMagenta, .65f));
+            uiText(uiFont, "HIGGS CANDIDATE", 49, 128, 13, collider::kMagenta);
+            uiText(uiFont, channel, 49, 149, 15, kInk);
+            uiText(uiFont, TextFormat("reconstructed mass  %.1f GeV", event.higgsMassGeV), 49, 169, 12, kMuted);
+        }
         if (timeline.reveal() > .5f && width > 1120) {
             const struct { const char* label; Color color; } legend[] = {
                 {"ELECTRON", collider::kCyan}, {"MUON", collider::kViolet},
@@ -231,8 +255,8 @@ void main() {
                 lx += uiWidth(uiFont, item.label, 11) + 35;
             }
         }
-        const char* help = cinematic ? "Space pause   N new collision   C free camera   1/2/3 speed" :
-                                       "Drag orbit   Scroll zoom   C cinematic   Left/Right magnetic field";
+        const char* help = cinematic ? "Space pause   N new collision   C free camera   E energy   1/2/3 speed" :
+                                       "Drag orbit   Scroll zoom   C cinematic   E energy   Left/Right field";
         uiText(uiFont, help, width - uiWidth(uiFont, help, 13) - 35, height - 33, 13, kMuted);
         if (timeline.paused) uiText(uiFont, "PAUSED", width - 105, height - 65, 15, collider::kMagenta);
         EndDrawing();

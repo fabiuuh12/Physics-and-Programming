@@ -13,6 +13,7 @@ struct Vec3 { float x{}, y{}, z{}; };
 struct Rgba { unsigned char r{}, g{}, b{}, a{255}; };
 
 enum class Species { Electron, Muon, Photon, Hadron };
+enum class HiggsChannel { None, GammaGamma, FourLepton };
 
 struct Particle {
     Species species{};
@@ -23,6 +24,7 @@ struct Particle {
     float longitudinal{};
     float phase{};
     Rgba color{};
+    bool higgsDaughter = false;
 };
 
 struct Event {
@@ -30,6 +32,10 @@ struct Event {
     std::uint32_t number = 1;
     float missingEt = 0.0f;
     float totalEnergy = 0.0f;
+    float collisionEnergyTeV = 13.6f;
+    bool higgsCandidate = false;
+    HiggsChannel higgsChannel = HiggsChannel::None;
+    float higgsMassGeV = 0.0f;
 };
 
 inline std::uint32_t hash(std::uint32_t& state) {
@@ -53,10 +59,11 @@ inline Rgba speciesColor(Species species, float charge) {
     return {255, 255, 255, 255};
 }
 
-inline Event generateEvent(std::uint32_t eventNumber) {
+inline Event generateEvent(std::uint32_t eventNumber, float collisionEnergyTeV = 13.6f, bool forceHiggs = false) {
     std::uint32_t rng = 0x9e3779b9u ^ (eventNumber * 0x85ebca6bu);
     Event event;
     event.number = eventNumber;
+    event.collisionEnergyTeV = std::clamp(collisionEnergyTeV, .5f, 13.6f);
     int count = 38 + static_cast<int>(random01(rng) * 18.0f);
     event.particles.reserve(static_cast<size_t>(count));
 
@@ -80,6 +87,39 @@ inline Event generateEvent(std::uint32_t eventNumber) {
     event.particles.push_back({Species::Muon, -1, 78, .95f, pairPhi, .15f, 0, speciesColor(Species::Muon, -1)});
     event.particles.push_back({Species::Muon, 1, 75, .93f, pairPhi + pi, -.12f, 0, speciesColor(Species::Muon, 1)});
     event.totalEnergy += 153;
+
+    // Higgs events are deliberately enriched for an educational display. The
+    // candidate itself is not drawn as a track: it decays essentially at the
+    // interaction point and is reconstructed from its visible daughters.
+    float energyFraction = std::clamp((event.collisionEnergyTeV - 1.0f) / 12.6f, 0.0f, 1.0f);
+    float displayProbability = .015f + .22f * energyFraction * energyFraction;
+    event.higgsCandidate = forceHiggs || random01(rng) < displayProbability;
+    if (event.higgsCandidate) {
+        event.higgsMassGeV = 124.6f + 1.2f * random01(rng);
+        float phi = random01(rng) * 2.0f * pi;
+        if (random01(rng) < .62f) {
+            event.higgsChannel = HiggsChannel::GammaGamma;
+            float p0 = event.higgsMassGeV * (.49f + .025f * random01(rng));
+            float p1 = event.higgsMassGeV - p0;
+            event.particles.push_back({Species::Photon, 0, p0, .98f, phi, .05f, 0,
+                                       speciesColor(Species::Photon, 0), true});
+            event.particles.push_back({Species::Photon, 0, p1, .98f, phi + pi, -.05f, pi,
+                                       speciesColor(Species::Photon, 0), true});
+            event.totalEnergy += p0 + p1;
+        } else {
+            event.higgsChannel = HiggsChannel::FourLepton;
+            constexpr Species species[] = {Species::Electron, Species::Electron, Species::Muon, Species::Muon};
+            constexpr float charges[] = {-1, 1, -1, 1};
+            for (int i = 0; i < 4; ++i) {
+                float momentum = event.higgsMassGeV * (.22f + .055f * random01(rng));
+                float angle = phi + i * pi * .5f + (random01(rng) - .5f) * .18f;
+                event.particles.push_back({species[i], charges[i], momentum, .94f, angle,
+                                           (i < 2 ? .12f : -.12f), i * .7f,
+                                           speciesColor(species[i], charges[i]), true});
+                event.totalEnergy += momentum;
+            }
+        }
+    }
     event.missingEt = 8.0f + random01(rng) * 42.0f;
     return event;
 }

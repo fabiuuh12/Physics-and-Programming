@@ -23,6 +23,8 @@ Controls:
 
 - **Space/P** pauses the presentation; **R** restarts the current event.
 - **N** generates a new collision.
+- **E** or the energy button cycles the collision energy through 3.5, 7.0, and
+  13.6 TeV. Higher energy increases the chance of a displayed Higgs candidate.
 - **C** switches between the cinematic camera and a free camera. In free-camera
   mode, drag to orbit and use the wheel to zoom.
 - **1/2/3** selects slow, normal, or double speed.
@@ -37,6 +39,12 @@ neutral particles travel straight. Electromagnetic particles stop near the
 electromagnetic calorimeter, hadrons reach the hadronic calorimeter, and muons
 continue into the outer chambers. Display units, material interactions, showers,
 decays, detector inefficiencies, and reconstruction uncertainty are simplified.
+
+Higgs candidates are intentionally enriched so they appear often enough for an
+interactive demonstration; this is not the physical per-collision production
+rate. Because the Higgs decays essentially at the interaction point, the display
+does not draw a Higgs track. It instead highlights a two-photon or four-lepton
+final state and reports a reconstructed candidate mass near 125 GeV.
 
 The implementation separates deterministic event physics in `collider/model.h`
 from GPU-facing drawing in `collider/renderer.h`. Detector tiles use cached meshes

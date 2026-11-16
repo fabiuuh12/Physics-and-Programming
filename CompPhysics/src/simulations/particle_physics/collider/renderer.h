@@ -343,8 +343,9 @@ void main() {
                 float speciesBoost = particle.species == Species::Photon ? 1.18f :
                                      particle.species == Species::Muon ? 1.10f : 1.0f;
                 float momentumBoost = .72f + .28f * std::clamp(particle.momentum / 65.0f, 0.0f, 1.0f);
+                float candidateBoost = particle.higgsDaughter ? 1.28f : 1.0f;
                 Color c = Fade(render(particle.color), std::clamp(fade * intensity * speciesBoost * momentumBoost *
-                                                                  (.28f + .72f * head), 0.0f, 1.0f));
+                                                                  candidateBoost * (.28f + .72f * head), 0.0f, 1.0f));
                 rlColor4ub(c.r, c.g, c.b, c.a);
                 rlVertex3f(previous.x, previous.y, previous.z);
                 rlVertex3f(point.x, point.y, point.z);
@@ -391,7 +392,7 @@ void main() {
                     modelHead = endpoint(particle, fieldTesla);
                 Vector3 head = render(modelHead);
                 float energy = std::clamp(particle.momentum / 90.0f, .08f, 1.0f);
-                float size = .065f + .12f * std::sqrt(energy);
+                float size = (.065f + .12f * std::sqrt(energy)) * (particle.higgsDaughter ? 1.22f : 1.0f);
                 Color color = render(particle.color);
                 DrawBillboard(camera, glow_, head, size * 3.2f, Fade(color, .22f * headFade));
                 DrawBillboard(camera, glow_, head, size, Fade(WHITE, .88f * headFade));
@@ -409,7 +410,7 @@ void main() {
 
             // Calorimeter showers use deterministic sparks, so a recorded event
             // is stable from frame to frame and each species stays recognizable.
-            int sparks = particle.species == Species::Muon ? 1 :
+            int sparks = particle.higgsDaughter ? 10 : particle.species == Species::Muon ? 1 :
                          particle.species == Species::Hadron ? 8 : 6;
             float showerScale = particle.species == Species::Hadron ? .72f : .46f;
             for (int s = 0; s < sparks; ++s) {
@@ -433,7 +434,8 @@ void main() {
         DrawBillboard(camera, glow_, {0, 0, 0}, 1.15f, Fade(kViolet, vertexGlow * .32f));
         if (flash > .001f) {
             DrawBillboard(camera, glow_, {0, 0, 0}, 1.2f + 3.8f * flash, Fade(WHITE, .92f * flash));
-            DrawBillboard(camera, glow_, {0, 0, 0}, 3.0f + 5.0f * flash, Fade(kCyan, .26f * flash));
+            Color eventColor = event.higgsCandidate ? kMagenta : kCyan;
+            DrawBillboard(camera, glow_, {0, 0, 0}, 3.0f + 5.0f * flash, Fade(eventColor, .26f * flash));
         }
         rlEnableDepthMask();
         EndBlendMode();
