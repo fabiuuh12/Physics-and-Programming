@@ -10,6 +10,15 @@
 namespace {
 constexpr Color kInk{225, 235, 244, 255};
 constexpr Color kMuted{126, 151, 174, 255};
+constexpr float kLetterSpacing = .18f;
+
+float uiWidth(Font font, const char* text, float size) {
+    return MeasureTextEx(font, text, size, kLetterSpacing).x;
+}
+
+void uiText(Font font, const char* text, float x, float y, float size, Color color) {
+    DrawTextEx(font, text, {x, y}, size, kLetterSpacing, color);
+}
 
 float smooth(float value) {
     value = std::clamp(value, 0.0f, 1.0f);
@@ -41,11 +50,11 @@ Camera3D cinematicCamera(float time) {
     return camera;
 }
 
-void drawPill(Rectangle bounds, const char* text, bool active, Color accent) {
+void drawPill(Font font, Rectangle bounds, const char* text, bool active, Color accent) {
     DrawRectangleRounded(bounds, .45f, 10, active ? Fade(accent, .18f) : Color{17, 29, 43, 225});
     DrawRectangleRoundedLinesEx(bounds, .45f, 10, 1, active ? Fade(accent, .60f) : Color{47, 66, 83, 180});
-    float width = studio::textWidth(text, 12);
-    studio::text(text, bounds.x + (bounds.width - width) * .5f, bounds.y + 9, 12, active ? accent : kMuted);
+    float width = uiWidth(font, text, 13);
+    uiText(font, text, bounds.x + (bounds.width - width) * .5f, bounds.y + 8, 13, active ? accent : kMuted);
 }
 }  // namespace
 
@@ -55,6 +64,15 @@ int main() {
     InitWindow(1440, 900, "Collider Event | Particle Accelerator");
     SetWindowMinSize(1000, 650);
     SetTargetFPS(120);
+
+    auto fontPath = project_paths::root() / "resources/fonts/Inter-Regular.ttf";
+    Font uiFont = LoadFontEx(fontPath.string().c_str(), 56, nullptr, 0);
+    bool ownsUiFont = uiFont.texture.id != 0;
+    if (ownsUiFont) {
+        SetTextureFilter(uiFont.texture, TEXTURE_FILTER_BILINEAR);
+    } else {
+        uiFont = studio::font();
+    }
 
     collider::Renderer renderer;
     if (!renderer.ready()) {
@@ -173,8 +191,8 @@ void main() {
 
         DrawRectangleGradientV(0, 0, width, 126, Color{4, 9, 16, 245}, Color{4, 9, 16, 25});
         DrawRectangleGradientV(0, height - 125, width, 125, Color{4, 9, 16, 0}, Color{4, 9, 16, 245});
-        studio::text("COLLIDER / EVENT DISPLAY", 34, 24, 22, kInk);
-        studio::text(TextFormat("EVENT %06u", event.number), 35, 55, 13, kMuted);
+        uiText(uiFont, "COLLIDER / EVENT DISPLAY", 34, 22, 24, kInk);
+        uiText(uiFont, TextFormat("EVENT %06u", event.number), 35, 55, 14, kMuted);
 
         float timelineWidth = std::min(610.0f, width * .44f);
         float timelineX = (width - timelineWidth) * .5f;
@@ -187,20 +205,20 @@ void main() {
             float x = timelineX + timelineWidth * marks[i] / collider::Timeline::duration;
             DrawCircleV({x, 49}, i == 1 && timeline.time > 2.45f && timeline.time < 2.9f ? 5 : 3,
                         marks[i] <= timeline.time ? collider::kCyan : kMuted);
-            studio::text(labels[i], x - studio::textWidth(labels[i], 10) * .5f, 64, 10, kMuted);
+            uiText(uiFont, labels[i], x - uiWidth(uiFont, labels[i], 11) * .5f, 64, 11, kMuted);
         }
 
         Rectangle cinemaButton{static_cast<float>(width - 232), 24, 92, 30};
         Rectangle nextButton{static_cast<float>(width - 130), 24, 96, 30};
         if (studio::clicked(cinemaButton)) cinematic = !cinematic;
         if (studio::clicked(nextButton)) { event = collider::generateEvent(++eventNumber); timeline.restart(); }
-        drawPill(cinemaButton, cinematic ? "CINEMATIC" : "FREE CAM", cinematic, collider::kViolet);
-        drawPill(nextButton, "NEW EVENT", false, collider::kCyan);
+        drawPill(uiFont, cinemaButton, cinematic ? "CINEMATIC" : "FREE CAM", cinematic, collider::kViolet);
+        drawPill(uiFont, nextButton, "NEW EVENT", false, collider::kCyan);
 
-        studio::text(phaseName(timeline.time), 34, height - 92, 25, kInk);
-        studio::text(TextFormat("%.0f GeV visible energy", event.totalEnergy), 35, height - 58, 13, collider::kAmber);
-        studio::text(TextFormat("B %.1f T   /   %zu reconstructed tracks   /   %.1f ms", fieldTesla,
-                                event.particles.size(), averageMs), 35, height - 33, 12, kMuted);
+        uiText(uiFont, phaseName(timeline.time), 34, height - 94, 27, kInk);
+        uiText(uiFont, TextFormat("%.0f GeV visible energy", event.totalEnergy), 35, height - 59, 14, collider::kAmber);
+        uiText(uiFont, TextFormat("B %.1f T   /   %zu reconstructed tracks   /   %.1f ms", fieldTesla,
+                                  event.particles.size(), averageMs), 35, height - 33, 13, kMuted);
         if (timeline.reveal() > .5f && width > 1120) {
             const struct { const char* label; Color color; } legend[] = {
                 {"ELECTRON", collider::kCyan}, {"MUON", collider::kViolet},
@@ -209,20 +227,21 @@ void main() {
             float lx = width - 420.0f;
             for (const auto& item : legend) {
                 DrawCircleV({lx, static_cast<float>(height - 72)}, 3.5f, item.color);
-                studio::text(item.label, lx + 9, height - 78, 10, kMuted);
-                lx += studio::textWidth(item.label, 10) + 35;
+                uiText(uiFont, item.label, lx + 9, height - 79, 11, kMuted);
+                lx += uiWidth(uiFont, item.label, 11) + 35;
             }
         }
         const char* help = cinematic ? "Space pause   N new collision   C free camera   1/2/3 speed" :
                                        "Drag orbit   Scroll zoom   C cinematic   Left/Right magnetic field";
-        studio::text(help, width - studio::textWidth(help, 12) - 35, height - 33, 12, kMuted);
-        if (timeline.paused) studio::text("PAUSED", width - 105, height - 64, 14, collider::kMagenta);
+        uiText(uiFont, help, width - uiWidth(uiFont, help, 13) - 35, height - 33, 13, kMuted);
+        if (timeline.paused) uiText(uiFont, "PAUSED", width - 105, height - 65, 15, collider::kMagenta);
         EndDrawing();
         if (studio::smokeFrame(__FILE__)) break;
     }
 
     UnloadRenderTexture(target);
     UnloadShader(post);
+    if (ownsUiFont) UnloadFont(uiFont);
     studio::unload();
     CloseWindow();
     return 0;
