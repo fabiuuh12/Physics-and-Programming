@@ -131,7 +131,6 @@ void main() {
     bool cinematic = true, detectorVisible = true, showTracks = true;
     bool waveView = std::getenv("COMPPHYSICS_WAVE_VIEW") != nullptr;
     bool showHud = false;
-    bool showHiggsTrigger = true;
     float yaw = .62f, pitch = .30f, distance = 25.0f;
     Camera3D manualCamera{{20, 8, 18}, {0, .2f, 0}, {0, 1, 0}, 39, CAMERA_PERSPECTIVE};
     float previousTimeline = timeline.time, averageMs = 8.0f;
@@ -164,7 +163,6 @@ void main() {
         if (IsKeyPressed(KEY_G)) {
             event = collider::generateEvent(++eventNumber, energyOptions[energyIndex], true);
             timeline.restart();
-            showHiggsTrigger = false;
         }
         if (IsKeyPressed(KEY_ONE)) timeline.speed = .35f;
         if (IsKeyPressed(KEY_TWO)) timeline.speed = 1.0f;
@@ -208,15 +206,15 @@ void main() {
                        {0, 0, static_cast<float>(width), static_cast<float>(height)}, {0, 0}, 0, WHITE);
         EndShaderMode();
 
-        if (showHiggsTrigger) {
-            Rectangle higgsTrigger{static_cast<float>(width - 176), 24, 142, 34};
-            if (studio::clicked(higgsTrigger)) {
-                event = collider::generateEvent(++eventNumber, energyOptions[energyIndex], true);
-                timeline.restart();
-                showHiggsTrigger = false;
-            } else {
-                drawPill(uiFont, higgsTrigger, "HIGGS EVENT", true, collider::kMagenta);
-            }
+        if (event.higgsCandidate && timeline.reveal() > .5f) {
+            const char* channel = event.higgsChannel == collider::HiggsChannel::GammaGamma ? "H -> gamma gamma" : "H -> ZZ* -> 4 leptons";
+            float cardY = showHud ? 116.0f : 35.0f;
+            Rectangle card{35, cardY, 252, 72};
+            DrawRectangleRounded(card, .16f, 8, Color{13, 22, 36, 226});
+            DrawRectangleRoundedLinesEx(card, .16f, 8, 1, Fade(collider::kMagenta, .65f));
+            uiText(uiFont, "HIGGS CANDIDATE", 49, cardY + 12, 13, collider::kMagenta);
+            uiText(uiFont, channel, 49, cardY + 33, 15, kInk);
+            uiText(uiFont, TextFormat("reconstructed mass  %.1f GeV", event.higgsMassGeV), 49, cardY + 53, 12, kMuted);
         }
 
         if (showHud) {
@@ -261,15 +259,6 @@ void main() {
         uiText(uiFont, TextFormat("%.0f GeV visible energy", event.totalEnergy), 35, height - 59, 14, collider::kAmber);
         uiText(uiFont, TextFormat("B %.1f T   /   %zu reconstructed tracks   /   %.1f ms", fieldTesla,
                                   event.particles.size(), averageMs), 35, height - 33, 13, kMuted);
-        if (event.higgsCandidate && timeline.reveal() > .5f) {
-            const char* channel = event.higgsChannel == collider::HiggsChannel::GammaGamma ? "H -> gamma gamma" : "H -> ZZ* -> 4 leptons";
-            Rectangle card{35, 116, 252, 72};
-            DrawRectangleRounded(card, .16f, 8, Color{13, 22, 36, 226});
-            DrawRectangleRoundedLinesEx(card, .16f, 8, 1, Fade(collider::kMagenta, .65f));
-            uiText(uiFont, "HIGGS CANDIDATE", 49, 128, 13, collider::kMagenta);
-            uiText(uiFont, channel, 49, 149, 15, kInk);
-            uiText(uiFont, TextFormat("reconstructed mass  %.1f GeV", event.higgsMassGeV), 49, 169, 12, kMuted);
-        }
         if (timeline.reveal() > .5f && width > 1120) {
             const struct { const char* label; Color color; } legend[] = {
                 {"ELECTRON", collider::kCyan}, {"MUON", collider::kViolet},
