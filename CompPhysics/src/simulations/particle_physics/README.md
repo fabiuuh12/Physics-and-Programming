@@ -27,6 +27,9 @@ Controls:
   13.6 TeV. Higher energy increases the chance of a displayed Higgs candidate.
 - **C** switches between the cinematic camera and a free camera. In free-camera
   mode, drag to orbit and use the wheel to zoom.
+- **W** or the view button switches between reconstructed tracks and luminous
+  3D phase helices. Higher-momentum particles receive a shorter displayed
+  wavelength.
 - **1/2/3** selects slow, normal, or double speed.
 - **Left/Right** changes the displayed solenoid field strength.
 - **D** hides detector geometry and **T** hides reconstructed tracks.
@@ -39,6 +42,8 @@ neutral particles travel straight. Electromagnetic particles stop near the
 electromagnetic calorimeter, hadrons reach the hadronic calorimeter, and muons
 continue into the outer chambers. Display units, material interactions, showers,
 decays, detector inefficiencies, and reconstruction uncertainty are simplified.
+The wave view is an interpretive visualization of quantum phase and momentum,
+not a literal macroscopic helix traveled by each particle.
 
 Higgs candidates are intentionally enriched so they appear often enough for an
 interactive demonstration; this is not the physical per-collision production

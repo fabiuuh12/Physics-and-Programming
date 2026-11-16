@@ -129,6 +129,7 @@ void main() {
     std::uint32_t eventNumber = 1;
     float fieldTesla = 3.8f;
     bool cinematic = true, detectorVisible = true, showTracks = true;
+    bool waveView = std::getenv("COMPPHYSICS_WAVE_VIEW") != nullptr;
     float yaw = .62f, pitch = .30f, distance = 25.0f;
     Camera3D manualCamera{{20, 8, 18}, {0, .2f, 0}, {0, 1, 0}, 39, CAMERA_PERSPECTIVE};
     float previousTimeline = timeline.time, averageMs = 8.0f;
@@ -156,6 +157,7 @@ void main() {
         if (IsKeyPressed(KEY_C)) cinematic = !cinematic;
         if (IsKeyPressed(KEY_D)) detectorVisible = !detectorVisible;
         if (IsKeyPressed(KEY_T)) showTracks = !showTracks;
+        if (IsKeyPressed(KEY_W)) waveView = !waveView;
         if (IsKeyPressed(KEY_ONE)) timeline.speed = .35f;
         if (IsKeyPressed(KEY_TWO)) timeline.speed = 1.0f;
         if (IsKeyPressed(KEY_THREE)) timeline.speed = 2.0f;
@@ -181,7 +183,7 @@ void main() {
         BeginTextureMode(target);
         ClearBackground(collider::kBackground);
         BeginMode3D(camera);
-        renderer.drawScene(camera, event, timeline, fieldTesla, detectorVisible, showTracks);
+        renderer.drawScene(camera, event, timeline, fieldTesla, detectorVisible, showTracks, waveView);
         EndMode3D();
         EndTextureMode();
 
@@ -203,8 +205,9 @@ void main() {
         uiText(uiFont, "COLLIDER / EVENT DISPLAY", 34, 22, 24, kInk);
         uiText(uiFont, TextFormat("EVENT %06u", event.number), 35, 55, 14, kMuted);
 
-        float timelineWidth = std::min(610.0f, width * .44f);
-        float timelineX = (width - timelineWidth) * .5f;
+        float controlsStart = static_cast<float>(width - 566);
+        float timelineX = 330.0f;
+        float timelineWidth = std::max(140.0f, controlsStart - timelineX - 24.0f);
         DrawLineEx({timelineX, 49}, {timelineX + timelineWidth, 49}, 2, Color{44, 65, 83, 220});
         float progress = timeline.time / collider::Timeline::duration;
         DrawLineEx({timelineX, 49}, {timelineX + timelineWidth * progress, 49}, 2, collider::kCyan);
@@ -217,9 +220,11 @@ void main() {
             uiText(uiFont, labels[i], x - uiWidth(uiFont, labels[i], 11) * .5f, 64, 11, kMuted);
         }
 
+        Rectangle viewButton{static_cast<float>(width - 566), 24, 142, 30};
         Rectangle energyButton{static_cast<float>(width - 414), 24, 96, 30};
         Rectangle cinemaButton{static_cast<float>(width - 308), 24, 168, 30};
         Rectangle nextButton{static_cast<float>(width - 130), 24, 96, 30};
+        if (studio::clicked(viewButton)) waveView = !waveView;
         if (studio::clicked(energyButton)) {
             energyIndex = (energyIndex + 1) % 3;
             event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]);
@@ -227,6 +232,7 @@ void main() {
         }
         if (studio::clicked(cinemaButton)) cinematic = !cinematic;
         if (studio::clicked(nextButton)) { event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]); timeline.restart(); }
+        drawPill(uiFont, viewButton, waveView ? "VIEW: WAVES" : "VIEW: TRACKS", waveView, collider::kCyan);
         drawPill(uiFont, energyButton, TextFormat("%.1f TeV", energyOptions[energyIndex]), false, collider::kAmber);
         drawPill(uiFont, cinemaButton, cinematic ? "CAMERA: CINEMATIC" : "CAMERA: FREE", cinematic, collider::kViolet);
         drawPill(uiFont, nextButton, "NEW EVENT", false, collider::kCyan);
@@ -256,8 +262,8 @@ void main() {
                 lx += uiWidth(uiFont, item.label, 11) + 35;
             }
         }
-        const char* help = cinematic ? "Space pause   N new collision   C free camera   E energy   1/2/3 speed" :
-                                       "Drag orbit   Scroll zoom   C cinematic   E energy   Left/Right field";
+        const char* help = cinematic ? "Space pause   N new collision   W wave view   C camera   E energy" :
+                                       "Drag orbit   Scroll zoom   W wave view   C cinematic   E energy";
         uiText(uiFont, help, width - uiWidth(uiFont, help, 13) - 35, height - 33, 13, kMuted);
         if (timeline.paused) uiText(uiFont, "PAUSED", width - 105, height - 65, 15, collider::kMagenta);
         EndDrawing();

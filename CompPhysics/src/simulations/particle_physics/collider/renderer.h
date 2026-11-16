@@ -164,13 +164,13 @@ void main() {
     bool ready() const { return ready_; }
 
     void drawScene(const Camera3D& camera, const Event& event, const Timeline& timeline,
-                   float fieldTesla, bool detectorVisible, bool showTracks) {
+                   float fieldTesla, bool detectorVisible, bool showTracks, bool waveView) {
         if (!ready_) return;
         SetShaderValue(shader_, shader_.locs[SHADER_LOC_VECTOR_VIEW], &camera.position.x, SHADER_UNIFORM_VEC3);
         drawEnvironment(camera);
         if (detectorVisible) drawDetector(camera, timeline.reveal());
         drawBeams(camera, timeline);
-        if (showTracks) drawEvent(camera, event, timeline, fieldTesla);
+        if (showTracks) drawEvent(camera, event, timeline, fieldTesla, waveView);
     }
 
   private:
@@ -355,7 +355,42 @@ void main() {
         }
     }
 
-    void drawEvent(const Camera3D& camera, const Event& event, const Timeline& timeline, float fieldTesla) {
+    void drawWaveLine(const Particle& particle, float progress, float fieldTesla, float fade, float intensity = 1.0f) {
+        constexpr int segments = 84;
+        constexpr float maxDistance = 17.0f;
+        Vector3 previous{};
+        bool havePrevious = false;
+        for (int i = 1; i <= segments; ++i) {
+            float distance = maxDistance * progress * i / segments;
+            Vec3 modelPoint = trackPoint(particle, distance, fieldTesla);
+            if (radialDistance(modelPoint) > maxRadius(particle.species) || std::abs(modelPoint.x) > 9.3f) break;
+            Vec3 nextModel = trackPoint(particle, distance + .035f, fieldTesla);
+            Vector3 center = render(modelPoint);
+            Vector3 tangent = Vector3Normalize(Vector3Subtract(render(nextModel), center));
+            Vector3 reference = std::abs(tangent.y) < .88f ? Vector3{0, 1, 0} : Vector3{0, 0, 1};
+            Vector3 normal = Vector3Normalize(Vector3CrossProduct(tangent, reference));
+            Vector3 binormal = Vector3Normalize(Vector3CrossProduct(tangent, normal));
+            float cyclesPerUnit = .72f + .018f * std::clamp(particle.momentum, 0.0f, 90.0f);
+            float phase = particle.phase + distance * cyclesPerUnit * 2.0f * pi - static_cast<float>(GetTime()) * 4.2f;
+            float amplitude = (particle.species == Species::Photon ? .115f : .085f) *
+                              (particle.higgsDaughter ? 1.28f : 1.0f);
+            Vector3 offset = Vector3Add(Vector3Scale(normal, std::cos(phase) * amplitude),
+                                        Vector3Scale(binormal, std::sin(phase) * amplitude));
+            Vector3 point = Vector3Add(center, offset);
+            if (havePrevious) {
+                Color color = Fade(render(particle.color), std::clamp(fade * intensity *
+                                   (particle.higgsDaughter ? 1.22f : 1.0f), 0.0f, 1.0f));
+                rlColor4ub(color.r, color.g, color.b, color.a);
+                rlVertex3f(previous.x, previous.y, previous.z);
+                rlVertex3f(point.x, point.y, point.z);
+            }
+            previous = point;
+            havePrevious = true;
+        }
+    }
+
+    void drawEvent(const Camera3D& camera, const Event& event, const Timeline& timeline,
+                   float fieldTesla, bool waveView) {
         float progress = timeline.tracks();
         float fade = timeline.holdFade();
         if (timeline.collision() <= 0.0f) return;
@@ -364,22 +399,30 @@ void main() {
         rlDisableDepthMask();
         rlSetTexture(0);
         rlBegin(RL_LINES);
-        for (const auto& particle : event.particles) drawTrackLine(particle, progress, fieldTesla, fade);
+        for (const auto& particle : event.particles) {
+            if (waveView) drawWaveLine(particle, progress, fieldTesla, fade, .88f);
+            else drawTrackLine(particle, progress, fieldTesla, fade);
+        }
         rlEnd();
 
         // High-momentum tracks get a soft halo and a bright core. Photons and
         // muons stay especially clean, while the low-energy event remains fine.
         rlSetLineWidth(4.0f);
         rlBegin(RL_LINES);
-        for (const auto& particle : event.particles)
-            if (particle.momentum > 34 || particle.species == Species::Photon || particle.species == Species::Muon)
-                drawTrackLine(particle, progress, fieldTesla, fade, .12f);
+        if (!waveView) {
+            for (const auto& particle : event.particles) {
+                if (particle.momentum > 34 || particle.species == Species::Photon || particle.species == Species::Muon)
+                    drawTrackLine(particle, progress, fieldTesla, fade, .12f);
+            }
+        }
         rlEnd();
         rlSetLineWidth(1.8f);
         rlBegin(RL_LINES);
-        for (const auto& particle : event.particles)
-            if (particle.momentum > 52 || particle.species == Species::Photon || particle.species == Species::Muon)
-                drawTrackLine(particle, progress, fieldTesla, fade, .72f);
+        for (const auto& particle : event.particles) {
+            if (particle.momentum > 52 || particle.species == Species::Photon || particle.species == Species::Muon) {
+                if (!waveView) drawTrackLine(particle, progress, fieldTesla, fade, .72f);
+            }
+        }
         rlEnd();
         rlSetLineWidth(1.0f);
 
