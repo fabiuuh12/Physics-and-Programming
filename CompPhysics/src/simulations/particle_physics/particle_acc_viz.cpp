@@ -1,106 +1,228 @@
+#include "collider/model.h"
+#include "collider/renderer.h"
+
 #include "raylib.h"
-#include "../../common/studio.h"
 #include "raymath.h"
 
 #include <algorithm>
 #include <cmath>
-#include <deque>
-#include <iomanip>
-#include <sstream>
-#include <string>
 
 namespace {
-constexpr int kScreenWidth = 1280;
-constexpr int kScreenHeight = 820;
+constexpr Color kInk{225, 235, 244, 255};
+constexpr Color kMuted{126, 151, 174, 255};
 
-void UpdateOrbitCameraDragOnly(Camera3D* c, float* yaw, float* pitch, float* distance) {
-    studio::pan(c, *yaw, *pitch, *distance);
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !studio::panGesture()) {
-        Vector2 d = GetMouseDelta();
-        *yaw -= d.x * 0.0035f;
-        *pitch += d.y * 0.0035f;
-        *pitch = std::clamp(*pitch, -1.35f, 1.35f);
-    }
-    *distance -= GetMouseWheelMove() * 0.6f;
-    *distance = std::clamp(*distance, 4.0f, 36.0f);
-    float cp = std::cos(*pitch);
-    c->position = Vector3Add(c->target, {*distance * cp * std::cos(*yaw), *distance * std::sin(*pitch), *distance * cp * std::sin(*yaw)});
+float smooth(float value) {
+    value = std::clamp(value, 0.0f, 1.0f);
+    return value * value * (3.0f - 2.0f * value);
 }
+
+const char* phaseName(float time) {
+    if (time < 2.4f) return "BEAMS APPROACHING";
+    if (time < 2.75f) return "PROTON COLLISION";
+    if (time < 5.0f) return "PARTICLES CROSS THE DETECTOR";
+    if (time < 10.6f) return "EVENT RECONSTRUCTION";
+    return "NEXT COLLISION";
 }
+
+Camera3D cinematicCamera(float time) {
+    Camera3D camera{};
+    camera.target = {0, .2f, 0};
+    camera.up = {0, 1, 0};
+    camera.fovy = 39;
+    camera.projection = CAMERA_PERSPECTIVE;
+    float intro = smooth(time / 2.5f);
+    // Mostly side-on so the beam line reads immediately; a slow drift still
+    // reveals the detector's depth without collapsing it into an end-on view.
+    float orbit = 1.25f + time * .035f;
+    float distance = 34.0f - 4.5f * intro + 1.4f * std::sin(time * .21f);
+    float pitch = .24f + .10f * std::sin(time * .17f);
+    camera.position = {distance * std::cos(pitch) * std::cos(orbit), distance * std::sin(pitch),
+                       distance * std::cos(pitch) * std::sin(orbit)};
+    return camera;
+}
+
+void drawPill(Rectangle bounds, const char* text, bool active, Color accent) {
+    DrawRectangleRounded(bounds, .45f, 10, active ? Fade(accent, .18f) : Color{17, 29, 43, 225});
+    DrawRectangleRoundedLinesEx(bounds, .45f, 10, 1, active ? Fade(accent, .60f) : Color{47, 66, 83, 180});
+    float width = studio::textWidth(text, 12);
+    studio::text(text, bounds.x + (bounds.width - width) * .5f, bounds.y + 9, 12, active ? accent : kMuted);
+}
+}  // namespace
 
 int main() {
-    if (std::getenv("COMPPHYSICS_SMOKE_FRAMES")) SetConfigFlags(FLAG_WINDOW_HIDDEN);
-    InitWindow(kScreenWidth, kScreenHeight, "Particle Accelerator 3D - C++ (raylib)");
-    SetTargetFPS(60);
+    bool smoke = std::getenv("COMPPHYSICS_SMOKE_FRAMES") != nullptr;
+    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | (smoke ? FLAG_WINDOW_HIDDEN : 0));
+    InitWindow(1440, 900, "Collider Event | Particle Accelerator");
+    SetWindowMinSize(1000, 650);
+    SetTargetFPS(120);
 
-    Camera3D camera{};
-    camera.position = {8.8f, 5.3f, 9.0f};
-    camera.target = {0,0.5f,0};
-    camera.up = {0,1,0};
-    camera.fovy = 45.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
-    float camYaw=0.84f, camPitch=0.34f, camDistance=14.0f;
+    collider::Renderer renderer;
+    if (!renderer.ready()) {
+        TraceLog(LOG_ERROR, "Collider lighting shader failed to initialize");
+        CloseWindow();
+        return 1;
+    }
 
-    float ringR = 3.2f;
-    float B = 1.0f;
-    float q = 1.0f;
-    float m = 1.0f;
-    float speed = 2.0f;
-    float theta = 0.0f;
-    bool paused=false;
+    const char* postFragment = R"GLSL(#version 330
+in vec2 fragTexCoord;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform vec2 resolution;
+uniform float bloom;
+out vec4 finalColor;
+void main() {
+    vec2 uv = fragTexCoord;
+    vec2 px = 1.0 / resolution;
+    vec3 base = texture(texture0, uv).rgb;
+    vec3 glow = vec3(0.0);
+    vec2 offsets[8] = vec2[](vec2(2,0),vec2(-2,0),vec2(0,2),vec2(0,-2),
+                              vec2(1.4,1.4),vec2(-1.4,1.4),vec2(1.4,-1.4),vec2(-1.4,-1.4));
+    for (int i=0;i<8;i++) {
+        vec3 sampleColor = texture(texture0, uv + offsets[i]*px).rgb;
+        glow += max(sampleColor - vec3(.48), vec3(0.0));
+    }
+    base += glow * (.085 * bloom);
+    base = base / (base + vec3(.72));
+    base = pow(base, vec3(.92));
+    vec2 q = uv * 2.0 - 1.0;
+    float vignette = 1.0 - .30 * smoothstep(.38, 1.35, dot(q,q));
+    float grain = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233))) * 43758.5453) - .5;
+    finalColor = vec4(base * vignette + grain/255.0, 1.0);
+})GLSL";
+    Shader post = LoadShaderFromMemory(nullptr, postFragment);
+    int resolutionLoc = GetShaderLocation(post, "resolution");
+    int bloomLoc = GetShaderLocation(post, "bloom");
 
-    std::deque<Vector3> trail;
+    constexpr float renderScale = .88f;
+    int targetWidth = static_cast<int>(GetScreenWidth() * renderScale);
+    int targetHeight = static_cast<int>(GetScreenHeight() * renderScale);
+    RenderTexture2D target = LoadRenderTexture(targetWidth, targetHeight);
+    SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
+
+    collider::Timeline timeline;
+    if (const char* initial = std::getenv("COMPPHYSICS_COLLIDER_TIME")) {
+        timeline.time = std::clamp(static_cast<float>(std::atof(initial)), 0.0f, collider::Timeline::duration);
+    }
+    collider::Event event = collider::generateEvent(1);
+    std::uint32_t eventNumber = 1;
+    float fieldTesla = 3.8f;
+    bool cinematic = true, detectorVisible = true, showTracks = true;
+    float yaw = .62f, pitch = .30f, distance = 25.0f;
+    Camera3D manualCamera{{20, 8, 18}, {0, .2f, 0}, {0, 1, 0}, 39, CAMERA_PERSPECTIVE};
+    float previousTimeline = timeline.time, averageMs = 8.0f;
 
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_P)) paused=!paused;
-        if (IsKeyPressed(KEY_R)) { B=1.0f; speed=2.0f; theta=0.0f; trail.clear(); paused=false; }
-        if (IsKeyPressed(KEY_LEFT_BRACKET)) B = std::max(0.2f, B-0.1f);
-        if (IsKeyPressed(KEY_RIGHT_BRACKET)) B = std::min(4.0f, B+0.1f);
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) speed = std::max(0.2f, speed-0.1f);
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) speed = std::min(8.0f, speed+0.1f);
-
-        UpdateOrbitCameraDragOnly(&camera,&camYaw,&camPitch,&camDistance);
-
-        if (!paused) {
-            float dt = GetFrameTime();
-            float omega = q * B / m;
-            theta += omega * dt * speed;
+        float dt = std::min(GetFrameTime(), .05f);
+        int width = GetScreenWidth(), height = GetScreenHeight();
+        int desiredWidth = static_cast<int>(width * renderScale);
+        int desiredHeight = static_cast<int>(height * renderScale);
+        if (desiredWidth != targetWidth || desiredHeight != targetHeight) {
+            UnloadRenderTexture(target);
+            targetWidth = desiredWidth; targetHeight = desiredHeight;
+            target = LoadRenderTexture(targetWidth, targetHeight);
+            SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
         }
 
-        Vector3 p = {ringR*std::cos(theta), 0.5f, ringR*std::sin(theta)};
-        trail.push_back(p);
-        if (trail.size()>600) trail.pop_front();
+        if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_P)) timeline.paused = !timeline.paused;
+        if (IsKeyPressed(KEY_R)) timeline.restart();
+        if (IsKeyPressed(KEY_N)) { event = collider::generateEvent(++eventNumber); timeline.restart(); }
+        if (IsKeyPressed(KEY_C)) cinematic = !cinematic;
+        if (IsKeyPressed(KEY_D)) detectorVisible = !detectorVisible;
+        if (IsKeyPressed(KEY_T)) showTracks = !showTracks;
+        if (IsKeyPressed(KEY_ONE)) timeline.speed = .35f;
+        if (IsKeyPressed(KEY_TWO)) timeline.speed = 1.0f;
+        if (IsKeyPressed(KEY_THREE)) timeline.speed = 2.0f;
+        if (IsKeyDown(KEY_LEFT)) fieldTesla = std::max(.5f, fieldTesla - dt);
+        if (IsKeyDown(KEY_RIGHT)) fieldTesla = std::min(6.0f, fieldTesla + dt);
+
+        timeline.update(dt);
+        if (timeline.time < previousTimeline) event = collider::generateEvent(++eventNumber);
+        previousTimeline = timeline.time;
+        averageMs += (dt * 1000.0f - averageMs) * .04f;
+
+        if (!cinematic) {
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                Vector2 delta = GetMouseDelta(); yaw -= delta.x * .004f;
+                pitch = std::clamp(pitch + delta.y * .004f, -.95f, 1.15f);
+            }
+            distance = std::clamp(distance * std::exp(-GetMouseWheelMove() * .08f), 13.0f, 46.0f);
+            manualCamera.position = {distance * std::cos(pitch) * std::cos(yaw), distance * std::sin(pitch),
+                                     distance * std::cos(pitch) * std::sin(yaw)};
+        }
+        Camera3D camera = cinematic ? cinematicCamera(timeline.time) : manualCamera;
+
+        BeginTextureMode(target);
+        ClearBackground(collider::kBackground);
+        BeginMode3D(camera);
+        renderer.drawScene(camera, event, timeline, fieldTesla, detectorVisible, showTracks);
+        EndMode3D();
+        EndTextureMode();
+
+        float resolution[2] = {static_cast<float>(targetWidth), static_cast<float>(targetHeight)};
+        float bloom = 1.0f;
+        SetShaderValue(post, resolutionLoc, resolution, SHADER_UNIFORM_VEC2);
+        SetShaderValue(post, bloomLoc, &bloom, SHADER_UNIFORM_FLOAT);
 
         BeginDrawing();
-        ClearBackground(Color{6,9,16,255});
-        BeginMode3D(camera);
-        for (int i=0;i<120;++i) {
-            float a0 = 2.0f*PI*i/120.0f;
-            float a1 = 2.0f*PI*(i+1)/120.0f;
-            DrawLine3D({ringR*std::cos(a0),0.5f,ringR*std::sin(a0)}, {ringR*std::cos(a1),0.5f,ringR*std::sin(a1)}, Color{130,180,255,160});
+        ClearBackground(BLACK);
+        BeginShaderMode(post);
+        DrawTexturePro(target.texture,
+                       {0, 0, static_cast<float>(target.texture.width), -static_cast<float>(target.texture.height)},
+                       {0, 0, static_cast<float>(width), static_cast<float>(height)}, {0, 0}, 0, WHITE);
+        EndShaderMode();
+
+        DrawRectangleGradientV(0, 0, width, 126, Color{4, 9, 16, 245}, Color{4, 9, 16, 25});
+        DrawRectangleGradientV(0, height - 125, width, 125, Color{4, 9, 16, 0}, Color{4, 9, 16, 245});
+        studio::text("COLLIDER / EVENT DISPLAY", 34, 24, 22, kInk);
+        studio::text(TextFormat("EVENT %06u", event.number), 35, 55, 13, kMuted);
+
+        float timelineWidth = std::min(610.0f, width * .44f);
+        float timelineX = (width - timelineWidth) * .5f;
+        DrawLineEx({timelineX, 49}, {timelineX + timelineWidth, 49}, 2, Color{44, 65, 83, 220});
+        float progress = timeline.time / collider::Timeline::duration;
+        DrawLineEx({timelineX, 49}, {timelineX + timelineWidth * progress, 49}, 2, collider::kCyan);
+        constexpr float marks[] = {0, 2.55f, 5.0f, 10.65f, collider::Timeline::duration};
+        constexpr const char* labels[] = {"INJECT", "COLLIDE", "TRACE", "HOLD", "RESET"};
+        for (int i = 0; i < 5; ++i) {
+            float x = timelineX + timelineWidth * marks[i] / collider::Timeline::duration;
+            DrawCircleV({x, 49}, i == 1 && timeline.time > 2.45f && timeline.time < 2.9f ? 5 : 3,
+                        marks[i] <= timeline.time ? collider::kCyan : kMuted);
+            studio::text(labels[i], x - studio::textWidth(labels[i], 10) * .5f, 64, 10, kMuted);
         }
 
-        for (size_t i=1;i<trail.size();++i) DrawLine3D(trail[i-1], trail[i], Color{255,170,120,140});
-        DrawSphere(p, 0.12f, Color{255, 210, 130, 255});
+        Rectangle cinemaButton{static_cast<float>(width - 232), 24, 92, 30};
+        Rectangle nextButton{static_cast<float>(width - 130), 24, 96, 30};
+        if (studio::clicked(cinemaButton)) cinematic = !cinematic;
+        if (studio::clicked(nextButton)) { event = collider::generateEvent(++eventNumber); timeline.restart(); }
+        drawPill(cinemaButton, cinematic ? "CINEMATIC" : "FREE CAM", cinematic, collider::kViolet);
+        drawPill(nextButton, "NEW EVENT", false, collider::kCyan);
 
-        DrawLine3D({0,0.0f,0},{0,2.0f,0}, Color{120,220,255,220});
-
-        EndMode3D();
-
-        studio::title("Particle Accelerator: Circular Motion in Magnetic Field", studio::Style::Quantum);
-        studio::help("Hold left mouse: orbit | wheel: zoom | [ ] B-field | +/- speed | P pause | R reset");
-
-        std::ostringstream os;
-        os << std::fixed << std::setprecision(3)
-           << "B=" << B << "  q/m=" << (q/m) << "  omega=qB/m=" << (q*B/m) << "  speed scale=" << speed;
-        if (paused) os << "  [PAUSED]";
-        studio::readout(os.str().c_str());
-        studio::fps();
-
+        studio::text(phaseName(timeline.time), 34, height - 92, 25, kInk);
+        studio::text(TextFormat("%.0f GeV visible energy", event.totalEnergy), 35, height - 58, 13, collider::kAmber);
+        studio::text(TextFormat("B %.1f T   /   %zu reconstructed tracks   /   %.1f ms", fieldTesla,
+                                event.particles.size(), averageMs), 35, height - 33, 12, kMuted);
+        if (timeline.reveal() > .5f && width > 1120) {
+            const struct { const char* label; Color color; } legend[] = {
+                {"ELECTRON", collider::kCyan}, {"MUON", collider::kViolet},
+                {"PHOTON", collider::kAmber}, {"HADRON", Color{105,239,173,255}}
+            };
+            float lx = width - 420.0f;
+            for (const auto& item : legend) {
+                DrawCircleV({lx, static_cast<float>(height - 72)}, 3.5f, item.color);
+                studio::text(item.label, lx + 9, height - 78, 10, kMuted);
+                lx += studio::textWidth(item.label, 10) + 35;
+            }
+        }
+        const char* help = cinematic ? "Space pause   N new collision   C free camera   1/2/3 speed" :
+                                       "Drag orbit   Scroll zoom   C cinematic   Left/Right magnetic field";
+        studio::text(help, width - studio::textWidth(help, 12) - 35, height - 33, 12, kMuted);
+        if (timeline.paused) studio::text("PAUSED", width - 105, height - 64, 14, collider::kMagenta);
         EndDrawing();
         if (studio::smokeFrame(__FILE__)) break;
     }
 
+    UnloadRenderTexture(target);
+    UnloadShader(post);
     studio::unload();
     CloseWindow();
     return 0;

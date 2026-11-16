@@ -3,6 +3,7 @@
 #include "../src/common/quantum_solver.h"
 #include "../src/common/black_hole_growth.h"
 #include "../src/simulations/nuclear/plant/model.h"
+#include "../src/simulations/particle_physics/collider/model.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -96,5 +97,19 @@ int main() {
     grab.update(true,false,1);grab.update(true,true,1);
     require(grab.held==1,"open hand can reacquire after tracking loss");
     grab.update(true,false,1);require(grab.held==-1,"releasing pinch releases dial");
+    auto collision=collider::generateEvent(42);
+    require(collision.particles.size()>=40&&collision.totalEnergy>0,"collider event produces a populated deterministic final state");
+    auto collisionAgain=collider::generateEvent(42);
+    require(collisionAgain.particles.size()==collision.particles.size()&&
+            collisionAgain.totalEnergy==collision.totalEnergy,"collider event generation is reproducible for recording");
+    collider::Particle positive{collider::Species::Muon,1,40,.9f,.3f,.1f,0,{255,255,255,255}};
+    collider::Particle negative=positive;negative.charge=-1;
+    collider::Particle photon=positive;photon.species=collider::Species::Photon;photon.charge=0;
+    auto plus=collider::trackPoint(positive,3,3.8f),minus=collider::trackPoint(negative,3,3.8f);
+    require(std::abs(plus.y-minus.y)>.05f||std::abs(plus.z-minus.z)>.05f,"opposite charges curve in opposite transverse directions");
+    auto light=collider::trackPoint(photon,3,3.8f);
+    require(std::abs(collider::radialDistance(light)-3*photon.transverse)<1e-5,"neutral photon follows a straight transverse ray");
+    collider::Timeline colliderTime;for(int i=0;i<162;++i)colliderTime.update(1.0f/60);
+    require(colliderTime.collision()>0&&colliderTime.tracks()>0,"collider timeline reveals tracks after beam collision");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }
