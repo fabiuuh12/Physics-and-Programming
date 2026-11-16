@@ -232,7 +232,7 @@ void main() {
         }
         if (studio::clicked(cinemaButton)) cinematic = !cinematic;
         if (studio::clicked(nextButton)) { event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]); timeline.restart(); }
-        drawPill(uiFont, viewButton, waveView ? "VIEW: WAVES" : "VIEW: TRACKS", waveView, collider::kCyan);
+        drawPill(uiFont, viewButton, waveView ? "BEAMS: WAVES" : "BEAMS: PARTICLES", waveView, collider::kCyan);
         drawPill(uiFont, energyButton, TextFormat("%.1f TeV", energyOptions[energyIndex]), false, collider::kAmber);
         drawPill(uiFont, cinemaButton, cinematic ? "CAMERA: CINEMATIC" : "CAMERA: FREE", cinematic, collider::kViolet);
         drawPill(uiFont, nextButton, "NEW EVENT", false, collider::kCyan);
@@ -262,8 +262,8 @@ void main() {
                 lx += uiWidth(uiFont, item.label, 11) + 35;
             }
         }
-        const char* help = cinematic ? "Space pause   N new collision   W wave view   C camera   E energy" :
-                                       "Drag orbit   Scroll zoom   W wave view   C cinematic   E energy";
+        const char* help = cinematic ? "Space pause   N new collision   W beam model   C camera   E energy" :
+                                       "Drag orbit   Scroll zoom   W beam model   C cinematic   E energy";
         uiText(uiFont, help, width - uiWidth(uiFont, help, 13) - 35, height - 33, 13, kMuted);
         if (timeline.paused) uiText(uiFont, "PAUSED", width - 105, height - 65, 15, collider::kMagenta);
         EndDrawing();

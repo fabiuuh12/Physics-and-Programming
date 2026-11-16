@@ -169,8 +169,8 @@ void main() {
         SetShaderValue(shader_, shader_.locs[SHADER_LOC_VECTOR_VIEW], &camera.position.x, SHADER_UNIFORM_VEC3);
         drawEnvironment(camera);
         if (detectorVisible) drawDetector(camera, timeline.reveal());
-        drawBeams(camera, timeline);
-        if (showTracks) drawEvent(camera, event, timeline, fieldTesla, waveView);
+        drawBeams(camera, timeline, waveView);
+        if (showTracks) drawEvent(camera, event, timeline, fieldTesla);
     }
 
   private:
@@ -304,7 +304,7 @@ void main() {
         }
     }
 
-    void drawBeams(const Camera3D& camera, const Timeline& timeline) {
+    void drawBeams(const Camera3D& camera, const Timeline& timeline, bool waveView) {
         float progress = timeline.beam();
         if (timeline.time > 2.82f) return;
         Vector3 right = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(camera.target, camera.position), camera.up));
@@ -314,12 +314,41 @@ void main() {
         for (int side : {-1, 1}) {
             float head = side * (11.8f * (1.0f - progress));
             Color color = side < 0 ? kCyan : kMagenta;
-            for (int i = 0; i < 70; ++i) {
-                float trail = i / 69.0f;
-                float x = head + side * trail * 4.1f;
-                float swirl = timeline.time * 6.0f + i * 2.39996f;
-                Vector3 p{x, .09f * std::cos(swirl) * (1.0f - trail), .09f * std::sin(swirl) * (1.0f - trail)};
-                DrawBillboard(camera, glow_, p, .08f + .16f * (1.0f - trail), Fade(color, .95f * (1.0f - trail)));
+            if (waveView) {
+                // Two counter-propagating phase helices converge on the
+                // interaction point. This replaces the incoming bunches only;
+                // reconstructed final-state tracks remain conventional.
+                constexpr int segments = 96;
+                for (int pass = 0; pass < 2; ++pass) {
+                    rlSetLineWidth(pass == 0 ? 5.0f : 1.7f);
+                    rlBegin(RL_LINES);
+                    Vector3 previous{};
+                    for (int i = 0; i < segments; ++i) {
+                        float trail = i / static_cast<float>(segments - 1);
+                        float x = head + side * trail * 5.4f;
+                        float envelope = std::sin(pi * std::clamp(trail * 1.08f, 0.0f, 1.0f));
+                        float phase = side * (i * .48f - timeline.time * 8.0f);
+                        Vector3 point{x, .25f * envelope * std::cos(phase), .25f * envelope * std::sin(phase)};
+                        if (i > 0) {
+                            Color line = Fade(color, pass == 0 ? .13f : .92f);
+                            rlColor4ub(line.r, line.g, line.b, line.a);
+                            rlVertex3f(previous.x, previous.y, previous.z);
+                            rlVertex3f(point.x, point.y, point.z);
+                        }
+                        previous = point;
+                    }
+                    rlEnd();
+                }
+                rlSetLineWidth(1.0f);
+                DrawBillboard(camera, glow_, {head, 0, 0}, .42f, Fade(color, .52f));
+            } else {
+                for (int i = 0; i < 70; ++i) {
+                    float trail = i / 69.0f;
+                    float x = head + side * trail * 4.1f;
+                    float swirl = timeline.time * 6.0f + i * 2.39996f;
+                    Vector3 p{x, .09f * std::cos(swirl) * (1.0f - trail), .09f * std::sin(swirl) * (1.0f - trail)};
+                    DrawBillboard(camera, glow_, p, .08f + .16f * (1.0f - trail), Fade(color, .95f * (1.0f - trail)));
+                }
             }
         }
         rlEnableDepthMask();
@@ -355,42 +384,8 @@ void main() {
         }
     }
 
-    void drawWaveLine(const Particle& particle, float progress, float fieldTesla, float fade, float intensity = 1.0f) {
-        constexpr int segments = 84;
-        constexpr float maxDistance = 17.0f;
-        Vector3 previous{};
-        bool havePrevious = false;
-        for (int i = 1; i <= segments; ++i) {
-            float distance = maxDistance * progress * i / segments;
-            Vec3 modelPoint = trackPoint(particle, distance, fieldTesla);
-            if (radialDistance(modelPoint) > maxRadius(particle.species) || std::abs(modelPoint.x) > 9.3f) break;
-            Vec3 nextModel = trackPoint(particle, distance + .035f, fieldTesla);
-            Vector3 center = render(modelPoint);
-            Vector3 tangent = Vector3Normalize(Vector3Subtract(render(nextModel), center));
-            Vector3 reference = std::abs(tangent.y) < .88f ? Vector3{0, 1, 0} : Vector3{0, 0, 1};
-            Vector3 normal = Vector3Normalize(Vector3CrossProduct(tangent, reference));
-            Vector3 binormal = Vector3Normalize(Vector3CrossProduct(tangent, normal));
-            float cyclesPerUnit = .72f + .018f * std::clamp(particle.momentum, 0.0f, 90.0f);
-            float phase = particle.phase + distance * cyclesPerUnit * 2.0f * pi - static_cast<float>(GetTime()) * 4.2f;
-            float amplitude = (particle.species == Species::Photon ? .115f : .085f) *
-                              (particle.higgsDaughter ? 1.28f : 1.0f);
-            Vector3 offset = Vector3Add(Vector3Scale(normal, std::cos(phase) * amplitude),
-                                        Vector3Scale(binormal, std::sin(phase) * amplitude));
-            Vector3 point = Vector3Add(center, offset);
-            if (havePrevious) {
-                Color color = Fade(render(particle.color), std::clamp(fade * intensity *
-                                   (particle.higgsDaughter ? 1.22f : 1.0f), 0.0f, 1.0f));
-                rlColor4ub(color.r, color.g, color.b, color.a);
-                rlVertex3f(previous.x, previous.y, previous.z);
-                rlVertex3f(point.x, point.y, point.z);
-            }
-            previous = point;
-            havePrevious = true;
-        }
-    }
-
     void drawEvent(const Camera3D& camera, const Event& event, const Timeline& timeline,
-                   float fieldTesla, bool waveView) {
+                   float fieldTesla) {
         float progress = timeline.tracks();
         float fade = timeline.holdFade();
         if (timeline.collision() <= 0.0f) return;
@@ -399,28 +394,23 @@ void main() {
         rlDisableDepthMask();
         rlSetTexture(0);
         rlBegin(RL_LINES);
-        for (const auto& particle : event.particles) {
-            if (waveView) drawWaveLine(particle, progress, fieldTesla, fade, .88f);
-            else drawTrackLine(particle, progress, fieldTesla, fade);
-        }
+        for (const auto& particle : event.particles) drawTrackLine(particle, progress, fieldTesla, fade);
         rlEnd();
 
         // High-momentum tracks get a soft halo and a bright core. Photons and
         // muons stay especially clean, while the low-energy event remains fine.
         rlSetLineWidth(4.0f);
         rlBegin(RL_LINES);
-        if (!waveView) {
-            for (const auto& particle : event.particles) {
-                if (particle.momentum > 34 || particle.species == Species::Photon || particle.species == Species::Muon)
-                    drawTrackLine(particle, progress, fieldTesla, fade, .12f);
-            }
+        for (const auto& particle : event.particles) {
+            if (particle.momentum > 34 || particle.species == Species::Photon || particle.species == Species::Muon)
+                drawTrackLine(particle, progress, fieldTesla, fade, .12f);
         }
         rlEnd();
         rlSetLineWidth(1.8f);
         rlBegin(RL_LINES);
         for (const auto& particle : event.particles) {
             if (particle.momentum > 52 || particle.species == Species::Photon || particle.species == Species::Muon) {
-                if (!waveView) drawTrackLine(particle, progress, fieldTesla, fade, .72f);
+                drawTrackLine(particle, progress, fieldTesla, fade, .72f);
             }
         }
         rlEnd();
