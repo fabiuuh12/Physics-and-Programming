@@ -315,22 +315,33 @@ void main() {
             float head = side * (11.8f * (1.0f - progress));
             Color color = side < 0 ? kCyan : kMagenta;
             if (waveView) {
-                // Two counter-propagating phase helices converge on the
-                // interaction point. This replaces the incoming bunches only;
-                // reconstructed final-state tracks remain conventional.
+                // A localized Gaussian packet carries a subtle phase helix.
+                // It is an interpretive view of quantum amplitude rather than
+                // a literal spring-shaped proton trajectory.
                 constexpr int segments = 96;
+                for (int i = 0; i < segments; i += 3) {
+                    float trail = i / static_cast<float>(segments - 1);
+                    float x = head + side * (trail * 6.2f - .28f);
+                    float q = (trail - .48f) / .245f;
+                    float envelope = std::exp(-q * q);
+                    float shimmer = .82f + .18f * std::sin(i * .61f - timeline.time * 7.0f * side);
+                    DrawBillboard(camera, glow_, {x, 0, 0}, (.22f + .70f * envelope) * shimmer,
+                                  Fade(color, .035f + .10f * envelope));
+                }
                 for (int pass = 0; pass < 2; ++pass) {
-                    rlSetLineWidth(pass == 0 ? 5.0f : 1.7f);
+                    rlSetLineWidth(pass == 0 ? 4.0f : 1.35f);
                     rlBegin(RL_LINES);
                     Vector3 previous{};
                     for (int i = 0; i < segments; ++i) {
                         float trail = i / static_cast<float>(segments - 1);
-                        float x = head + side * trail * 5.4f;
-                        float envelope = std::sin(pi * std::clamp(trail * 1.08f, 0.0f, 1.0f));
-                        float phase = side * (i * .48f - timeline.time * 8.0f);
-                        Vector3 point{x, .25f * envelope * std::cos(phase), .25f * envelope * std::sin(phase)};
+                        float x = head + side * (trail * 6.2f - .28f);
+                        float q = (trail - .48f) / .245f;
+                        float envelope = std::exp(-q * q);
+                        float phase = side * (i * .42f - timeline.time * 8.0f);
+                        Vector3 point{x, .22f * envelope * std::cos(phase),
+                                         .22f * envelope * std::sin(phase)};
                         if (i > 0) {
-                            Color line = Fade(color, pass == 0 ? .13f : .92f);
+                            Color line = Fade(color, (pass == 0 ? .11f : .88f) * (.18f + .82f * envelope));
                             rlColor4ub(line.r, line.g, line.b, line.a);
                             rlVertex3f(previous.x, previous.y, previous.z);
                             rlVertex3f(point.x, point.y, point.z);
@@ -340,7 +351,7 @@ void main() {
                     rlEnd();
                 }
                 rlSetLineWidth(1.0f);
-                DrawBillboard(camera, glow_, {head, 0, 0}, .42f, Fade(color, .52f));
+                DrawBillboard(camera, glow_, {head, 0, 0}, .30f, Fade(color, .34f));
             } else {
                 for (int i = 0; i < 70; ++i) {
                     float trail = i / 69.0f;
@@ -350,6 +361,15 @@ void main() {
                     DrawBillboard(camera, glow_, p, .08f + .16f * (1.0f - trail), Fade(color, .95f * (1.0f - trail)));
                 }
             }
+        }
+        if (waveView && progress > .72f) {
+            float overlap = std::clamp((progress - .72f) / .28f, 0.0f, 1.0f);
+            overlap = overlap * overlap * (3.0f - 2.0f * overlap);
+            float beat = .72f + .28f * std::sin(timeline.time * 18.0f);
+            DrawBillboard(camera, glow_, {0, 0, 0}, .55f + 1.35f * overlap,
+                          Fade(WHITE, .16f * overlap * beat));
+            DrawBillboard(camera, glow_, {0, 0, 0}, 1.2f + 2.1f * overlap,
+                          Fade(kViolet, .07f * overlap));
         }
         rlEnableDepthMask();
         EndBlendMode();

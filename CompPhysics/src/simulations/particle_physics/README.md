@@ -28,7 +28,7 @@ Controls:
 - **C** switches between the cinematic camera and a free camera. In free-camera
   mode, drag to orbit and use the wheel to zoom.
 - **W** or the beam button switches the two incoming proton bunches between
-  particle clouds and luminous counter-propagating 3D phase helices.
+  particle clouds and localized Gaussian wave packets with internal 3D phase.
 - **1/2/3** selects slow, normal, or double speed.
 - **Left/Right** changes the displayed solenoid field strength.
 - **D** hides detector geometry and **T** hides reconstructed tracks.
