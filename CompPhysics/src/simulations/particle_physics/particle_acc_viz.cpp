@@ -131,6 +131,7 @@ void main() {
     bool cinematic = true, detectorVisible = true, showTracks = true;
     bool waveView = std::getenv("COMPPHYSICS_WAVE_VIEW") != nullptr;
     bool showHud = false;
+    float higgsArmedNotice = 0.0f;
     float yaw = .62f, pitch = .30f, distance = 25.0f;
     Camera3D manualCamera{{20, 8, 18}, {0, .2f, 0}, {0, 1, 0}, 39, CAMERA_PERSPECTIVE};
     float previousTimeline = timeline.time, averageMs = 8.0f;
@@ -163,6 +164,7 @@ void main() {
         if (IsKeyPressed(KEY_G)) {
             event = collider::generateEvent(++eventNumber, energyOptions[energyIndex], true);
             timeline.restart();
+            higgsArmedNotice = 1.8f;
         }
         if (IsKeyPressed(KEY_ONE)) timeline.speed = .35f;
         if (IsKeyPressed(KEY_TWO)) timeline.speed = 1.0f;
@@ -171,6 +173,7 @@ void main() {
         if (IsKeyDown(KEY_RIGHT)) fieldTesla = std::min(6.0f, fieldTesla + dt);
 
         timeline.update(dt);
+        higgsArmedNotice = std::max(0.0f, higgsArmedNotice - dt);
         if (timeline.time < previousTimeline) event = collider::generateEvent(++eventNumber, energyOptions[energyIndex]);
         previousTimeline = timeline.time;
         averageMs += (dt * 1000.0f - averageMs) * .04f;
@@ -205,6 +208,18 @@ void main() {
                        {0, 0, static_cast<float>(target.texture.width), -static_cast<float>(target.texture.height)},
                        {0, 0, static_cast<float>(width), static_cast<float>(height)}, {0, 0}, 0, WHITE);
         EndShaderMode();
+
+        if (higgsArmedNotice > 0.0f) {
+            float appear = std::clamp(higgsArmedNotice / .25f, 0.0f, 1.0f);
+            float disappear = std::clamp((1.8f - higgsArmedNotice) / .18f, 0.0f, 1.0f);
+            float alpha = std::min(appear, disappear);
+            const char* armed = "HIGGS EVENT ARMED";
+            float armedWidth = uiWidth(uiFont, armed, 15);
+            Rectangle notice{(width - armedWidth - 48.0f) * .5f, 34, armedWidth + 48.0f, 38};
+            DrawRectangleRounded(notice, .45f, 10, Fade(Color{28, 14, 35, 255}, .90f * alpha));
+            DrawRectangleRoundedLinesEx(notice, .45f, 10, 1, Fade(collider::kMagenta, .70f * alpha));
+            uiText(uiFont, armed, notice.x + 24, notice.y + 10, 15, Fade(collider::kMagenta, alpha));
+        }
 
         if (event.higgsCandidate && timeline.reveal() > .5f) {
             const char* channel = event.higgsChannel == collider::HiggsChannel::GammaGamma ? "H -> gamma gamma" : "H -> ZZ* -> 4 leptons";
