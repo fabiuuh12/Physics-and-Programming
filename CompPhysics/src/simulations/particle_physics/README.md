@@ -34,6 +34,9 @@ Controls:
 - **D** hides detector geometry and **T** hides reconstructed tracks.
 - **H** reveals or hides the interface. It starts hidden for a clean simulation
   and recording view; all keyboard controls remain active without it.
+- Click **HIGGS EVENT** or press **G** to immediately start a guaranteed Higgs
+  candidate event. The button hides after use for a clean recording; naturally
+  generated events retain their energy-dependent Higgs probability.
 
 The visualization is an educational event display rather than a full Monte
 Carlo detector simulation. Event species and momenta are generated from a fixed,
