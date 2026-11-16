@@ -35,6 +35,35 @@ inline Matrix trs(Vector3 p, Vector3 s, float rotationX = 0.0f) {
                           MatrixTranslate(p.x, p.y, p.z));
 }
 
+inline Mesh makeCutawayShell() {
+    constexpr int segments = 72;
+    constexpr int verticesPerSegment = 6;
+    Mesh mesh{};
+    mesh.vertexCount = segments * verticesPerSegment;
+    mesh.triangleCount = mesh.vertexCount / 3;
+    mesh.vertices = static_cast<float*>(MemAlloc(mesh.vertexCount * 3 * sizeof(float)));
+    mesh.normals = static_cast<float*>(MemAlloc(mesh.vertexCount * 3 * sizeof(float)));
+    int cursor = 0;
+    auto emit = [&](float x, float angle) {
+        mesh.vertices[cursor] = x;
+        mesh.normals[cursor++] = 0;
+        mesh.vertices[cursor] = std::cos(angle);
+        mesh.normals[cursor++] = std::cos(angle);
+        mesh.vertices[cursor] = std::sin(angle);
+        mesh.normals[cursor++] = std::sin(angle);
+    };
+    const float start = 1.50f;
+    const float span = 2.0f * PI - 1.47f;
+    for (int i = 0; i < segments; ++i) {
+        float a = start + span * i / segments;
+        float b = start + span * (i + 1) / segments;
+        emit(-1, a); emit(1, a); emit(1, b);
+        emit(-1, a); emit(1, b); emit(-1, b);
+    }
+    UploadMesh(&mesh, false);
+    return mesh;
+}
+
 inline Texture2D makeGlowTexture() {
     constexpr int side = 64;
     Image image = GenImageColor(side, side, BLANK);
@@ -66,6 +95,7 @@ class Renderer {
         cylinder_ = GenMeshCylinder(1, 1, 32);
         sphere_ = GenMeshSphere(1, 18, 24);
         torus_ = GenMeshTorus(.12f, 1.0f, 20, 64);
+        shell_ = makeCutawayShell();
         glow_ = makeGlowTexture();
 
         const char* instancedVs = R"GLSL(#version 330
@@ -104,6 +134,7 @@ void main() {
         shader_ = LoadShaderFromMemory(instancedVs, litFs);
         ready_ = shader_.id != 0 && shader_.id != rlGetShaderIdDefault();
         material_ = LoadMaterialDefault();
+        shellMaterial_ = LoadMaterialDefault();
         if (ready_) {
             material_.shader = shader_;
             shader_.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(shader_, "mvp");
@@ -121,11 +152,13 @@ void main() {
         UnloadMesh(cylinder_);
         UnloadMesh(sphere_);
         UnloadMesh(torus_);
+        UnloadMesh(shell_);
         if (ready_) {
             material_.shader = {};
             UnloadShader(shader_);
         }
         UnloadMaterial(material_);
+        UnloadMaterial(shellMaterial_);
     }
 
     bool ready() const { return ready_; }
@@ -141,8 +174,9 @@ void main() {
     }
 
   private:
-    Mesh cube_{}, cylinder_{}, sphere_{}, torus_{};
+    Mesh cube_{}, cylinder_{}, sphere_{}, torus_{}, shell_{};
     Material material_{};
+    Material shellMaterial_{};
     Shader shader_{};
     Texture2D glow_{};
     bool ready_ = false;
@@ -232,6 +266,25 @@ void main() {
 
     void drawDetector(const Camera3D& camera, float reveal) {
         (void)camera;
+        // Thin continuous shells give the segmented sensors a coherent form.
+        // They are deliberately subtle and do not write depth, so tracks remain
+        // readable through the open camera-facing quadrant.
+        BeginBlendMode(BLEND_ALPHA);
+        rlDisableDepthMask();
+        struct Shell { float radius, halfLength; Color color; };
+        const Shell shells[] = {
+            {1.56f, 6.25f, Color{42, 178, 216, 34}},
+            {3.12f, 7.18f, Color{238, 172, 54, 32}},
+            {4.63f, 7.78f, Color{76, 184, 194, 27}},
+            {7.34f, 8.78f, Color{132, 104, 218, 22}},
+        };
+        for (const auto& shell : shells) {
+            shellMaterial_.maps[MATERIAL_MAP_DIFFUSE].color = shell.color;
+            DrawMesh(shell_, shellMaterial_, MatrixScale(shell.halfLength, shell.radius, shell.radius));
+        }
+        rlEnableDepthMask();
+        EndBlendMode();
+
         // Fade the outer systems in after the collision so tracks remain readable.
         batch(barrel_[3], .34f + .42f * reveal);
         batch(barrel_[2], .48f + .42f * reveal);
@@ -275,7 +328,7 @@ void main() {
         (void)up;
     }
 
-    void drawTrackLine(const Particle& particle, float progress, float fieldTesla, float fade) {
+    void drawTrackLine(const Particle& particle, float progress, float fieldTesla, float fade, float intensity = 1.0f) {
         constexpr int segments = 84;
         float maxDistance = 17.0f;
         Vector3 previous{};
@@ -287,7 +340,7 @@ void main() {
             if (radialDistance(modelPoint) > maxRadius(particle.species) || std::abs(point.x) > 9.3f) break;
             if (havePrevious) {
                 float head = i / static_cast<float>(segments);
-                Color c = Fade(render(particle.color), fade * (.32f + .68f * head));
+                Color c = Fade(render(particle.color), fade * intensity * (.32f + .68f * head));
                 rlColor4ub(c.r, c.g, c.b, c.a);
                 rlVertex3f(previous.x, previous.y, previous.z);
                 rlVertex3f(point.x, point.y, point.z);
@@ -308,6 +361,22 @@ void main() {
         rlBegin(RL_LINES);
         for (const auto& particle : event.particles) drawTrackLine(particle, progress, fieldTesla, fade);
         rlEnd();
+
+        // Give the high-energy pair a soft glow and bright core. Layered line
+        // batches are considerably cheaper than dozens of tiny tube meshes.
+        if (event.particles.size() >= 2) {
+            rlSetLineWidth(4.0f);
+            rlBegin(RL_LINES);
+            for (size_t i = event.particles.size() - 2; i < event.particles.size(); ++i)
+                drawTrackLine(event.particles[i], progress, fieldTesla, fade, .18f);
+            rlEnd();
+            rlSetLineWidth(2.0f);
+            rlBegin(RL_LINES);
+            for (size_t i = event.particles.size() - 2; i < event.particles.size(); ++i)
+                drawTrackLine(event.particles[i], progress, fieldTesla, fade, 1.0f);
+            rlEnd();
+            rlSetLineWidth(1.0f);
+        }
 
         // Energy deposits appear at the subsystem reached by each particle.
         for (const auto& particle : event.particles) {
