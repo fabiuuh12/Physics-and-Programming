@@ -17,7 +17,7 @@ float uiWidth(Font font, const char* text, float size) {
 }
 
 void uiText(Font font, const char* text, float x, float y, float size, Color color) {
-    DrawTextEx(font, text, {x, y}, size, kLetterSpacing, color);
+    DrawTextEx(font, text, {std::round(x), std::round(y)}, size, kLetterSpacing, color);
 }
 
 float smooth(float value) {
@@ -60,7 +60,8 @@ void drawPill(Font font, Rectangle bounds, const char* text, bool active, Color 
 
 int main() {
     bool smoke = std::getenv("COMPPHYSICS_SMOKE_FRAMES") != nullptr;
-    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | (smoke ? FLAG_WINDOW_HIDDEN : 0));
+    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI |
+                   (smoke ? FLAG_WINDOW_HIDDEN : 0));
     InitWindow(1440, 900, "Collider Event | Particle Accelerator");
     SetWindowMinSize(1000, 650);
     SetTargetFPS(120);
