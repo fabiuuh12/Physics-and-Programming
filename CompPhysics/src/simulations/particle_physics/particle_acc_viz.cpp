@@ -130,6 +130,7 @@ void main() {
     float fieldTesla = 3.8f;
     bool cinematic = true, detectorVisible = true, showTracks = true;
     bool waveView = std::getenv("COMPPHYSICS_WAVE_VIEW") != nullptr;
+    bool showHud = false;
     float yaw = .62f, pitch = .30f, distance = 25.0f;
     Camera3D manualCamera{{20, 8, 18}, {0, .2f, 0}, {0, 1, 0}, 39, CAMERA_PERSPECTIVE};
     float previousTimeline = timeline.time, averageMs = 8.0f;
@@ -158,6 +159,7 @@ void main() {
         if (IsKeyPressed(KEY_D)) detectorVisible = !detectorVisible;
         if (IsKeyPressed(KEY_T)) showTracks = !showTracks;
         if (IsKeyPressed(KEY_W)) waveView = !waveView;
+        if (IsKeyPressed(KEY_H)) showHud = !showHud;
         if (IsKeyPressed(KEY_ONE)) timeline.speed = .35f;
         if (IsKeyPressed(KEY_TWO)) timeline.speed = 1.0f;
         if (IsKeyPressed(KEY_THREE)) timeline.speed = 2.0f;
@@ -200,6 +202,7 @@ void main() {
                        {0, 0, static_cast<float>(width), static_cast<float>(height)}, {0, 0}, 0, WHITE);
         EndShaderMode();
 
+        if (showHud) {
         DrawRectangleGradientV(0, 0, width, 126, Color{4, 9, 16, 245}, Color{4, 9, 16, 25});
         DrawRectangleGradientV(0, height - 125, width, 125, Color{4, 9, 16, 0}, Color{4, 9, 16, 245});
         uiText(uiFont, "COLLIDER / EVENT DISPLAY", 34, 22, 24, kInk);
@@ -266,6 +269,7 @@ void main() {
                                        "Drag orbit   Scroll zoom   W beam model   C cinematic   E energy";
         uiText(uiFont, help, width - uiWidth(uiFont, help, 13) - 35, height - 33, 13, kMuted);
         if (timeline.paused) uiText(uiFont, "PAUSED", width - 105, height - 65, 15, collider::kMagenta);
+        }
         EndDrawing();
         if (studio::smokeFrame(__FILE__)) break;
     }

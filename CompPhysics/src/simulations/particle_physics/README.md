@@ -32,6 +32,8 @@ Controls:
 - **1/2/3** selects slow, normal, or double speed.
 - **Left/Right** changes the displayed solenoid field strength.
 - **D** hides detector geometry and **T** hides reconstructed tracks.
+- **H** reveals or hides the interface. It starts hidden for a clean simulation
+  and recording view; all keyboard controls remain active without it.
 
 The visualization is an educational event display rather than a full Monte
 Carlo detector simulation. Event species and momenta are generated from a fixed,
