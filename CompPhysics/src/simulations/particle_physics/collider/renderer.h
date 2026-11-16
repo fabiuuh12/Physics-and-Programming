@@ -340,7 +340,11 @@ void main() {
             if (radialDistance(modelPoint) > maxRadius(particle.species) || std::abs(point.x) > 9.3f) break;
             if (havePrevious) {
                 float head = i / static_cast<float>(segments);
-                Color c = Fade(render(particle.color), fade * intensity * (.32f + .68f * head));
+                float speciesBoost = particle.species == Species::Photon ? 1.18f :
+                                     particle.species == Species::Muon ? 1.10f : 1.0f;
+                float momentumBoost = .72f + .28f * std::clamp(particle.momentum / 65.0f, 0.0f, 1.0f);
+                Color c = Fade(render(particle.color), std::clamp(fade * intensity * speciesBoost * momentumBoost *
+                                                                  (.28f + .72f * head), 0.0f, 1.0f));
                 rlColor4ub(c.r, c.g, c.b, c.a);
                 rlVertex3f(previous.x, previous.y, previous.z);
                 rlVertex3f(point.x, point.y, point.z);
@@ -362,20 +366,36 @@ void main() {
         for (const auto& particle : event.particles) drawTrackLine(particle, progress, fieldTesla, fade);
         rlEnd();
 
-        // Give the high-energy pair a soft glow and bright core. Layered line
-        // batches are considerably cheaper than dozens of tiny tube meshes.
-        if (event.particles.size() >= 2) {
-            rlSetLineWidth(4.0f);
-            rlBegin(RL_LINES);
-            for (size_t i = event.particles.size() - 2; i < event.particles.size(); ++i)
-                drawTrackLine(event.particles[i], progress, fieldTesla, fade, .18f);
-            rlEnd();
-            rlSetLineWidth(2.0f);
-            rlBegin(RL_LINES);
-            for (size_t i = event.particles.size() - 2; i < event.particles.size(); ++i)
-                drawTrackLine(event.particles[i], progress, fieldTesla, fade, 1.0f);
-            rlEnd();
-            rlSetLineWidth(1.0f);
+        // High-momentum tracks get a soft halo and a bright core. Photons and
+        // muons stay especially clean, while the low-energy event remains fine.
+        rlSetLineWidth(4.0f);
+        rlBegin(RL_LINES);
+        for (const auto& particle : event.particles)
+            if (particle.momentum > 34 || particle.species == Species::Photon || particle.species == Species::Muon)
+                drawTrackLine(particle, progress, fieldTesla, fade, .12f);
+        rlEnd();
+        rlSetLineWidth(1.8f);
+        rlBegin(RL_LINES);
+        for (const auto& particle : event.particles)
+            if (particle.momentum > 52 || particle.species == Species::Photon || particle.species == Species::Muon)
+                drawTrackLine(particle, progress, fieldTesla, fade, .72f);
+        rlEnd();
+        rlSetLineWidth(1.0f);
+
+        // A luminous head makes propagation readable before the event freezes.
+        if (progress > .01f && progress < .995f) {
+            float headFade = fade * (1.0f - .58f * timeline.reveal());
+            for (const auto& particle : event.particles) {
+                Vec3 modelHead = trackPoint(particle, 17.0f * progress, fieldTesla);
+                if (radialDistance(modelHead) > maxRadius(particle.species) || std::abs(modelHead.x) > 9.2f)
+                    modelHead = endpoint(particle, fieldTesla);
+                Vector3 head = render(modelHead);
+                float energy = std::clamp(particle.momentum / 90.0f, .08f, 1.0f);
+                float size = .065f + .12f * std::sqrt(energy);
+                Color color = render(particle.color);
+                DrawBillboard(camera, glow_, head, size * 3.2f, Fade(color, .22f * headFade));
+                DrawBillboard(camera, glow_, head, size, Fade(WHITE, .88f * headFade));
+            }
         }
 
         // Energy deposits appear at the subsystem reached by each particle.
@@ -384,7 +404,27 @@ void main() {
             Vector3 hit = render(endpoint(particle, fieldTesla));
             float energy = std::clamp(particle.momentum / 80.0f, .12f, 1.0f);
             float pulse = .70f + .30f * std::sin(GetTime() * 4.0 + particle.phase);
-            DrawBillboard(camera, glow_, hit, (.16f + .44f * energy) * pulse, Fade(render(particle.color), .52f * fade));
+            Color color = render(particle.color);
+            DrawBillboard(camera, glow_, hit, (.16f + .44f * energy) * pulse, Fade(color, .58f * fade));
+
+            // Calorimeter showers use deterministic sparks, so a recorded event
+            // is stable from frame to frame and each species stays recognizable.
+            int sparks = particle.species == Species::Muon ? 1 :
+                         particle.species == Species::Hadron ? 8 : 6;
+            float showerScale = particle.species == Species::Hadron ? .72f : .46f;
+            for (int s = 0; s < sparks; ++s) {
+                float q = (s + 1.0f) / sparks;
+                float angle = particle.phase + s * 2.399963f;
+                Vector3 offset{
+                    std::cos(angle * 1.7f) * showerScale * q,
+                    std::sin(angle) * showerScale * q,
+                    std::cos(angle) * showerScale * q,
+                };
+                Vector3 spark = Vector3Add(hit, offset);
+                float sparkSize = (.055f + .09f * energy) * (1.0f - .45f * q);
+                DrawBillboard(camera, glow_, spark, sparkSize * 2.8f, Fade(color, .25f * fade * (1.0f - .5f * q)));
+                DrawBillboard(camera, glow_, spark, sparkSize, Fade(WHITE, .58f * fade * (1.0f - .55f * q)));
+            }
         }
 
         float flash = timeline.collision() * (1.0f - std::clamp((timeline.time - 2.72f) / .8f, 0.0f, 1.0f));

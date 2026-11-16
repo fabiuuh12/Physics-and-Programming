@@ -8,6 +8,11 @@ particles curve through a solenoidal magnetic field, and energy deposits appear
 in the detector subsystem they reach. The sequence repeats with a reproducible
 new event suitable for screen recording.
 
+During propagation, luminous particle heads make the event direction readable.
+High-momentum tracks use a soft halo and bright core; photons remain straight and
+gold, muons form clean penetrating violet tracks, and electrons or hadrons create
+distinct compact showers when they reach their calorimeter layers.
+
 Run it from the repository root:
 
 ```bash
