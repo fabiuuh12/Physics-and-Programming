@@ -2,6 +2,7 @@
 #include "../src/common/project_paths.h"
 #include "../src/common/quantum_solver.h"
 #include "../src/common/black_hole_growth.h"
+#include "../src/simulations/nuclear/plant/model.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -70,5 +71,30 @@ int main() {
     require(blackhole::properTimeRate(2)<blackhole::properTimeRate(10)&&blackhole::properTimeRate(1)==0,"coordinate time dilation strengthens near the horizon");
     require(std::string(blackhole::observerRegime(12))=="DISTANT FIELD"&&std::string(blackhole::observerRegime(2))=="NEAR-HORIZON FLIGHT","observer distance selects the camera regime");
     require(blackhole::interiorSkyRate(1.2)==1&&blackhole::interiorSkyRate(.2)>blackhole::interiorSkyRate(.8),"incoming sky evolution accelerates with conceptual interior depth");
+    plant::Model plantModel;
+    for(int i=0;i<20000;++i) {
+        plantModel.rods=(i%1000)/999.0f;
+        plantModel.load=(i%700)/699.0f;
+        plantModel.step(1.0f/60);
+        require(plantModel.electric()>=0 && plantModel.electric()<=plantModel.thermal(),"plant electricity stays within available heat");
+        require(std::abs(plantModel.electric()+plantModel.rejected()-plantModel.thermal())<.001f,"plant energy outputs balance transferred heat");
+    }
+    plantModel.shutdown();float shutdownHeat=plantModel.heat;
+    for(int i=0;i<3600;++i)plantModel.step(1.0f/60);
+    require(plantModel.rods==1 && plantModel.heat<shutdownHeat*.001f && plantModel.electric()<.01f,"shutdown inserts rods and thermal and electrical power decay");
+    plantModel.reset();plantModel.load=0;
+    for(int i=0;i<3600;++i)plantModel.step(1.0f/60);
+    require(plantModel.electric()<.01f && plantModel.thermal()>100,"unloaded generator exports no power while reactor heat is rejected");
+    plant::Grab grab;
+    require(!grab.update(true,true,0) && grab.held==-1,"a hand arriving pinched cannot capture a control");
+    grab.update(true,false,0);
+    require(grab.update(true,true,0) && grab.held==0,"fresh pinch captures hovered lever");
+    grab.update(true,true,1);
+    require(grab.held==0,"drag remains captured when cursor passes another control");
+    grab.update(false,true,0);
+    require(grab.held==-1 && !grab.update(true,true,0),"tracking loss releases control and prevents latched reacquisition");
+    grab.update(true,false,1);grab.update(true,true,1);
+    require(grab.held==1,"open hand can reacquire after tracking loss");
+    grab.update(true,false,1);require(grab.held==-1,"releasing pinch releases dial");
     std::puts("PASS: trajectories, oscillator, frame-rate independence, overlap, mixing, wall impacts, Gaussian and quantum evolution");
 }

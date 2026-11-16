@@ -172,6 +172,9 @@ target_link_libraries(hydrogen_bomb_viz_cpp PRIVATE raylib)
 
 add_executable(nuclear_power_plant_viz_cpp "src/simulations/nuclear/nuclear_power_plant_viz.cpp")
 target_link_libraries(nuclear_power_plant_viz_cpp PRIVATE raylib)
+if (WIN32)
+    target_link_libraries(nuclear_power_plant_viz_cpp PRIVATE ws2_32)
+endif()
 
 add_executable(hr_diagram_evolution_viz_cpp "src/simulations/astronomy/hr_diagram_evolution_viz.cpp")
 target_link_libraries(hr_diagram_evolution_viz_cpp PRIVATE raylib)
